@@ -1,0 +1,34 @@
+{
+    "en": {
+        "transport": ["taxi", "bus", "train", "subway", "rent", "gas", "parking", "toll"],
+        "groceries": ["groceries", "grocery", "groc"],
+        "food": ["restaurant", "cafe", "coffee", "delivery", "food"],
+        "alcohol": ["bar", "alco", "wine", "beer"],
+        "health": ["pharmacy", "doctor", "dentist", "hospital", "drugs", "stuff", "eyecare"],
+        "beauty": ["manicure", "hair", "haircut", "pedicure", "skincare", "cosmetology", "shampoo"],
+        "pets": ["feed", "petfood", "grooming", "petdoctor", "toilet", "accessories"],
+        "children": ["nappy", "diaper", "babyfood", "babydoctor", "babyclothes"],
+        "travel": ["tickets", "hotel"],
+        "clothes": ["clothes","shoes"],
+        "home": ["home", "tech", "flowers"],
+        "gifts": ["gift"],
+        "subscriptions": ["subscriptions", "subscription", "subs"],
+        "ads": ["ad","insta", "fb"]
+    },
+    "ru": {
+        "транспорт": ["такси", "автобус", "поезд", "метро", "аренда", "бензин", "парковка", "проезд"],
+        "продукты": ["продукты", "продукты", "продукты"],
+        "еда": ["ресторан", "кафе", "кофе", "доставка", "еда"],
+        "алкоголь": ["бар", "алкоголь", "вино"],
+        "здоровье": ["аптека", "врач", "стоматолог", "больница", "лекарства", "медтовары", "капли", "красота"],
+        "красота": ["красота", "стрижка", "волосы", "ресницы", "маник", "маникюр", "педикюр", "крем", "шампунь", "уход"],
+        "питомец": ["корм", "груминг", "аксесуары", "наполнитель", "ветеринар"],
+        "дети": ["памперсы", "подгузники", "детскоепитание", "доктор", "детскаяодежда"],
+        "путешествия": ["билеты", "отель"],
+        "одежда": ["одежда", "обувь"],
+        "дом": ["дом", "техника", "цветы"],
+        "подарки": ["подарок"],
+        "подписки": ["подписки", "подписка", "подписки"],
+        "реклама": ["реклама", "фб", "инста"]
+    }
+}
