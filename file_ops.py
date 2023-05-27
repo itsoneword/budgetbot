@@ -119,7 +119,7 @@ def add_category(user_id, category, subcategory):
     config.read(f"user_data/{user_id}/config.ini")
     user_language = config.get("DEFAULT", "language")
 
-    dictionary_path = f"user_data/{user_id}/dictionary_{user_id}.txt"
+    dictionary_path = f"user_data/{user_id}/dictionary_{user_id}.json"
     with open(dictionary_path, "r") as file:
         all_dicts = json.load(file)
 
@@ -141,7 +141,7 @@ def remove_category(user_id, category, subcategory):
     config.read(f"user_data/{user_id}/config.ini")
     user_language = config.get("DEFAULT", "language")
 
-    dictionary_path = f"user_data/{user_id}/dictionary_{user_id}.txt"
+    dictionary_path = f"user_data/{user_id}/dictionary_{user_id}.json"
     with open(dictionary_path, "r") as file:
         all_dicts = json.load(file)
 
@@ -161,7 +161,7 @@ def remove_category(user_id, category, subcategory):
 
 def check_dictionary_format(user_id: str):
     user_dir = f"user_data/{user_id}"
-    dictionary_path = f"{user_dir}/dictionary_{user_id}.txt"
+    dictionary_path = f"{user_dir}/dictionary_{user_id}.json"
 
     if not os.path.exists(dictionary_path):
         os.makedirs(dictionary_path)
@@ -175,7 +175,7 @@ def check_dictionary_format(user_id: str):
             raise ValueError("Dictionary is not multilingual")
     except (json.JSONDecodeError, ValueError):
         # The dictionary is in the old format or not multilingual, so we need to replace it.
-        default_dict_path = "configs/dictionary.txt"
+        default_dict_path = "configs/dictionary.json"
         with open(default_dict_path, "r") as default_file, open(
             dictionary_path, "w"
         ) as user_dict_file:
@@ -187,7 +187,7 @@ def read_dictionary(user_id: str) -> dict:
     config.read(f"user_data/{user_id}/config.ini")
     user_language = config.get("DEFAULT", "language")
 
-    dictionary_path = f"user_data/{user_id}/dictionary_{user_id}.txt"
+    dictionary_path = f"user_data/{user_id}/dictionary_{user_id}.json"
     with open(dictionary_path, "r") as file:
         all_dicts = json.load(file)
     cat_dict = all_dicts.get(user_language, {})
@@ -272,8 +272,8 @@ def create_user_dir_and_copy_dict(user_id):
     user_dir = f"user_data/{user_id}"
     os.makedirs(user_dir, exist_ok=True)
 
-    if not os.path.exists(f"{user_dir}/dictionary_{user_id}.txt"):
-        shutil.copy("configs/dictionary.txt", f"{user_dir}/dictionary_{user_id}.txt")
+    if not os.path.exists(f"{user_dir}/dictionary_{user_id}.json"):
+        shutil.copy("configs/dictionary.json", f"{user_dir}/dictionary_{user_id}.json")
     return user_dir
 
 

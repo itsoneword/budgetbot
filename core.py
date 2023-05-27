@@ -1,10 +1,6 @@
 import logging, configparser, inspect, re
-from pandas_ops import (
-    show_sum_per_cat,
-    show_top_subcategories,
-)
+from pandas_ops import show_sum_per_cat, show_top_subcategories, get_top_categories
 from utils import process_transaction_input, get_user_currency
-
 from file_ops import (
     create_user_dir_and_copy_dict,
     backup_spendings,
@@ -47,6 +43,10 @@ from texts import (
     HELP_TEXT,
     LANGUAGE_REPLY,
     SELECT_LANGUAGE,
+    CONFIRM_SAVE_CAT,
+    REQUEST_CAT,
+    SPECIFY_MANUALLY_PROMPT,
+    CHOOSE_CATEGORY_PROMPT,
 )
 
 
@@ -99,7 +99,16 @@ config = configparser.ConfigParser()
 config.read("configs/config")
 token = config["TELEGRAM"]["TOKEN"]
 
-NAME, LANGUAGE, CURRENCY, TRANSACTION, ADD_CATEGORY = range(5)
+(
+    NAME,
+    LANGUAGE,
+    CURRENCY,
+    TRANSACTION,
+    PROCESS_NEXT,
+    CHOOSE_CATEGORY,
+    SPECIFY_CATEGORY,
+    ADD_CATEGORY,
+) = range(8)
 WAITING_FOR_DOCUMENT = 1
 
 
@@ -171,36 +180,178 @@ async def save_currency(update: Update, context):
 
 
 async def save_transaction(update: Update, context):
+    print("ST-1", context.user_data.get("transactions"))
     user_id = str(update.effective_user.id)
+    currency = get_user_currency(user_id)
+
+    if (
+        not context.user_data.get("transactions")
+        and update.effective_message.from_user.id != context.bot.id
+    ):
+        context.user_data["transactions"] = re.split(
+            ",|\n", update.effective_message.text.lower()
+        )
+
+    print("ST-1.1", context.user_data.get("transactions"))
+
+    transaction = context.user_data["transactions"][0]
+    parts = transaction.lower().split()
+    try:
+        amount = float(parts[-1])
+    except ValueError:
+        await update.effective_message.reply_text(TRANSACTION_ERROR_TEXT)
+        context.user_data["transactions"] = []
+        return TRANSACTION
+
+    timestamp, category, subcategory, unknown_cat = process_transaction_input(
+        user_id, parts
+    )
+    transaction_data = {
+        "id": user_id,
+        "amount": amount,
+        "currency": currency,
+        "category": category,
+        "subcategory": subcategory,
+        "timestamp": timestamp,
+    }
+    if unknown_cat:
+        top_categories = get_top_categories(user_id)
+        keyboard = [
+            [InlineKeyboardButton(cat, callback_data=cat)] for cat in top_categories
+        ]
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    SPECIFY_MANUALLY_PROMPT, callback_data="enter_manually"
+                )
+            ]
+        )
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.effective_message.reply_text(
+            CHOOSE_CATEGORY_PROMPT.format(subcategory), reply_markup=reply_markup
+        )
+
+        context.user_data["subcategory"] = subcategory
+        context.user_data["transaction_data"] = transaction_data
+
+        if "state" not in context.user_data:
+            context.user_data["state"] = "save_transaction"
+
+        print("ST-2", context.user_data.get("transactions"))
+
+        if context.user_data["state"] == "process_next":
+            print("ST-3")
+            return CHOOSE_CATEGORY
+        else:
+            return PROCESS_NEXT
+
+    else:
+        save_user_transaction(user_id, transaction_data)
+        await update.effective_message.reply_text(TRANSACTION_SAVED_TEXT)
+
+        if len(context.user_data["transactions"]) > 1:
+            context.user_data["transactions"] = context.user_data["transactions"][1:]
+            await save_transaction(update, context)
+        else:
+            context.user_data["transactions"] = []
+
     log_user_interaction(
         user_id, update.effective_user.first_name, update.effective_user.username
     )
-    currency = get_user_currency(user_id)
-    # Split the input by commas (each transaction is separated by a comma)
-    transactions = re.split(",|\n", update.message.text.lower())
+    print("ST-4")
+    return TRANSACTION
 
-    for transaction in transactions:
-        parts = transaction.lower().split()
-        try:
-            amount = float(parts[-1])
-        except ValueError:
-            await update.message.reply_text(TRANSACTION_ERROR_TEXT)
-            return TRANSACTION
 
-        timestamp, category, subcategory = process_transaction_input(user_id, parts)
+# async def prompt_specify_category(update: Update, context: CallbackContext):
+#     await context.bot.send_message(
+#         chat_id=update.effective_chat.id, text="Please, manually enter category:"
+#     )
+#     return SPECIFY_CATEGORY
 
-        transaction_data = {
-            "id": user_id,
-            "amount": amount,
-            "currency": currency,
-            "category": category,
-            "subcategory": subcategory,
-            "timestamp": timestamp,
-        }
 
+async def choose_category(update: Update, context: CallbackContext):
+    print("CC-1", context.user_data.get("transactions"))
+
+    context.user_data["state"] = "choose_category"
+    user_id = str(update.effective_user.id)
+    category = update.callback_query.data
+    print("CC-1.1 cat is : ", category)
+    if category == "enter_manually":
+        print("CC-1.2 inside if", category)
+        await update.effective_message.reply_text("Please, manualy eenter category:")
+        return SPECIFY_CATEGORY
+
+    print("CC-1.2 outside if", category)
+
+    subcategory = context.user_data.get("subcategory")
+    transaction_data = context.user_data.get("transaction_data")
+    transaction_data["category"] = category
+
+    if subcategory:
+        add_category(user_id, category, subcategory)
+        await update.effective_message.reply_text(
+            CONFIRM_SAVE_CAT.format(category, subcategory), parse_mode=ParseMode.HTML
+        )
         save_user_transaction(user_id, transaction_data)
+        await update.effective_message.reply_text(TRANSACTION_SAVED_TEXT)
+        print("CC-2, tx saved")
 
-    await update.message.reply_text(TRANSACTION_SAVED_TEXT)
+        if len(context.user_data["transactions"]) > 1:
+            context.user_data["transactions"] = context.user_data["transactions"][1:]
+            print("CC-3")
+            await save_transaction(update, context)
+        else:
+            print("CC-5, clean txs cache")
+            context.user_data["transactions"] = []
+
+    else:
+        await update.effective_message.reply_text(
+            "An error occurred. Please try again."
+        )
+
+    print("CC-4, change state to TRANSACTION")
+    return TRANSACTION
+
+
+async def process_next(update: Update, context: CallbackContext):
+
+    print("PN1: ", context.user_data["state"])
+    context.user_data["state"] = "process_next"
+    await choose_category(update, context)
+
+
+async def handle_specify_category(update: Update, context: CallbackContext):
+    print("HSC1")
+    context.user_data["state"] = "handle_specify_category"
+
+    user_id = str(update.effective_user.id)
+    category = update.effective_message.text.lower()
+    subcategory = context.user_data.get("subcategory")
+    transaction_data = context.user_data.get("transaction_data")
+
+    # Save the chosen category in the dictionary
+    add_category(user_id, category, subcategory)
+
+    # Update the category in the transaction_data dictionary
+    transaction_data["category"] = category
+
+    # Save the transaction with the updated category
+    save_user_transaction(user_id, transaction_data)
+    print("Tx saved by handle_specify_cat")
+
+    # Send a confirmation message to the user
+    await update.effective_message.reply_text(
+        CONFIRM_SAVE_CAT.format(category, subcategory), parse_mode=ParseMode.HTML
+    )
+    await update.effective_message.reply_text(TRANSACTION_SAVED_TEXT)
+    if len(context.user_data["transactions"]) > 1:
+        # Remove the processed transaction from the list
+        context.user_data["transactions"] = context.user_data["transactions"][1:]
+        # Process the next transaction
+        # await save_transaction(update, context)
+        return save_transaction(update, context)
+
     return TRANSACTION
 
 
@@ -428,7 +579,6 @@ def main():
     application.add_handler(CommandHandler("delete", delete_records))
     application.add_handler(CommandHandler("help", help))
     application.add_handler(CommandHandler("download", download_spendings))
-
     application.add_handler(CommandHandler("cancel", cancel))
 
     upload_conv_handler = ConversationHandler(
@@ -446,7 +596,8 @@ def main():
         entry_points=[
             CommandHandler("start", start),
             CommandHandler("change_cat", add_cat),
-        ],  # Add "addcat" here
+            MessageHandler(filters.Regex(r"^\w+ \d+$"), handle_text),
+        ],
         states={
             LANGUAGE: [CallbackQueryHandler(language)],
             NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_name)],
@@ -454,18 +605,25 @@ def main():
             TRANSACTION: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, save_transaction)
             ],
+            PROCESS_NEXT: [CallbackQueryHandler(process_next)],
+            CHOOSE_CATEGORY: [
+                CallbackQueryHandler(choose_category),
+            ],
+            SPECIFY_CATEGORY: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_specify_category)
+            ],
             ADD_CATEGORY: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, save_category)
             ],
         },
         allow_reentry=True,
-        fallbacks=[cancel],
+        fallbacks=[CommandHandler("cancel", cancel)],
     )
     application.add_handler(conv_handler)
     # message handler for text input
-    application.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text)
-    )
+    # application.add_handler(
+    #     MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text)
+    # )
     application.add_handler(CommandHandler("leave", archive_profile))
 
     application.run_polling()

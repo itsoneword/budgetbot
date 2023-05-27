@@ -5,7 +5,7 @@ TRANSACTION_START_TEXT = """Currency saved\. Now, please send me your transactio
         or in a short way: \n    `taxi 5` \n
         it will be saved with _current date and time_ into category \- _transport_\n
         Multiple lines and coma separated lines are supported\.\n\n
-        To see available categories type /show_cat, /change_cat to modify existing records or get /help for all the known commands\."""
+        To see available categories type /show\_cat, /change\_cat to modify existing records or get /help for all the known commands\."""
 TRANSACTION_SAVED_TEXT = "Transaction saved!"
 TRANSACTION_ERROR_TEXT = "You need to enter an amount. Please try again."
 
@@ -54,3 +54,7 @@ want to have additional functionality, contact  @dy0r2
 """
 
 CANCEL_TEXT = "Cancelled. You can now enter a new command."
+CONFIRM_SAVE_CAT = "Category <i>'{}'</i> has been chosen for subcategory <i>'{}'</i> and saved into dictionary."
+REQUEST_CAT = "Please send me a category, you want to use for <i>'{}'</i>. It will be added into your dictionary and next time will be automatically selected for <i>'{}'</i>:"
+SPECIFY_MANUALLY_PROMPT = "Specify manually"
+CHOOSE_CATEGORY_PROMPT = "I could not find category for '{}' in your dictionary. Please choose one of the recently used or enter a new one:"

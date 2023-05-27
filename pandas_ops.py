@@ -1,7 +1,16 @@
 # pandas_ops.py
-
+import os
 import pandas as pd
 from datetime import datetime
+
+
+def get_top_categories(user_id, n=5):
+    records_file = f"user_data/{user_id}/spendings_{user_id}.csv"
+    if not os.path.exists(records_file):
+        return []
+    df = pd.read_csv(records_file)
+    top_categories = df["category"].value_counts().head(n).index.tolist()
+    return top_categories
 
 
 def get_current_month_data(user_id):
