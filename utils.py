@@ -2,7 +2,7 @@
 
 import configparser, json
 from datetime import datetime, timezone
-from file_ops import check_dictionary_format
+from file_ops import check_dictionary_format, add_category
 
 
 def process_transaction_input(user_id, parts):
@@ -23,6 +23,7 @@ def process_transaction_input(user_id, parts):
         else:
             category = parts[0]
             subcategory = parts[1]
+            add_category(user_id, category, subcategory)
     else:
         category = None
         subcategory = parts[0]

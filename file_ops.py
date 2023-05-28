@@ -1,4 +1,4 @@
-import os, shutil, configparser, csv, time, pandas, json, datetime
+import os, shutil, configparser, csv, time, pandas as pd, json, datetime
 
 from pandas_ops import show_sum_per_cat, show_av_per_day, show_total
 
@@ -118,6 +118,7 @@ def add_category(user_id, category, subcategory):
     config = configparser.ConfigParser()
     config.read(f"user_data/{user_id}/config.ini")
     user_language = config.get("DEFAULT", "language")
+    check_and_copy_dictionary(user_id)
 
     dictionary_path = f"user_data/{user_id}/dictionary_{user_id}.json"
     with open(dictionary_path, "r") as file:
@@ -134,6 +135,18 @@ def add_category(user_id, category, subcategory):
 
     with open(dictionary_path, "w") as file:
         json.dump(all_dicts, file, ensure_ascii=False)
+
+    update_category(user_id, subcategory, category)
+
+
+def update_category(user_id, subcategory, new_category):
+    records_file = f"user_data/{user_id}/spendings_{user_id}.csv"
+    if not os.path.exists(records_file):
+        return
+    df = pd.read_csv(records_file)
+    mask = (df["subcategory"] == subcategory) & (df["category"] == "other")
+    df.loc[mask, "category"] = new_category
+    df.to_csv(records_file, index=False)
 
 
 def remove_category(user_id, category, subcategory):
@@ -162,9 +175,7 @@ def remove_category(user_id, category, subcategory):
 def check_dictionary_format(user_id: str):
     user_dir = f"user_data/{user_id}"
     dictionary_path = f"{user_dir}/dictionary_{user_id}.json"
-
-    if not os.path.exists(dictionary_path):
-        os.makedirs(dictionary_path)
+    check_and_copy_dictionary(user_id)
 
     with open(dictionary_path, "r") as file:
         file_content = file.read()
@@ -206,12 +217,31 @@ def get_records(user_id):
 
     if not os.path.exists(file_path):
         return None
-
     sum_per_cat = show_sum_per_cat(user_id)
-    av_per_day = show_av_per_day(user_id)
+    av_per_day, total_av_per_day, prediction, comparison = show_av_per_day(user_id)
     total_spendings = show_total(user_id)
 
-    return sum_per_cat, av_per_day, total_spendings
+    return (
+        sum_per_cat,
+        av_per_day,
+        total_spendings,
+        total_av_per_day,
+        prediction,
+        comparison,
+    )
+
+
+# def get_records(user_id):
+#     file_path = f"user_data/{user_id}/spendings_{user_id}.csv"
+
+#     if not os.path.exists(file_path):
+#         return None
+
+#     sum_per_cat = show_sum_per_cat(user_id)
+#     av_per_day = show_av_per_day(user_id)
+#     total_spendings = show_total(user_id)
+
+#     return sum_per_cat, av_per_day, total_spendings
 
 
 def save_user_transaction(user_id, transaction_data):
@@ -268,6 +298,14 @@ def create_config_file(user_id, user_name):
             config.write(configfile)
 
 
+def check_and_copy_dictionary(user_id):
+    dictionary_file = f"user_data/{user_id}/dictionary_{user_id}.json"
+    original_dictionary_file = "configs/dictionary.json"
+
+    if not os.path.exists(dictionary_file):
+        shutil.copyfile(original_dictionary_file, dictionary_file)
+
+
 def create_user_dir_and_copy_dict(user_id):
     user_dir = f"user_data/{user_id}"
     os.makedirs(user_dir, exist_ok=True)
@@ -277,9 +315,9 @@ def create_user_dir_and_copy_dict(user_id):
     return user_dir
 
 
-def save_to_file(file_path, data, mode="a"):
-    with open(file_path, mode) as file:
-        file.write(data)
+# def save_to_file(file_path, data, mode="a"):
+#     with open(file_path, mode) as file:
+#         file.write(data)
 
 
 def read_from_file(file_path):

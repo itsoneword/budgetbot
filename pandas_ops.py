@@ -1,7 +1,7 @@
 # pandas_ops.py
-import os
-import pandas as pd
-from datetime import datetime
+import os, calendar, pandas as pd
+
+from datetime import datetime, timedelta
 
 
 def get_top_categories(user_id, n=5):
@@ -9,7 +9,9 @@ def get_top_categories(user_id, n=5):
     if not os.path.exists(records_file):
         return []
     df = pd.read_csv(records_file)
-    top_categories = df["category"].value_counts().head(n).index.tolist()
+    top_categories = (
+        df[df["category"] != "Other"]["category"].value_counts().head(n).index.tolist()
+    )
     return top_categories
 
 
@@ -62,34 +64,54 @@ def show_top_subcategories(user_id):
     return top_subcats
 
 
+def top_5_cat(user_id):
+
+    df = pd.read_csv(f"user_data/{user_id}/spendings_{user_id}.csv")
+    # Assuming df is your DataFrame and 'category' is the column with categories
+    top5cat = df["category"].value_counts().nlargest(5).index.tolist()
+
+    return top5cat
+
+
 def show_av_per_day(user_id):
     current_month_data = get_current_month_data(user_id)
-    selected_categories = [
-        "food",
-        "transport",
-        "groceries",
-        "alcohol",
-        "транспорт",
-        "продукты",
-        "алкоголь",
-        "еда",
-    ]
+    selected_categories = top_5_cat(user_id)
 
     # Filter the data to only include the selected categories
     filtered_data = current_month_data[
         current_month_data["category"].isin(selected_categories)
     ]
-
-    # Calculate the total sum per category
+    total = show_total(user_id)
+    # Calculate the total sum per selected category
     total_per_cat = filtered_data.groupby("category")["amount"].sum()
-
-    # Get today's day number
     day_number = datetime.now().day
 
     # Calculate the average per day
     av_per_day = round(total_per_cat / day_number, 1)
+    total_av_per_day = round(current_month_data["amount"].sum() / day_number, 1)
 
-    return av_per_day
+    # Calculate the prediction for the end of the month
+    current_month_days = calendar.monthrange(datetime.now().year, datetime.now().month)[
+        1
+    ]
+    prediction = total + round(av_per_day.sum()) * (current_month_days - day_number)
+    # Store the total average spending for today
+
+    # Calculate the total average spending until yesterday
+    yesterday_data = filtered_data[filtered_data["timestamp"].dt.day < day_number]
+    av_per_day_yesterday = (
+        round(yesterday_data["amount"].sum() / (day_number - 1), 1)
+        if day_number > 1
+        else 0
+    )
+    # Calculate the comparison with yesterday's total average spending
+    comparison = (
+        round((av_per_day.sum() - av_per_day_yesterday) / av_per_day_yesterday * 100, 2)
+        if av_per_day_yesterday != 0
+        else 0
+    )
+
+    return av_per_day, total_av_per_day, prediction, comparison
 
 
 def show_total(user_id):

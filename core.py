@@ -1,5 +1,10 @@
 import logging, configparser, inspect, re
-from pandas_ops import show_sum_per_cat, show_top_subcategories, get_top_categories
+from pandas_ops import (
+    show_sum_per_cat,
+    show_top_subcategories,
+    get_top_categories,
+    show_av_per_day,
+)
 from utils import process_transaction_input, get_user_currency
 from file_ops import (
     create_user_dir_and_copy_dict,
@@ -44,7 +49,7 @@ from texts import (
     LANGUAGE_REPLY,
     SELECT_LANGUAGE,
     CONFIRM_SAVE_CAT,
-    REQUEST_CAT,
+    NOTIFY_OTHER_CAT,
     SPECIFY_MANUALLY_PROMPT,
     CHOOSE_CATEGORY_PROMPT,
 )
@@ -104,11 +109,11 @@ token = config["TELEGRAM"]["TOKEN"]
     LANGUAGE,
     CURRENCY,
     TRANSACTION,
-    PROCESS_NEXT,
+    # PROCESS_NEXT,
     CHOOSE_CATEGORY,
     SPECIFY_CATEGORY,
     ADD_CATEGORY,
-) = range(8)
+) = range(7)
 WAITING_FOR_DOCUMENT = 1
 
 
@@ -180,109 +185,71 @@ async def save_currency(update: Update, context):
 
 
 async def save_transaction(update: Update, context):
-    print("ST-1", context.user_data.get("transactions"))
     user_id = str(update.effective_user.id)
     currency = get_user_currency(user_id)
+    transactions = re.split(",|\n", update.message.text.lower())
+    list_subcat = []
+    for transaction in transactions:
+        parts = transaction.lower().split()
+        try:
+            amount = float(parts[-1])
+        except ValueError:
+            await update.message.reply_text(TRANSACTION_ERROR_TEXT)
+            return TRANSACTION
 
-    if (
-        not context.user_data.get("transactions")
-        and update.effective_message.from_user.id != context.bot.id
-    ):
-        context.user_data["transactions"] = re.split(
-            ",|\n", update.effective_message.text.lower()
+        timestamp, category, subcategory, unknown_cat = process_transaction_input(
+            user_id, parts
         )
+        transaction_data = {
+            "id": user_id,
+            "amount": amount,
+            "currency": currency,
+            "category": category,
+            "subcategory": subcategory,
+            "timestamp": timestamp,
+        }
+        if unknown_cat:
+            if len(transactions) > 1:
+                # Save the transaction with category as 'Other'
+                transaction_data["category"] = "other"
+                save_user_transaction(user_id, transaction_data)
+                list_subcat.append(subcategory)
+            else:
+                # Get the top 5 categories
+                top_categories = get_top_categories(user_id)
+                # Create an inline keyboard with the top categories
+                keyboard = [
+                    [InlineKeyboardButton(cat, callback_data=cat)]
+                    for cat in top_categories
+                ]
 
-    print("ST-1.1", context.user_data.get("transactions"))
-
-    transaction = context.user_data["transactions"][0]
-    parts = transaction.lower().split()
-    try:
-        amount = float(parts[-1])
-    except ValueError:
-        await update.effective_message.reply_text(TRANSACTION_ERROR_TEXT)
-        context.user_data["transactions"] = []
-        return TRANSACTION
-
-    timestamp, category, subcategory, unknown_cat = process_transaction_input(
-        user_id, parts
-    )
-    transaction_data = {
-        "id": user_id,
-        "amount": amount,
-        "currency": currency,
-        "category": category,
-        "subcategory": subcategory,
-        "timestamp": timestamp,
-    }
-    if unknown_cat:
-        top_categories = get_top_categories(user_id)
-        keyboard = [
-            [InlineKeyboardButton(cat, callback_data=cat)] for cat in top_categories
-        ]
-        keyboard.append(
-            [
-                InlineKeyboardButton(
-                    SPECIFY_MANUALLY_PROMPT, callback_data="enter_manually"
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                # Send the keyboard to the user
+                await update.message.reply_text(
+                    CHOOSE_CATEGORY_PROMPT.format(subcategory),
+                    reply_markup=reply_markup,
+                    parse_mode=ParseMode.HTML,
                 )
-            ]
-        )
+                # The chosen category will be handled in the handle_button_press function
+                context.user_data["subcategory"] = subcategory
+                context.user_data["transaction_data"] = transaction_data
 
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.effective_message.reply_text(
-            CHOOSE_CATEGORY_PROMPT.format(subcategory), reply_markup=reply_markup
-        )
-
-        context.user_data["subcategory"] = subcategory
-        context.user_data["transaction_data"] = transaction_data
-
-        if "state" not in context.user_data:
-            context.user_data["state"] = "save_transaction"
-
-        print("ST-2", context.user_data.get("transactions"))
-
-        if context.user_data["state"] == "process_next":
-            print("ST-3")
-            return CHOOSE_CATEGORY
+                return CHOOSE_CATEGORY
         else:
-            return PROCESS_NEXT
-
-    else:
-        save_user_transaction(user_id, transaction_data)
-        await update.effective_message.reply_text(TRANSACTION_SAVED_TEXT)
-
-        if len(context.user_data["transactions"]) > 1:
-            context.user_data["transactions"] = context.user_data["transactions"][1:]
-            await save_transaction(update, context)
-        else:
-            context.user_data["transactions"] = []
-
-    log_user_interaction(
-        user_id, update.effective_user.first_name, update.effective_user.username
-    )
-    print("ST-4")
+            save_user_transaction(user_id, transaction_data)
+    if len(transactions) and unknown_cat > 1:
+        await update.message.reply_text(
+            NOTIFY_OTHER_CAT.format(list_subcat), parse_mode=ParseMode.HTML
+        )
+    await update.message.reply_text(TRANSACTION_SAVED_TEXT)
     return TRANSACTION
-
-
-# async def prompt_specify_category(update: Update, context: CallbackContext):
-#     await context.bot.send_message(
-#         chat_id=update.effective_chat.id, text="Please, manually enter category:"
-#     )
-#     return SPECIFY_CATEGORY
 
 
 async def choose_category(update: Update, context: CallbackContext):
     print("CC-1", context.user_data.get("transactions"))
 
-    context.user_data["state"] = "choose_category"
     user_id = str(update.effective_user.id)
     category = update.callback_query.data
-    print("CC-1.1 cat is : ", category)
-    if category == "enter_manually":
-        print("CC-1.2 inside if", category)
-        await update.effective_message.reply_text("Please, manualy eenter category:")
-        return SPECIFY_CATEGORY
-
-    print("CC-1.2 outside if", category)
 
     subcategory = context.user_data.get("subcategory")
     transaction_data = context.user_data.get("transaction_data")
@@ -297,14 +264,6 @@ async def choose_category(update: Update, context: CallbackContext):
         await update.effective_message.reply_text(TRANSACTION_SAVED_TEXT)
         print("CC-2, tx saved")
 
-        if len(context.user_data["transactions"]) > 1:
-            context.user_data["transactions"] = context.user_data["transactions"][1:]
-            print("CC-3")
-            await save_transaction(update, context)
-        else:
-            print("CC-5, clean txs cache")
-            context.user_data["transactions"] = []
-
     else:
         await update.effective_message.reply_text(
             "An error occurred. Please try again."
@@ -314,11 +273,16 @@ async def choose_category(update: Update, context: CallbackContext):
     return TRANSACTION
 
 
-async def process_next(update: Update, context: CallbackContext):
+# async def process_next(update: Update, context: CallbackContext):
+#     category = update.callback_query.data
+#     print("PN1: ", context.user_data["state"])
+#     context.user_data["state"] = "process_next"
+#     if category == "enter_manually":
+#         print("PN-1.2 inside if", category)
+#         await update.effective_message.reply_text("Please, manualy eenter category:")
+#         return SPECIFY_CATEGORY
 
-    print("PN1: ", context.user_data["state"])
-    context.user_data["state"] = "process_next"
-    await choose_category(update, context)
+#     await choose_category(update, context)
 
 
 async def handle_specify_category(update: Update, context: CallbackContext):
@@ -332,52 +296,53 @@ async def handle_specify_category(update: Update, context: CallbackContext):
 
     # Save the chosen category in the dictionary
     add_category(user_id, category, subcategory)
-
     # Update the category in the transaction_data dictionary
     transaction_data["category"] = category
-
     # Save the transaction with the updated category
     save_user_transaction(user_id, transaction_data)
-    print("Tx saved by handle_specify_cat")
-
     # Send a confirmation message to the user
     await update.effective_message.reply_text(
         CONFIRM_SAVE_CAT.format(category, subcategory), parse_mode=ParseMode.HTML
     )
     await update.effective_message.reply_text(TRANSACTION_SAVED_TEXT)
-    if len(context.user_data["transactions"]) > 1:
-        # Remove the processed transaction from the list
-        context.user_data["transactions"] = context.user_data["transactions"][1:]
-        # Process the next transaction
-        # await save_transaction(update, context)
-        return save_transaction(update, context)
 
     return TRANSACTION
 
 
 async def show_records(update: Update, context):
     user_id = str(update.effective_user.id)
+    currency = get_user_currency(user_id)
     records = get_records(user_id)
-
     if records is None:
         await update.message.reply_text(RECORDS_NOT_FOUND_TEXT)
         return
-
-    sum_per_cat, av_per_day, total_spendings = records
+    (
+        sum_per_cat,
+        av_per_day,
+        total_spendings,
+        total_av_per_day,
+        prediction,
+        comparison,
+    ) = records
     sum_per_cat_text = "\n".join(
         f"{cat}: {amount}" for cat, amount in sum_per_cat.items()
     )
     av_per_day_text = "\n".join(
         f"{cat}: {amount}" for cat, amount in av_per_day.items()
     )
+    av_per_day_sum = round(av_per_day.sum())
 
     output_text = RECORDS_TEMPLATE.format(
         total=total_spendings,
         sum_per_cat=sum_per_cat_text,
+        av_per_day_sum=av_per_day_sum,
         av_per_day=av_per_day_text,
+        total_av_per_day=total_av_per_day,
+        predicted_total=prediction,
+        comparison=comparison,
+        currency=currency,
     )
-
-    await update.message.reply_text(output_text)
+    await update.message.reply_text(output_text, parse_mode=ParseMode.HTML)
     return TRANSACTION
 
 
@@ -596,7 +561,7 @@ def main():
         entry_points=[
             CommandHandler("start", start),
             CommandHandler("change_cat", add_cat),
-            MessageHandler(filters.Regex(r"^\w+ \d+$"), handle_text),
+            MessageHandler(filters.Regex(r"\b\w+\s+\d+$"), handle_text),
         ],
         states={
             LANGUAGE: [CallbackQueryHandler(language)],
@@ -605,13 +570,15 @@ def main():
             TRANSACTION: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, save_transaction)
             ],
-            PROCESS_NEXT: [CallbackQueryHandler(process_next)],
+            # PROCESS_NEXT: [CallbackQueryHandler(process_next)],
             CHOOSE_CATEGORY: [
                 CallbackQueryHandler(choose_category),
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND, handle_specify_category
+                ),
             ],
-            SPECIFY_CATEGORY: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_specify_category)
-            ],
+            # SPECIFY_CATEGORY: [
+            # ],
             ADD_CATEGORY: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, save_category)
             ],
@@ -621,9 +588,9 @@ def main():
     )
     application.add_handler(conv_handler)
     # message handler for text input
-    # application.add_handler(
-    #     MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text)
-    # )
+    application.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text)
+    )
     application.add_handler(CommandHandler("leave", archive_profile))
 
     application.run_polling()
