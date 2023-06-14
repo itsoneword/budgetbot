@@ -282,28 +282,29 @@ async def save_transaction(update: Update, context):
         await update.message.reply_text(
             NOTIFY_OTHER_CAT.format(list_subcat), parse_mode=ParseMode.HTML
         )
-    (
-        current_daily_average,
-        percent_difference,
-        daily_limit,
-        days_zero_spending,
-        new_daily_limit,
-    ) = calculate_limit(user_id)
-
-    await update.message.reply_text(TRANSACTION_SAVED_TEXT)
-    # print(current_daily_average, daily_limit)
-    if current_daily_average > daily_limit:
-        await update.message.reply_text(
-            LIMIT_EXCEEDED.format(
-                percent_difference=percent_difference,
-                current_daily_average=current_daily_average,
-                daily_limit=daily_limit,
-                days_zero_spending=days_zero_spending,
-                new_daily_limit=new_daily_limit,
-                currency=currency,
-            ),
-            parse_mode=ParseMode.HTML,
-        )
+    try:
+        (
+            current_daily_average,
+            percent_difference,
+            daily_limit,
+            days_zero_spending,
+            new_daily_limit,
+        ) = calculate_limit(user_id)
+        await update.message.reply_text(TRANSACTION_SAVED_TEXT)
+        if current_daily_average > daily_limit:
+            await update.message.reply_text(
+                LIMIT_EXCEEDED.format(
+                    percent_difference=percent_difference,
+                    current_daily_average=current_daily_average,
+                    daily_limit=daily_limit,
+                    days_zero_spending=days_zero_spending,
+                    new_daily_limit=new_daily_limit,
+                    currency=currency,
+                ),
+                parse_mode=ParseMode.HTML,
+            )
+    except Exception:
+        await update.message.reply_text(TRANSACTION_SAVED_TEXT)
 
     return TRANSACTION
 
@@ -691,7 +692,7 @@ def main():
     application = Application.builder().token(token).build()
 
     application.add_handler(CommandHandler("show", show_records))
-    application.add_handler(CommandHandler("showext", show_detailed))
+    application.add_handler(CommandHandler("show_ext", show_detailed))
     application.add_handler(CommandHandler("show_income", show_records))
 
     application.add_handler(CommandHandler("show_cat", show_cat))

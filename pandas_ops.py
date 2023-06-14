@@ -40,7 +40,8 @@ def get_current_month_data(file_path):
 
 
 def show_sum_per_cat(user_id, file_path):
-    current_month_data = get_current_month_data(user_id, file_path)
+    file_path = get_user_path(user_id)
+    current_month_data = get_current_month_data(file_path)
     sum_per_cat = (
         current_month_data.groupby("category")["amount"]
         .sum()
@@ -50,7 +51,9 @@ def show_sum_per_cat(user_id, file_path):
 
 
 def show_top_subcategories(user_id):
-    current_month_data = get_current_month_data(user_id)
+    file_path = get_user_path(user_id)
+
+    current_month_data = get_current_month_data(file_path)
 
     # Calculate the total sum per subcategory within each category
     sum_per_subcat = (
@@ -78,7 +81,8 @@ def show_top_subcategories(user_id):
 
 
 def show_av_per_day(user_id, file_path):
-    current_month_data = get_current_month_data(user_id, file_path)
+    file_path = get_user_path(user_id)
+    current_month_data = get_current_month_data(file_path)
     selected_categories = get_top_categories(user_id, file_path)
 
     # Filter the data to only include the selected categories
@@ -119,7 +123,8 @@ def show_av_per_day(user_id, file_path):
 
 
 def show_total(user_id, file_path):
-    current_month_data = get_current_month_data(user_id, file_path)
+    file_path = get_user_path(user_id)
+    current_month_data = get_current_month_data(file_path)
     total_spendings = current_month_data["amount"].sum()
     return total_spendings
 

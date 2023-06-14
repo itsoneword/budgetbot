@@ -59,16 +59,20 @@ NO_RECORDS_TO_DELETE = "No records to delete."
 RECORD_DELETED = "Deleted record number {}."
 NOT_ENOUGH_RECORDS = "There are less than {} records."
 HELP_TEXT = """
+About☝🏼 New release 0.0.3 from 14.06.23. 👌🏼 
+New features were added. 🎉
+Possibility to set monthly limit and track daily. Please, consider re-running /start to set up the limit.
+
 Bellow the list of available commands. We are constantly working on the product, so if you have noticed any problems or 
 want to have additional functionality, contact @dy0r2 
 
 <b>/start</b> - Create profile or re-write current settings. Dictionary language, currency, monthly limit will be asked
 <b>/show</b> - Show current month spendings, per category and average.
 <b>/show_last N</b> - Show N latest transactions saved(default 5) or transactions for dedicated category (/show_last transport)
-<b>/showext</b> - Detailed spendings list with top3 subcategories
-<b>/income</b> - Add your income.
-<b>/show_income</b> - Show current month income, per category and average.
-<b>/monthly_stat</b> - Show monthly chart and heatmap based on your spendings.
+<b>/show_ext</b> - Detailed spendings list with top3 subcategories
+<b>/income</b> - Add your income. 🆕
+<b>/show_income</b> - Show current month income, per category and average.🆕
+<b>/monthly_stat</b> - Show monthly chart and heatmap based on your spendings.🆕
 <b>/show_cat</b> - Show currently used dictionary.
 <b>/change_cat</b> - Modify existing dictionary, add or delete category.  
 <b>/delete N</b> - Delete transaction with number = N. Number is shown in /show_last command. 1 is default value.
