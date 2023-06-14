@@ -49,12 +49,16 @@ BudgetBot is a great tool for anyone looking to gain more control over their per
 
 ## Getting Started
 
-To get started with BudgetBot, follow these steps:
+The bot is currently available under my own production: https://t.me/mybudgetassistantbot 
+You can also get started with self deployment, follow these steps:
 
 1. Clone the repository: `git clone https://github.com/itsoneword/budgetbot.git`
-2. Navigate to the project directory: `cd budgetbot`
-3. Install the necessary dependencies: `npm install`
-4. Start the bot: `npm start`
+2. Navigate to the project directory: `cd budgetbot\configs`
+3. Create "config" file with the token inside:
+[TELEGRAM]
+TOKEN = "your_token_here"
+4. Install the necessary dependencies(panas, os, etc)
+5. Start the bot: "python3 core.py"
 
 ## Contributing
 
