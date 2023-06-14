@@ -238,7 +238,6 @@ def read_dictionary(user_id: str) -> dict:
     with open(dictionary_path, "r") as file:
         all_dicts = json.load(file)
     cat_dict = all_dicts.get(user_language, {})
-    # print(f"Selected dictionary: {cat_dict}")
 
     return cat_dict
 
@@ -251,11 +250,9 @@ def check_config_exists(user_id):
 def get_records(user_id, command):
 
     if command == "show_income":
-        # Handle the 'delete_income' command
         file_path = f"user_data/{user_id}/income_{user_id}.csv"
     else:
         file_path = f"user_data/{user_id}/spendings_{user_id}.csv"
-
     if not os.path.exists(file_path):
         return None
     sum_per_cat = show_sum_per_cat(user_id, file_path)
@@ -263,7 +260,6 @@ def get_records(user_id, command):
         user_id, file_path
     )
     total_spendings = show_total(user_id, file_path)
-
     return (
         sum_per_cat,
         av_per_day,

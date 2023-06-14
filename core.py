@@ -310,7 +310,6 @@ async def save_transaction(update: Update, context):
 
 
 async def choose_category(update: Update, context: CallbackContext):
-    print("CC-1", context.user_data.get("transactions"))
 
     user_id = str(update.effective_user.id)
     category = update.callback_query.data
@@ -338,7 +337,6 @@ async def choose_category(update: Update, context: CallbackContext):
 
 
 async def handle_specify_category(update: Update, context: CallbackContext):
-    print("HSC1")
     context.user_data["state"] = "handle_specify_category"
 
     user_id = str(update.effective_user.id)
@@ -377,6 +375,7 @@ async def show_records(update: Update, context):
     else:
         record_type = "spendings"
         record_type2 = "spent"
+
     currency = get_user_currency(user_id)
     records = get_records(user_id, command)
     if records is None:
@@ -411,6 +410,28 @@ async def show_records(update: Update, context):
         record_type2=record_type2,
     )
     await update.message.reply_text(output_text, parse_mode=ParseMode.HTML)
+    try:
+        (
+            current_daily_average,
+            percent_difference,
+            daily_limit,
+            days_zero_spending,
+            new_daily_limit,
+        ) = calculate_limit(user_id)
+        if current_daily_average > daily_limit:
+            await update.message.reply_text(
+                LIMIT_EXCEEDED.format(
+                    percent_difference=percent_difference,
+                    current_daily_average=current_daily_average,
+                    daily_limit=daily_limit,
+                    days_zero_spending=days_zero_spending,
+                    new_daily_limit=new_daily_limit,
+                    currency=currency,
+                ),
+                parse_mode=ParseMode.HTML,
+            )
+    except Exception:
+        pass
     return TRANSACTION
 
 

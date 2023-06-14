@@ -10,10 +10,9 @@ def get_user_path(user_id):
 
 
 def get_top_categories(file_path, n=5):
-    records_file = file_path
-    if not os.path.exists(records_file):
+    if not os.path.exists(file_path):
         return []
-    df = pd.read_csv(records_file)
+    df = pd.read_csv(file_path)
     top_categories = (
         df[df["category"] != "Other"]["category"].value_counts().head(n).index.tolist()
     )
@@ -81,10 +80,9 @@ def show_top_subcategories(user_id):
 
 
 def show_av_per_day(user_id, file_path):
-    file_path = get_user_path(user_id)
-    current_month_data = get_current_month_data(file_path)
-    selected_categories = get_top_categories(user_id, file_path)
 
+    current_month_data = get_current_month_data(file_path)
+    selected_categories = get_top_categories(file_path)
     # Filter the data to only include the selected categories
     filtered_data = current_month_data[
         current_month_data["category"].isin(selected_categories)
@@ -123,7 +121,6 @@ def show_av_per_day(user_id, file_path):
 
 
 def show_total(user_id, file_path):
-    file_path = get_user_path(user_id)
     current_month_data = get_current_month_data(file_path)
     total_spendings = current_month_data["amount"].sum()
     return total_spendings
@@ -168,7 +165,6 @@ def calculate_limit(user_id):
     daily_limit = round(daily_limit, 2)
     days_zero_spending = round(days_zero_spending, 2)
     new_daily_limit = round(new_daily_limit, 2)
-    # print(current_daily_average, daily_limit)
 
     return [
         current_daily_average,
