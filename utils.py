@@ -1,6 +1,7 @@
 # utils.py
 
 import configparser, json
+from dateutil.parser import parse, ParserError
 from datetime import datetime, timezone
 from file_ops import check_dictionary_format, add_category
 
@@ -39,6 +40,24 @@ def process_transaction_input(user_id, parts):
     # subcategory = subcategory or "other"
 
     return timestamp, category, subcategory, unknown_cat
+
+
+def process_income_input(user_id, parts):
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    category = "salary"
+    if len(parts) == 3:
+        try:
+            timestamp = parse(parts[0], dayfirst=True)
+            category = parts[1]
+        except (ValueError, ParserError):
+            category = parts[0]
+    elif len(parts) == 2:
+        try:
+            timestamp = parse(parts[0], dayfirst=True)
+        except (ValueError, ParserError):
+            category = parts[0]
+
+    return timestamp, category
 
 
 def toDateUtc(mdate):

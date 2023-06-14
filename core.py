@@ -3,14 +3,17 @@ from pandas_ops import (
     show_sum_per_cat,
     show_top_subcategories,
     get_top_categories,
-    show_av_per_day,
+    calculate_limit,
+    get_user_path,
 )
-from utils import process_transaction_input, get_user_currency
+from charts import make_chart, make_table
+from utils import process_transaction_input, get_user_currency, process_income_input
 from file_ops import (
     create_user_dir_and_copy_dict,
     backup_spendings,
     save_user_setting,
     save_user_transaction,
+    save_user_income,
     get_records,
     check_config_exists,
     read_dictionary,
@@ -23,6 +26,7 @@ from file_ops import (
     update_user_list,
     read_dictionary,
     archive_user_data,
+    backup_charts,
 )
 from texts import (
     CHOOSE_CURRENCY_TEXT,
@@ -39,7 +43,6 @@ from texts import (
     WRONG_INPUT_FORMAT,
     INVALID_RECORD_NUM,
     NO_RECORDS,
-    RECORD_LINE,
     INVALID_RECORD_NUM,
     NO_RECORDS_TO_DELETE,
     RECORD_DELETED,
@@ -50,13 +53,20 @@ from texts import (
     SELECT_LANGUAGE,
     CONFIRM_SAVE_CAT,
     NOTIFY_OTHER_CAT,
-    SPECIFY_MANUALLY_PROMPT,
     CHOOSE_CATEGORY_PROMPT,
+    UPLOADING_FINISHED,
+    LAST_RECORDS,
+    INCOME_HELP,
+    CHOOSE_LIMIT_TEXT,
+    CURRENCY_REPLY,
+    NO_LIMIT,
+    LIMIT_EXCEEDED,
 )
 
 
 from telegram import (
     Update,
+    InputMediaPhoto,
     ReplyKeyboardRemove,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -105,20 +115,19 @@ config.read("configs/config")
 token = config["TELEGRAM"]["TOKEN"]
 
 (
-    NAME,
     LANGUAGE,
     CURRENCY,
+    LIMIT,
     TRANSACTION,
-    # PROCESS_NEXT,
     CHOOSE_CATEGORY,
     SPECIFY_CATEGORY,
     ADD_CATEGORY,
 ) = range(7)
 WAITING_FOR_DOCUMENT = 1
+PROCESS_INCOME = 1
 
 
 async def start(update: Update, context: CallbackContext):
-
     user_id = str(update.effective_user.id)
     create_user_dir_and_copy_dict(user_id)
     log_user_interaction(
@@ -144,20 +153,11 @@ async def language(update: Update, context: CallbackContext):
     query = update.callback_query
     user_language = query.data
     user_id = update.effective_user.id
-
+    log_user_interaction(
+        user_id, update.effective_user.first_name, update.effective_user.username
+    )
     # Save the chosen language into the config file
     save_user_setting(user_id, "LANGUAGE", user_language)
-
-    await update.callback_query.message.edit_text(LANGUAGE_REPLY.format(user_language))
-    return NAME
-
-
-async def save_name(update: Update, context):
-    user_id = str(update.effective_user.id)
-    user_name = update.message.text
-
-    save_user_setting(user_id, "NAME", user_name)
-
     inline_keyboard = [
         [
             InlineKeyboardButton("USD", callback_data="USD"),
@@ -166,26 +166,66 @@ async def save_name(update: Update, context):
             InlineKeyboardButton("RUB", callback_data="RUB"),
         ],
     ]
-    markup = InlineKeyboardMarkup(inline_keyboard)
-
-    await update.message.reply_text(CHOOSE_CURRENCY_TEXT, reply_markup=markup)
+    reply_markup = InlineKeyboardMarkup(inline_keyboard)
+    await query.edit_message_text(LANGUAGE_REPLY.format(user_language))
+    await update.effective_message.reply_text(
+        CHOOSE_CURRENCY_TEXT, reply_markup=reply_markup
+    )
     return CURRENCY
 
 
-async def save_currency(update: Update, context):
+async def save_currency(update: Update, context: CallbackContext):
     user_id = str(update.effective_user.id)
+    query = update.callback_query
+
     user_currency = update.callback_query.data
     save_user_setting(user_id, "CURRENCY", user_currency)
 
-    await update.callback_query.message.edit_text(
-        TRANSACTION_START_TEXT,
-        parse_mode="MarkdownV2",
+    keyboard = [[InlineKeyboardButton("Skip", callback_data="skip")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text(CURRENCY_REPLY.format(user_currency))
+    await update.effective_message.reply_text(
+        CHOOSE_LIMIT_TEXT, reply_markup=reply_markup
     )
-    return TRANSACTION
+
+    return LIMIT
+
+
+async def save_limit(update: Update, context: CallbackContext):
+    user_id = str(update.effective_user.id)
+    try:
+        # Try to convert the entered data to a float
+        limit = float(update.effective_message.text)
+    except ValueError:
+        # If the conversion fails, send an error message and skip the step
+        await update.effective_message.reply_text(
+            "Invalid limit. Please enter a number."
+        )
+        return LIMIT
+
+    # Save the limit to the config file as a string
+    save_user_setting(user_id, "MONTHLY_LIMIT", str(limit))
+
+    await update.effective_message.reply_text("Limit saved successfully.")
+    return TRANSACTION  # Or whatever state should come next
+
+
+async def skip_limit(update: Update, context: CallbackContext):
+    await context.bot.edit_message_reply_markup(
+        chat_id=update.effective_chat.id,
+        message_id=update.effective_message.message_id,
+        reply_markup=None,
+    )
+    await update.effective_message.reply_text(NO_LIMIT)
+    return TRANSACTION  # Or whatever state should come next
 
 
 async def save_transaction(update: Update, context):
     user_id = str(update.effective_user.id)
+    log_user_interaction(
+        user_id, update.effective_user.first_name, update.effective_user.username
+    )
     currency = get_user_currency(user_id)
     transactions = re.split(",|\n", update.message.text.lower())
     list_subcat = []
@@ -216,7 +256,8 @@ async def save_transaction(update: Update, context):
                 list_subcat.append(subcategory)
             else:
                 # Get the top 5 categories
-                top_categories = get_top_categories(user_id)
+                user_path = get_user_path(user_id)
+                top_categories = get_top_categories(user_path)
                 # Create an inline keyboard with the top categories
                 keyboard = [
                     [InlineKeyboardButton(cat, callback_data=cat)]
@@ -241,7 +282,29 @@ async def save_transaction(update: Update, context):
         await update.message.reply_text(
             NOTIFY_OTHER_CAT.format(list_subcat), parse_mode=ParseMode.HTML
         )
+    (
+        current_daily_average,
+        percent_difference,
+        daily_limit,
+        days_zero_spending,
+        new_daily_limit,
+    ) = calculate_limit(user_id)
+
     await update.message.reply_text(TRANSACTION_SAVED_TEXT)
+    # print(current_daily_average, daily_limit)
+    if current_daily_average > daily_limit:
+        await update.message.reply_text(
+            LIMIT_EXCEEDED.format(
+                percent_difference=percent_difference,
+                current_daily_average=current_daily_average,
+                daily_limit=daily_limit,
+                days_zero_spending=days_zero_spending,
+                new_daily_limit=new_daily_limit,
+                currency=currency,
+            ),
+            parse_mode=ParseMode.HTML,
+        )
+
     return TRANSACTION
 
 
@@ -250,7 +313,9 @@ async def choose_category(update: Update, context: CallbackContext):
 
     user_id = str(update.effective_user.id)
     category = update.callback_query.data
-
+    log_user_interaction(
+        user_id, update.effective_user.first_name, update.effective_user.username
+    )
     subcategory = context.user_data.get("subcategory")
     transaction_data = context.user_data.get("transaction_data")
     transaction_data["category"] = category
@@ -262,27 +327,13 @@ async def choose_category(update: Update, context: CallbackContext):
         )
         save_user_transaction(user_id, transaction_data)
         await update.effective_message.reply_text(TRANSACTION_SAVED_TEXT)
-        print("CC-2, tx saved")
 
     else:
         await update.effective_message.reply_text(
             "An error occurred. Please try again."
         )
 
-    print("CC-4, change state to TRANSACTION")
     return TRANSACTION
-
-
-# async def process_next(update: Update, context: CallbackContext):
-#     category = update.callback_query.data
-#     print("PN1: ", context.user_data["state"])
-#     context.user_data["state"] = "process_next"
-#     if category == "enter_manually":
-#         print("PN-1.2 inside if", category)
-#         await update.effective_message.reply_text("Please, manualy eenter category:")
-#         return SPECIFY_CATEGORY
-
-#     await choose_category(update, context)
 
 
 async def handle_specify_category(update: Update, context: CallbackContext):
@@ -290,6 +341,9 @@ async def handle_specify_category(update: Update, context: CallbackContext):
     context.user_data["state"] = "handle_specify_category"
 
     user_id = str(update.effective_user.id)
+    log_user_interaction(
+        user_id, update.effective_user.first_name, update.effective_user.username
+    )
     category = update.effective_message.text.lower()
     subcategory = context.user_data.get("subcategory")
     transaction_data = context.user_data.get("transaction_data")
@@ -311,8 +365,19 @@ async def handle_specify_category(update: Update, context: CallbackContext):
 
 async def show_records(update: Update, context):
     user_id = str(update.effective_user.id)
+    log_user_interaction(
+        user_id, update.effective_user.first_name, update.effective_user.username
+    )
+    command = update.effective_message.text.split()[0][1:]
+    if "income" in command:
+        record_type = "income"
+        record_type2 = "earn"
+
+    else:
+        record_type = "spendings"
+        record_type2 = "spent"
     currency = get_user_currency(user_id)
-    records = get_records(user_id)
+    records = get_records(user_id, command)
     if records is None:
         await update.message.reply_text(RECORDS_NOT_FOUND_TEXT)
         return
@@ -341,6 +406,8 @@ async def show_records(update: Update, context):
         predicted_total=prediction,
         comparison=comparison,
         currency=currency,
+        record_type=record_type,
+        record_type2=record_type2,
     )
     await update.message.reply_text(output_text, parse_mode=ParseMode.HTML)
     return TRANSACTION
@@ -348,7 +415,11 @@ async def show_records(update: Update, context):
 
 async def show_detailed(update: Update, context):
     user_id = str(update.effective_user.id)
-    sum_per_cat = show_sum_per_cat(user_id)
+    log_user_interaction(
+        user_id, update.effective_user.first_name, update.effective_user.username
+    )
+    file_path = get_user_path(user_id)
+    sum_per_cat = show_sum_per_cat(user_id, file_path)
     top_subcats = show_top_subcategories(user_id)
 
     output = "Detailed report:\n\n"
@@ -369,7 +440,9 @@ async def show_detailed(update: Update, context):
 
 async def handle_text(update: Update, context):
     user_id = str(update.effective_user.id)
-
+    log_user_interaction(
+        user_id, update.effective_user.first_name, update.effective_user.username
+    )
     # If the user has an existing config file
     if check_config_exists(user_id):
         # Check if the input is a valid transaction (e.g., "taxi 10")
@@ -386,6 +459,9 @@ async def handle_text(update: Update, context):
 
 async def show_cat(update: Update, context: CallbackContext):
     user_id = str(update.effective_user.id)
+    log_user_interaction(
+        user_id, update.effective_user.first_name, update.effective_user.username
+    )
     check_dictionary_format(user_id)
     cat_dict = read_dictionary(user_id)
 
@@ -411,7 +487,9 @@ async def add_cat(update: Update, context: CallbackContext):
 
 async def save_category(update: Update, context: CallbackContext):
     user_id = str(update.effective_user.id)
-
+    log_user_interaction(
+        user_id, update.effective_user.first_name, update.effective_user.username
+    )
     text = update.message.text.lower()
     if ":" not in text or text.count(":") > 1:
         await update.message.reply_text(WRONG_INPUT_FORMAT)
@@ -434,26 +512,30 @@ async def save_category(update: Update, context: CallbackContext):
 
 async def latest_records(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
-    record_num = 5  # Default value
+    log_user_interaction(
+        user_id, update.effective_user.first_name, update.effective_user.username
+    )
+    record_num_or_category = "5"  # Default value
 
     if context.args:
-        try:
-            record_num = int(context.args[0])
-        except ValueError:
-            await update.message.reply_text(INVALID_RECORD_NUM)
-            return
+        record_num_or_category = context.args[0]
 
-    records = get_latest_records(user_id, record_num)
+    records, total_amount = get_latest_records(user_id, record_num_or_category)
 
     if not records:
         await update.message.reply_text(NO_RECORDS)
     else:
-        for i, record in enumerate(records, start=1):
-            await update.message.reply_text(RECORD_LINE.format(i, record))
+        records_message = LAST_RECORDS.format(total_amount, "\n".join(records))
+        await update.message.reply_text(records_message, parse_mode=ParseMode.HTML)
 
 
 async def delete_records(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
+    log_user_interaction(
+        user_id, update.effective_user.first_name, update.effective_user.username
+    )
+    # Remove the leading '/' from the command
+    command = update.effective_message.text.split()[0][1:]
     record_num = 1  # Default value
 
     if context.args:
@@ -466,14 +548,20 @@ async def delete_records(update: Update, context: CallbackContext):
     if not record_exists(user_id):
         await update.message.reply_text(NO_RECORDS_TO_DELETE)
     else:
-        deleted = delete_record(user_id, record_num)
+        deleted = delete_record(user_id, record_num, command)
         if deleted:
             await update.message.reply_text(RECORD_DELETED.format(record_num))
         else:
+
             await update.message.reply_text(NOT_ENOUGH_RECORDS.format(record_num))
 
 
 async def help(update: Update, context):
+    log_user_interaction(
+        update.effective_user.id,
+        update.effective_user.first_name,
+        update.effective_user.username,
+    )
     await update.message.reply_text(HELP_TEXT, parse_mode=ParseMode.HTML)
     return TRANSACTION
 
@@ -488,6 +576,11 @@ async def cancel(update: Update, context):
 
 async def download_spendings(update: Update, context: CallbackContext) -> None:
     user_id = str(update.effective_user.id)
+    log_user_interaction(
+        update.effective_user.id,
+        update.effective_user.first_name,
+        update.effective_user.username,
+    )
     spendings_file_path = f"user_data/{user_id}/spendings_{user_id}.csv"
     await context.bot.send_document(
         chat_id=update.effective_chat.id, document=open(spendings_file_path, "rb")
@@ -495,12 +588,22 @@ async def download_spendings(update: Update, context: CallbackContext) -> None:
 
 
 async def start_upload(update: Update, context: CallbackContext) -> int:
+    log_user_interaction(
+        update.effective_user.id,
+        update.effective_user.first_name,
+        update.effective_user.username,
+    )
     await update.message.reply_text("Please upload your file")
     return WAITING_FOR_DOCUMENT
 
 
 async def receive_document(update: Update, context: CallbackContext) -> int:
     user_id = str(update.effective_user.id)
+    log_user_interaction(
+        update.effective_user.id,
+        update.effective_user.first_name,
+        update.effective_user.username,
+    )
     document = update.message.document
 
     if not document.file_name.lower().endswith(".csv"):
@@ -518,7 +621,7 @@ async def receive_document(update: Update, context: CallbackContext) -> int:
     # Download the new file directly to the spendings file path
     await new_spendings_file.download_to_drive(custom_path=spendings_file_path)
 
-    await update.message.reply_text("Spendings file updated!")
+    await update.message.reply_text(UPLOADING_FINISHED)
 
     return ConversationHandler.END
 
@@ -534,17 +637,84 @@ async def archive_profile(update: Update, context: CallbackContext):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=result)
 
 
+async def send_chart(update: Update, context: CallbackContext) -> None:
+    user_id = str(update.effective_user.id)
+    log_user_interaction(
+        update.effective_user.id,
+        update.effective_user.first_name,
+        update.effective_user.username,
+    )
+    make_table(user_id)
+    make_chart(user_id)
+
+    # Define the paths to your images
+    image1_path = f"user_data/{user_id}/monthly_chart_{user_id}.jpg"
+    image2_path = f"user_data/{user_id}/monthly_pivot_{user_id}.jpg"
+    media = [
+        InputMediaPhoto(open(image1_path, "rb")),
+        InputMediaPhoto(open(image2_path, "rb")),
+    ]
+    backup_charts(user_id)
+    await context.bot.send_media_group(chat_id=update.effective_chat.id, media=media)
+
+
+async def start_income(update: Update, context: CallbackContext) -> None:
+    await update.effective_message.reply_text(INCOME_HELP, parse_mode=ParseMode.HTML)
+    return PROCESS_INCOME
+
+
+async def process_income(update: Update, context: CallbackContext):
+    user_id = str(update.effective_user.id)
+    income_info = update.effective_message.text  # Get the income info from the message
+    currency = get_user_currency(user_id)
+    parts = income_info.lower().split()
+    try:
+        amount = float(parts[-1])
+    except ValueError:
+        await update.message.reply_text(TRANSACTION_ERROR_TEXT)
+        return PROCESS_INCOME
+
+    timestamp, category = process_income_input(user_id, parts)
+    transaction_data = {
+        "amount": amount,
+        "currency": currency,
+        "category": category,
+        "timestamp": timestamp,
+    }
+    save_user_income(user_id, transaction_data)
+
+    await update.effective_message.reply_text(TRANSACTION_SAVED_TEXT)
+    return ConversationHandler.END
+
+
 def main():
     application = Application.builder().token(token).build()
 
     application.add_handler(CommandHandler("show", show_records))
     application.add_handler(CommandHandler("showext", show_detailed))
+    application.add_handler(CommandHandler("show_income", show_records))
+
     application.add_handler(CommandHandler("show_cat", show_cat))
     application.add_handler(CommandHandler("show_last", latest_records))
     application.add_handler(CommandHandler("delete", delete_records))
+    application.add_handler(CommandHandler("delete_income", delete_records))
+
     application.add_handler(CommandHandler("help", help))
     application.add_handler(CommandHandler("download", download_spendings))
     application.add_handler(CommandHandler("cancel", cancel))
+    application.add_handler(CommandHandler("leave", archive_profile))
+    application.add_handler(CommandHandler("monthly_stat", send_chart))
+
+    income_handler = ConversationHandler(
+        entry_points=[CommandHandler("income", start_income)],
+        states={
+            PROCESS_INCOME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, process_income)
+            ],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+    application.add_handler(income_handler)
 
     upload_conv_handler = ConversationHandler(
         entry_points=[CommandHandler("upload", start_upload)],
@@ -565,8 +735,12 @@ def main():
         ],
         states={
             LANGUAGE: [CallbackQueryHandler(language)],
-            NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_name)],
+            # NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_name)],
             CURRENCY: [CallbackQueryHandler(save_currency)],
+            LIMIT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, save_limit),
+                CallbackQueryHandler(skip_limit, pattern="^skip$"),
+            ],
             TRANSACTION: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, save_transaction)
             ],
@@ -591,8 +765,6 @@ def main():
     application.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text)
     )
-    application.add_handler(CommandHandler("leave", archive_profile))
-
     application.run_polling()
 
 

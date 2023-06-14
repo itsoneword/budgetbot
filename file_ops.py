@@ -59,10 +59,17 @@ def record_exists(user_id):
     return os.path.exists(records_file)
 
 
-def delete_record(user_id, record_num):
+def delete_record(user_id, record_num, command):
 
-    records_file = f"user_data/{user_id}/spendings_{user_id}.csv"
-    backup_spendings(user_id)
+    if command == "delete":
+        # Handle the 'delete' command
+        records_file = f"user_data/{user_id}/spendings_{user_id}.csv"
+
+    elif command == "delete_income":
+        # Handle the 'delete_income' command
+        records_file = f"user_data/{user_id}/income_{user_id}.csv"
+
+    backup_spendings(user_id, records_file)
 
     with open(records_file, "r") as file:
         lines = file.readlines()
@@ -78,18 +85,9 @@ def delete_record(user_id, record_num):
         return False
 
 
-# def update_spendings_file(user_id: str, new_spendings_data: bytes):
-#     user_dir = f"user_data/{user_id}"
-#     spendings_file_path = f"{user_dir}/spendings_{user_id}.csv"
-#     backup_spendings(user_id)
-#     # Write the new spendings data to the spendings file
-#     with open(spendings_file_path, "wb") as file:
-#         file.write(new_spendings_data)
+def backup_spendings(user_id, records_file):
 
-
-def backup_spendings(user_id):
-
-    records_file = f"user_data/{user_id}/spendings_{user_id}.csv"
+    # records_file = f"user_data/{user_id}/spendings_{user_id}.csv"
     # Check if backup directory exists, create if it does not
     backup_dir = f"user_data/{user_id}/backups"
     if not os.path.exists(backup_dir):
@@ -97,21 +95,59 @@ def backup_spendings(user_id):
 
     # Backup the file
     timestamp = time.strftime("%d_%m_%Y_%H_%M_%S")
-    backup_file = f"{backup_dir}/spendings_{user_id}_{timestamp}_backup.csv"
+    # Extract the part of the records_file string between the last '/' and the last '_'
+    record_type = records_file[records_file.rfind("/") + 1 : records_file.rfind("_")]
+
+    # Use the extracted part to create the backup file name
+    backup_file = f"{backup_dir}/{record_type}_{user_id}_{timestamp}_backup.csv"
     shutil.copy(records_file, backup_file)
     print("backup success")
 
 
-def get_latest_records(user_id, record_num):
+def backup_charts(user_id):
+
+    image1_path = f"user_data/{user_id}/monthly_chart_{user_id}.jpg"
+    image2_path = f"user_data/{user_id}/monthly_pivot_{user_id}.jpg"
+
+    # Check if backup directory exists, create if it does not
+    backup_dir = f"user_data/{user_id}/backups_charts"
+    if not os.path.exists(backup_dir):
+        os.makedirs(backup_dir)
+
+    # Backup the file
+    timestamp = time.strftime("%d_%m_%Y_%H_%M_%S")
+    backup_file1 = f"{backup_dir}/monthly_chart_{user_id}_{timestamp}_backup.jpg"
+    backup_file2 = f"{backup_dir}/monthly_pivot_{user_id}_{timestamp}_backup.jpg"
+    shutil.copy(image1_path, backup_file1)
+    shutil.copy(image2_path, backup_file2)
+    print("chart backup success")
+
+
+def get_latest_records(user_id, record_num_or_category):
     records_file = f"user_data/{user_id}/spendings_{user_id}.csv"
-    if not os.path.exists(records_file):
-        return []
-    else:
-        with open(records_file, "r") as file:
-            lines = file.readlines()
-        if record_num > len(lines):
-            record_num = len(lines)
-        return [lines[-i - 1].strip() for i in range(record_num)]
+    records = pd.DataFrame()  # Initialize records as an empty DataFrame
+    if os.path.exists(records_file):
+        df = pd.read_csv(records_file)[::-1].reset_index(drop=True)
+        df["index"] = df.index + 1  # Add 1 if your CSV doesn't have a header row
+        df = df[::-1]
+        try:
+            record_num = int(record_num_or_category)
+            records = df.tail(record_num)
+            total_amount = records["amount"].sum()
+
+        except ValueError:
+            category = record_num_or_category
+            records = df[df["category"] == category]
+            total_amount = records["amount"].sum()
+        if records.empty:
+            return None, total_amount
+
+    records_list = records.apply(
+        lambda x: f"{x['index']}: {x['timestamp']}, {x['category']}, {x['subcategory']}, {x['amount']}, {x['currency']}",
+        axis=1,
+    ).tolist()
+
+    return records_list, total_amount
 
 
 def add_category(user_id, category, subcategory):
@@ -212,14 +248,21 @@ def check_config_exists(user_id):
     return os.path.exists(f"{user_dir}/config.ini")
 
 
-def get_records(user_id):
-    file_path = f"user_data/{user_id}/spendings_{user_id}.csv"
+def get_records(user_id, command):
+
+    if command == "show_income":
+        # Handle the 'delete_income' command
+        file_path = f"user_data/{user_id}/income_{user_id}.csv"
+    else:
+        file_path = f"user_data/{user_id}/spendings_{user_id}.csv"
 
     if not os.path.exists(file_path):
         return None
-    sum_per_cat = show_sum_per_cat(user_id)
-    av_per_day, total_av_per_day, prediction, comparison = show_av_per_day(user_id)
-    total_spendings = show_total(user_id)
+    sum_per_cat = show_sum_per_cat(user_id, file_path)
+    av_per_day, total_av_per_day, prediction, comparison = show_av_per_day(
+        user_id, file_path
+    )
+    total_spendings = show_total(user_id, file_path)
 
     return (
         sum_per_cat,
@@ -229,19 +272,6 @@ def get_records(user_id):
         prediction,
         comparison,
     )
-
-
-# def get_records(user_id):
-#     file_path = f"user_data/{user_id}/spendings_{user_id}.csv"
-
-#     if not os.path.exists(file_path):
-#         return None
-
-#     sum_per_cat = show_sum_per_cat(user_id)
-#     av_per_day = show_av_per_day(user_id)
-#     total_spendings = show_total(user_id)
-
-#     return sum_per_cat, av_per_day, total_spendings
 
 
 def save_user_transaction(user_id, transaction_data):
@@ -269,6 +299,32 @@ def save_user_transaction(user_id, transaction_data):
             "amount",
             "currency",
             "id",
+        ]
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writerow(transaction_data)
+
+
+def save_user_income(user_id, transaction_data):
+    user_dir = f"user_data/{user_id}"
+    income_file = f"{user_dir}/income_{user_id}.csv"
+
+    if not os.path.exists(income_file):
+        with open(income_file, "w", newline="") as csvfile:
+            fieldnames = [
+                "timestamp",
+                "category",
+                "amount",
+                "currency",
+            ]
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+
+    with open(income_file, "a", newline="") as csvfile:
+        fieldnames = [
+            "timestamp",
+            "category",
+            "amount",
+            "currency",
         ]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writerow(transaction_data)
@@ -320,18 +376,38 @@ def create_user_dir_and_copy_dict(user_id):
 #         file.write(data)
 
 
-def read_from_file(file_path):
-    if os.path.exists(file_path):
-        with open(file_path, "r") as file:
-            return file.readlines()
-    else:
-        return None
+# def read_from_file(file_path):
+#     if os.path.exists(file_path):
+#         with open(file_path, "r") as file:
+#             return file.readlines()
+#     else:
+#         return None
 
 
-def delete_line_from_file(file_path, line_content):
-    lines = read_from_file(file_path)
-    if lines:
-        with open(file_path, "w") as file:
-            for line in lines:
-                if line.strip("\n") != line_content:
-                    file.write(line)
+# def delete_line_from_file(file_path, line_content):
+#     lines = read_from_file(file_path)
+#     if lines:
+#         with open(file_path, "w") as file:
+#             for line in lines:
+#                 if line.strip("\n") != line_content:
+#                     file.write(line)
+# def get_records(user_id):
+#     file_path = f"user_data/{user_id}/spendings_{user_id}.csv"
+
+#     if not os.path.exists(file_path):
+#         return None
+
+#     sum_per_cat = show_sum_per_cat(user_id)
+#     av_per_day = show_av_per_day(user_id)
+#     total_spendings = show_total(user_id)
+
+#     return sum_per_cat, av_per_day, total_spendings
+
+
+# def update_spendings_file(user_id: str, new_spendings_data: bytes):
+#     user_dir = f"user_data/{user_id}"
+#     spendings_file_path = f"{user_dir}/spendings_{user_id}.csv"
+#     backup_spendings(user_id)
+#     # Write the new spendings data to the spendings file
+#     with open(spendings_file_path, "wb") as file:
+#         file.write(new_spendings_data)
