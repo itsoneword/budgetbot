@@ -702,7 +702,7 @@ def main():
     application.add_handler(CommandHandler("help", help))
     application.add_handler(CommandHandler("download", download_spendings))
     application.add_handler(CommandHandler("cancel", cancel))
-    application.add_handler(CommandHandler("leave", archive_profile))
+    # application.add_handler(CommandHandler("leave", archive_profile))
     application.add_handler(CommandHandler("monthly_stat", send_chart))
 
     income_handler = ConversationHandler(
