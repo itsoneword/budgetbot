@@ -6,3 +6,4 @@ user_list.csv
 /budgetbot/
 /back/
 /tests
+/__pycache__/
