@@ -51,7 +51,7 @@ def update_user_list(user_id: str, username: str, tg_username: str):
     # If we got this far, the user is not in the list, so we'll add them
     with open(user_list_file, "a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([user_id, username, tg_username])
+        writer.writerow([user_id, username, tg_username, datetime.datetime.now()])
 
 
 def record_exists(user_id):

@@ -1,4 +1,5 @@
 import logging, configparser, inspect, re
+
 from pandas_ops import (
     show_sum_per_cat,
     show_top_subcategories,
@@ -177,7 +178,9 @@ async def language(update: Update, context: CallbackContext):
 async def save_currency(update: Update, context: CallbackContext):
     user_id = str(update.effective_user.id)
     query = update.callback_query
-
+    log_user_interaction(
+        user_id, update.effective_user.first_name, update.effective_user.username
+    )
     user_currency = update.callback_query.data
     save_user_setting(user_id, "CURRENCY", user_currency)
 
@@ -194,6 +197,9 @@ async def save_currency(update: Update, context: CallbackContext):
 
 async def save_limit(update: Update, context: CallbackContext):
     user_id = str(update.effective_user.id)
+    log_user_interaction(
+        user_id, update.effective_user.first_name, update.effective_user.username
+    )
     try:
         # Try to convert the entered data to a float
         limit = float(update.effective_message.text)
@@ -212,6 +218,10 @@ async def save_limit(update: Update, context: CallbackContext):
 
 
 async def skip_limit(update: Update, context: CallbackContext):
+    user_id = str(update.effective_user.id)
+    log_user_interaction(
+        user_id, update.effective_user.first_name, update.effective_user.username
+    )
     await context.bot.edit_message_reply_markup(
         chat_id=update.effective_chat.id,
         message_id=update.effective_message.message_id,
@@ -500,6 +510,11 @@ async def show_cat(update: Update, context: CallbackContext):
 
 
 async def add_cat(update: Update, context: CallbackContext):
+    user_id = str(update.effective_user.id)
+
+    log_user_interaction(
+        user_id, update.effective_user.first_name, update.effective_user.username
+    )
     await update.message.reply_text(
         ADD_CAT_PROMPT,
         parse_mode="MarkdownV2",
@@ -681,11 +696,21 @@ async def send_chart(update: Update, context: CallbackContext) -> None:
 
 
 async def start_income(update: Update, context: CallbackContext) -> None:
+    log_user_interaction(
+        update.effective_user.id,
+        update.effective_user.first_name,
+        update.effective_user.username,
+    )
     await update.effective_message.reply_text(INCOME_HELP, parse_mode=ParseMode.HTML)
     return PROCESS_INCOME
 
 
 async def process_income(update: Update, context: CallbackContext):
+    log_user_interaction(
+        update.effective_user.id,
+        update.effective_user.first_name,
+        update.effective_user.username,
+    )
     user_id = str(update.effective_user.id)
     income_info = update.effective_message.text  # Get the income info from the message
     currency = get_user_currency(user_id)

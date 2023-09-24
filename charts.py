@@ -1,4 +1,4 @@
-import pandas as pd, numpy as np, matplotlib.pyplot as plt, seaborn as sns, matplotlib.dates as mdates
+import pandas as pd, numpy as np, matplotlib.pyplot as plt, seaborn as sns, matplotlib.dates as mdates, calendar
 from matplotlib.gridspec import GridSpec
 from file_ops import backup_charts
 
@@ -14,6 +14,13 @@ def make_table(user_id):
     data["month"] = data["timestamp"].dt.strftime("%B")
     # month_names = [calendar.month_name[int(month.split('-')[1])] if '-' in month else month for month in pivot_table.columns]
 
+    # Get unique months present in the dataset
+    unique_months = data["month"].unique()
+    # Sort the unique months in chronological order
+    sorted_months = sorted(
+        unique_months, key=lambda x: list(calendar.month_name).index(x)
+    )
+
     # Create a pivot table
     pivot_table = pd.pivot_table(
         data,
@@ -22,10 +29,7 @@ def make_table(user_id):
         columns=["month"],
         aggfunc=np.sum,
         fill_value=0,
-    )
-
-    # Sort the pivot table by month
-    pivot_table = pivot_table.sort_index(axis=1).iloc[:, ::-1]
+    )[sorted_months]
 
     # Add a 'Total' column
     pivot_table["Total"] = pivot_table.sum(axis=1)
@@ -126,35 +130,44 @@ def make_chart(user_id):
     df = df.set_index("timestamp")
     df = df.resample("D").sum()  # Group by day and sum the amounts
     # print(df)
-    # Step 2: Filter out outliers using the IQR method
-    Q1 = df["amount"].quantile(0.25)
-    Q3 = df["amount"].quantile(0.75)
-    IQR = Q3 - Q1
-    filter = df["amount"] <= Q3 + 1.5 * IQR
-    df_filtered = df.loc[filter]
+    # # Step 2: Filter out outliers using the IQR method
+    # Q1 = df["amount"].quantile(0.25)
+    # Q3 = df["amount"].quantile(0.75)
+    # IQR = Q3 - Q1
+    # filter = df["amount"] <= Q3 + 1.5 * IQR
+    # df_filtered = df.loc[filter]
 
-    # Step 3: Create the chart
+    # Calculate a rolling average with a window size (adjust as needed)
+    rolling_avg = df["amount"].rolling(window=3).mean()
+
+    # Create the chart
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    # Plot the daily amounts
+    # Plot the rolling average with dots
     sns.lineplot(
-        x=df_filtered.index,
-        y="amount",
-        data=df_filtered,
+        x=rolling_avg.index,
+        y=rolling_avg,
+        data=df,
         ax=ax,
         marker="o",
-        markersize=10,
+        markersize=5,
     )
 
     sns.set_style("whitegrid")
 
     # Add vertical lines for Mondays
-    mondays = df_filtered[df_filtered.index.weekday == 0].index
+    mondays = df[df.index.weekday == 0].index
     for monday in mondays:
         ax.axvline(x=monday, color="r", linestyle="--", alpha=0.5)
         ax.text(
             monday, ax.get_ylim()[1], "Monday", rotation=90, verticalalignment="top"
         )
+
+    # Set x-axis limits to show only 15 weeks (adjust as needed)
+    max_date = df.index[-1]
+    min_date = max_date - pd.DateOffset(weeks=16)
+    ax.set_xlim(min_date, max_date)
+
     # Set x-axis ticks to only show Mondays
     ax.xaxis.set_major_locator(mdates.WeekdayLocator(byweekday=mdates.MONDAY))
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
