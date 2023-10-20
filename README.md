@@ -54,10 +54,11 @@ You can also get started with self deployment, follow these steps:
 
 1. Clone the repository: `git clone https://github.com/itsoneword/budgetbot.git`
 2. Navigate to the project directory: `cd budgetbot\configs`
-3. Create "config" file with the token inside:
-[TELEGRAM]
-TOKEN = "your_token_here"
-4. Install the necessary dependencies(panas, os, etc)
+3. Create "config" file with the token inside:  
+```
+[TELEGRAM]  
+TOKEN = your_token_here
+```
 5. Start the bot: "python3 core.py"
 
 ## Contributing
