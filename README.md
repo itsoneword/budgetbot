@@ -59,6 +59,11 @@ You can also get started with self deployment, follow these steps:
 [TELEGRAM]  
 TOKEN = your_token_here
 ```
+4. Install the necessary dependencies:  
+* pandas
+* matplotlib
+* seaborn
+* python-telegram-bot
 5. Start the bot: "python3 core.py"
 
 ## Contributing
