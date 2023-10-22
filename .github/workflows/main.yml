@@ -20,16 +20,16 @@ jobs:
     - name: Run Docker container
       run: docker run -e API_KEY=$TEST_API_KEY -d test_image --name test_container
 
-    - name: Get container exit code
-      id: exitcode
-      run: echo "::set-output name=code::$(docker inspect test_container --format='{{.State.ExitCode}}')"
-    
+    - name: Get container exit code and set as env var
+      run: echo "CONTAINER_EXIT_CODE=$(docker inspect test_container --format='{{.State.ExitCode}}')" >> $GITHUB_ENV
+
     - name: Print container exit code
-      run: echo "Container exit code is ${{ steps.exitcode.outputs.code }}"
+      run: echo "Container exit code is $CONTAINER_EXIT_CODE"
     
     - name: Fail if exit code is not 0
       run: |
-        if [[ "${{ steps.exitcode.outputs.code }}" != "0" ]]; then
+        if [[ "$CONTAINER_EXIT_CODE" != "0" ]]; then
+          echo "error=Container failed with exit code $CONTAINER_EXIT_CODE" >> $GITHUB_ENV
           exit 1
         fi
 
