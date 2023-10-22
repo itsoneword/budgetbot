@@ -18,7 +18,7 @@ jobs:
       run: docker build -t test_image .
 
     - name: Run Docker container
-      run: docker run -e API_KEY=$TEST_API_KEY -d test_image --name test_container
+      run: docker run -e API_KEY=$TEST_API_KEY -d --name test_container test_image
 
     - name: Get container exit code and set as env var
       run: echo "CONTAINER_EXIT_CODE=$(docker inspect test_container --format='{{.State.ExitCode}}')" >> $GITHUB_ENV
