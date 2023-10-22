@@ -1,0 +1,37 @@
+name: Docker Build and Run
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Build Docker image
+      run: docker build -t test_image .
+
+    - name: Run Docker container
+      run: docker run -e API_KEY=$TEST_API_KEY -d test_image
+
+    - name: Get container exit code
+      id: exitcode
+      run: echo "::set-output name=code::$(docker inspect test_container --format='{{.State.ExitCode}}')"
+    
+    - name: Print container exit code
+      run: echo "Container exit code is ${{ steps.exitcode.outputs.code }}"
+    
+    - name: Fail if exit code is not 0
+      run: |
+        if [[ "${{ steps.exitcode.outputs.code }}" != "0" ]]; then
+          exit 1
+        fi
+
+    - name: Cleanup
+      run: docker rm test_container
+      if: always()
