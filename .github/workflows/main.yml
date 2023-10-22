@@ -18,7 +18,7 @@ jobs:
       run: docker build -t test_image .
 
     - name: Run Docker container
-      run: docker run -e API_KEY=$TEST_API_KEY -d test_image
+      run: docker run -e API_KEY=$TEST_API_KEY -d test_image --name test_container
 
     - name: Get container exit code
       id: exitcode
