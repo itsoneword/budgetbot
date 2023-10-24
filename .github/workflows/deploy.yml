@@ -31,3 +31,10 @@ jobs:
         file: ./Dockerfile
         push: true
         tags: rg.nl-ams.scw.cloud/budgetbot/budgetbot:latest
+
+    - name: Invoke deployment hook
+      if: success()
+      uses: distributhor/workflow-webhook@v3
+      env:
+        webhook_url: ${{ secrets.WEBHOOK_URL }}
+        webhook_secret: ${{ secrets.WEBHOOK_SECRET }}
