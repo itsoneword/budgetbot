@@ -49,22 +49,68 @@ BudgetBot is a great tool for anyone looking to gain more control over their per
 
 ## Getting Started
 
-The bot is currently available under my own production: https://t.me/mybudgetassistantbot 
-You can also get started with self deployment, follow these steps:
+This bot is currently available under my own production: https://t.me/mybudgetassistantbot
+But you can also host it yourself
 
-1. Clone the repository: `git clone https://github.com/itsoneword/budgetbot.git`
-2. Navigate to the project directory: `cd budgetbot\configs`
-3. Create "config" file with the token inside:  
+### Run using Docker
+
+Build an image by running:
+
+```Bash
+git clone https://github.com/itsoneword/budgetbot.git
+cd budgetbot
+docker build -t budgetbot .
 ```
-[TELEGRAM]  
-TOKEN = your_token_here
+
+And start the container providing your API key:
+
+```Bash
+docker run --name budgetbot \
+--restart unless-stopped \
+-v /mydata/path:/app/user_data/ \
+-e API_KEY=yourkey \
+-d budgetbot
 ```
-4. Install the necessary dependencies:  
+Change `/mydata/path` to your local folder where you want to keep your transaction history, and change `API_KEY` to your own.
+
+Alternartivelly, you can use the following docker compose:
+
+```Docker
+version: '3.3'
+services:
+    bot:
+        container_name: budgetbot
+        restart: unless-stopped
+        volumes:
+            - /mydata/path:/app/user_data/
+        environment:
+            - API_KEY='yourkey'
+        image: budgetbot
+```
+
+
+### Run locally
+
+1. Install the necessary dependencies:  
 * pandas
 * matplotlib
 * seaborn
 * python-telegram-bot
-5. Start the bot: "python3 core.py"
+
+2. Clone the repository 
+```
+git clone https://github.com/itsoneword/budgetbot.git
+```
+2. Add your key to the config file inside: `configs\config` file 
+```
+[TELEGRAM]  
+TOKEN = place_your_token_here
+```
+3. Start the bot: 
+
+```bash
+python3 core.py
+```
 
 ## Contributing
 

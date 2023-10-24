@@ -1,0 +1,40 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Login to Docker Registry
+      uses: docker/login-action@v1
+      with:
+        registry: rg.nl-ams.scw.cloud/budgetbot # replace this with the name of your registry
+        username: ${{ secrets.DOCKER_REG_USERNAME }} 
+        password: ${{ secrets.DOCKER_REG_PASSWORD }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        file: ./Dockerfile
+        push: true
+        tags: rg.nl-ams.scw.cloud/budgetbot/budgetbot:latest
+
+    - name: Invoke deployment hook
+      if: success()
+      uses: distributhor/workflow-webhook@v3
+      env:
+        webhook_url: ${{ secrets.WEBHOOK_URL }}
+        webhook_secret: ${{ secrets.WEBHOOK_SECRET }}
