@@ -1,4 +1,4 @@
-name: Docker Build and Run
+name: Test Container Deployability
 
 on:
   pull_request:
