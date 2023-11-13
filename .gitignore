@@ -1,5 +1,7 @@
 config.ini
 /user_data/
+/myenv
+/__pycache__
 /configs/config
 global_log.txt
 user_list.csv
