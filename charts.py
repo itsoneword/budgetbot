@@ -1,5 +1,7 @@
 import pandas as pd, numpy as np, matplotlib.pyplot as plt, seaborn as sns, matplotlib.dates as mdates, calendar
 from matplotlib.gridspec import GridSpec
+from dateutil.relativedelta import relativedelta
+from datetime import datetime
 from file_ops import backup_charts
 
 
@@ -9,7 +11,14 @@ def make_table(user_id):
 
     # Convert the 'timestamp' column to datetime
     data["timestamp"] = pd.to_datetime(data["timestamp"])
-
+    #  Determine the current date
+    # Calculate the start date (six months ago)
+    start_date = (datetime.now() - relativedelta(months=6)).replace(day=1)
+    # print(
+    #     "startdate before:", start_date, "\n", "current data used: ", data["timestamp"]
+    # )
+    # Filter data to include only the last six months
+    data = data[data["timestamp"] >= start_date]
     # Extract the month from the 'timestamp' column
     data["month"] = data["timestamp"].dt.strftime("%B")
     # month_names = [calendar.month_name[int(month.split('-')[1])] if '-' in month else month for month in pivot_table.columns]
@@ -178,3 +187,50 @@ def make_chart(user_id):
 
     # Step 3: Save the chart as an image file
     plt.savefig(f"user_data/{user_id}/monthly_chart_{user_id}.jpg")
+
+
+def make_yearly_pie_chart(user_id):
+    # Load the data, assuming the first row is a header
+    data = pd.read_csv(f"user_data/{user_id}/spendings_{user_id}.csv")
+
+    # Convert the 'timestamp' column to datetime
+    data["timestamp"] = pd.to_datetime(data["timestamp"])
+
+    # Extract year
+    data["year"] = data["timestamp"].dt.year
+
+    # Get unique years
+    years = data["year"].unique()
+
+    # Loop through each year and create a pie chart
+    for year in years:
+        yearly_data = data[data["year"] == year]
+        category_sum = yearly_data.groupby("category")["amount"].sum()
+
+        # Calculate total sum
+        total_sum = category_sum.sum()
+        # Sort categories by amount
+        category_sum.sort_values(ascending=False, inplace=True)
+        # Create labels with category name and total amount
+        labels = [
+            f"{category}: {total:.2f}" for category, total in category_sum.items()
+        ]
+        plt.figure(figsize=(10, 6))
+        pie_chart = category_sum.plot(
+            kind="pie",
+            labels=labels,
+            autopct=lambda p: "{:.1f}%".format(p) if p > 0 else "",
+            startangle=0,
+        )
+
+        # Rotate category names
+        for text in pie_chart.texts:
+            text.set_rotation(0)
+
+        plt.title(
+            f"Spending Distribution by Category in {year} (Total: ${total_sum:.2f})"
+        )
+        plt.ylabel("")
+        # plt.show()
+        plt.savefig(f"user_data/{user_id}/yearly_pie_chart_{year}_{user_id}.jpg")
+    return years

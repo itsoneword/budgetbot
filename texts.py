@@ -2,7 +2,7 @@ SELECT_LANGUAGE = "Please choose the language of the dictionary you want to use:
 LANGUAGE_REPLY = "Dictionary language set to {}."
 CHOOSE_CURRENCY_TEXT = "Now, please choose your preferred currency:"
 CURRENCY_REPLY = "Currency saved as {}"
-CHOOSE_LIMIT_TEXT = "Please, enter your daily spendings limit or click Skip"
+CHOOSE_LIMIT_TEXT = "Please, enter your expected monthly limit or click Skip"
 NO_LIMIT = "No Limit set!"
 TRANSACTION_START_TEXT = """Limit saved successfully. Now, you can send transactions. There are 3 possible formats: \n
 Full:   <code>date category subcategory amount</code> 
@@ -83,6 +83,10 @@ want to have additional functionality, contact @dy0r2
 
 """
 UPLOADING_FINISHED = "Spendings file updated!"
+INCOME_TYPE1 = "income"
+INCOME_TYPE2 = "earn"
+SPENDINGS_TYPE1 = "spendings"
+SPENDINGS_TYPE2 = "spent"
 CANCEL_TEXT = "Cancelled. You can now enter a new command."
 CONFIRM_SAVE_CAT = "Category '<code>{}</code>' has been chosen for subcategory '<code>{}</code>' and saved into dictionary."
 REQUEST_CAT = "Please send me a category, you want to use for '<code>{}</code>'. It will be added into your dictionary and next time will be automatically selected for <i>'{}'</i>:"

@@ -25,8 +25,7 @@ async def archive_user_data(user_id: str):
 
 def read_config(user_id: str, section: str, key: str) -> str:
     config_path = f"user_data/{user_id}/config.ini"
-    config = configparser.ConfigParser()
-    config.read(config_path)
+    config = configparser.ConfigParser().read(config_path)
     return config.get(section, key)
 
 
@@ -104,23 +103,27 @@ def backup_spendings(user_id, records_file):
     print("backup success")
 
 
-def backup_charts(user_id):
-
-    image1_path = f"user_data/{user_id}/monthly_chart_{user_id}.jpg"
-    image2_path = f"user_data/{user_id}/monthly_pivot_{user_id}.jpg"
+def backup_charts(user_id, image_paths):
+    # If image_paths is a single string, convert it to a list
+    if isinstance(image_paths, str):
+        image_paths = [image_paths]
 
     # Check if backup directory exists, create if it does not
     backup_dir = f"user_data/{user_id}/backups_charts"
     if not os.path.exists(backup_dir):
         os.makedirs(backup_dir)
 
-    # Backup the file
+    # Backup each file in the image_paths list
     timestamp = time.strftime("%d_%m_%Y_%H_%M_%S")
-    backup_file1 = f"{backup_dir}/monthly_chart_{user_id}_{timestamp}_backup.jpg"
-    backup_file2 = f"{backup_dir}/monthly_pivot_{user_id}_{timestamp}_backup.jpg"
-    shutil.copy(image1_path, backup_file1)
-    shutil.copy(image2_path, backup_file2)
-    print("chart backup success")
+    for image_path in image_paths:
+        # Check if image_path is just a filename and construct the full path if needed
+        if not os.path.dirname(image_path):
+            image_path = f"user_data/{user_id}/{image_path}"
+        filename = os.path.basename(image_path)
+        backup_file = f"{backup_dir}/{filename}_{timestamp}_backup.jpg"
+        shutil.copy(image_path, backup_file)
+
+    print("Chart backup success")
 
 
 def get_latest_records(user_id, record_num_or_category):
