@@ -9,3 +9,4 @@ user_list.csv
 /tests
 /__pycache__/
 .DS_Store
+/configs/config
