@@ -4,7 +4,7 @@ COPY . /app
 
 WORKDIR /app
 
-RUN pip install pandas matplotlib seaborn python-telegram-bot
+RUN pip install pandas matplotlib seaborn python-telegram-bot yfinance
 
 RUN chmod +x /app/entrypoint.sh
 

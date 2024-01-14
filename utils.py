@@ -2,8 +2,9 @@
 
 import configparser, json
 from dateutil.parser import parse, ParserError
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from file_ops import check_dictionary_format, add_category
+
 
 
 def process_transaction_input(user_id, parts):
@@ -72,13 +73,6 @@ def toDateUtc(mdate):
     date_obj_utc = date_obj.replace(tzinfo=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
 
     return date_obj_utc
-
-
-def get_user_currency(user_id):
-    user_dir = f"user_data/{user_id}"
-    config = configparser.ConfigParser()
-    config.read(f"{user_dir}/config.ini")
-    return config.get("DEFAULT", "CURRENCY")
 
 
 def read_subcat_to_cat_from_file(file_path, user_id):

@@ -10,3 +10,4 @@ user_list.csv
 /__pycache__/
 .DS_Store
 /configs/config
+/userdatabot

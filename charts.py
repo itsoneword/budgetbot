@@ -3,55 +3,60 @@ from matplotlib.gridspec import GridSpec
 from dateutil.relativedelta import relativedelta
 from datetime import datetime
 from file_ops import backup_charts
+from pandas_ops import get_user_currency, get_exchange_rate, recalculate_currency
 
-
-def make_table(user_id):
+def monthly_pivot_chart(user_id):
     # Load the data
     data = pd.read_csv(f"user_data/{user_id}/spendings_{user_id}.csv")
-
     # Convert the 'timestamp' column to datetime
     data["timestamp"] = pd.to_datetime(data["timestamp"])
     #  Determine the current date
     # Calculate the start date (six months ago)
     start_date = (datetime.now() - relativedelta(months=6)).replace(day=1)
-    # print(
-    #     "startdate before:", start_date, "\n", "current data used: ", data["timestamp"]
-    # )
     # Filter data to include only the last six months
     data = data[data["timestamp"] >= start_date]
-    # Extract the month from the 'timestamp' column
-    data["month"] = data["timestamp"].dt.strftime("%B")
-    # month_names = [calendar.month_name[int(month.split('-')[1])] if '-' in month else month for month in pivot_table.columns]
+    #call getting exchange rates:
+    exchange_rates = get_exchange_rate()
+    currency = get_user_currency(user_id)
+    data = recalculate_currency(data, currency,exchange_rates)
 
-    # Get unique months present in the dataset
-    unique_months = data["month"].unique()
-    # Sort the unique months in chronological order
-    sorted_months = sorted(
-        unique_months, key=lambda x: list(calendar.month_name).index(x)
-    )
+    # Extract the month and year from the 'timestamp' column
+    data["month_year"] = data["timestamp"].dt.to_period('M')
+    data["month_name"] = data["timestamp"].dt.strftime('%B')
+    # Get unique month-year combinations present in the dataset
+    unique_month_years = data["month_year"].unique()
+    # Sort the unique month-year combinations in chronological order
+    sorted_month_years = sorted(unique_month_years)
+    # Extract the month names from the sorted month-year combinations
 
+    sorted_months = [month_year.strftime('%B') for month_year in sorted_month_years]    
+    #print("print4:", sorted_months)
+    # period_to_month_name = {period: period.strftime('%B') for period in sorted_month_years}
+    # data['month_name'] = data['month_year'].map(period_to_month_name)
     # Create a pivot table
     pivot_table = pd.pivot_table(
         data,
-        values="amount",
+        values="amount_cr_currency",
         index=["category"],
-        columns=["month"],
+        columns=["month_name"],
         aggfunc=np.sum,
         fill_value=0,
     )[sorted_months]
 
+    #print("print5: ", pivot_table)
     # Add a 'Total' column
-    pivot_table["Total"] = pivot_table.sum(axis=1)
+    total_name = f"Total {currency}"
+    pivot_table[total_name] = pivot_table.sum(axis=1)
 
     # Sort the pivot table by the 'Total' column
-    pivot_table_sorted = pivot_table.sort_values(by="Total", ascending=False)
+    pivot_table_sorted = pivot_table.sort_values(by=total_name, ascending=False)
 
     # Add a 'Total' row
-    pivot_table_sorted.loc["Total"] = pivot_table_sorted.sum()
+    pivot_table_sorted.loc[total_name] = pivot_table_sorted.sum()
 
     # Create a copy of the pivot table without the 'Total' column for the color mapping
 
-    pivot_table_color = pivot_table_sorted.drop(columns=["Total"])
+    pivot_table_color = pivot_table_sorted.drop(columns=[total_name])
 
     # Apply a square root transformation to the data for the color mapping
 
@@ -59,7 +64,7 @@ def make_table(user_id):
     # pivot_table_color_normalized = (
     #     pivot_table_color_log - pivot_table_color_log.values.min()
     # ) / (pivot_table_color_log.values.max() - pivot_table_color_log.values.min())
-    # ax0_pivot_table_color_normalized = pivot_table_color_normalized.drop("Total")
+    # ax0_pivot_table_color_normalized = pivot_table_color_normalized.drop(total_name)
 
     bins = np.arange(
         0, pivot_table_color.max().max() + 20, 20
@@ -76,8 +81,8 @@ def make_table(user_id):
     # Create a heatmap with the transformed data for the color mapping and the actual data for the annotations
     ax0 = plt.subplot(gs[0, 0])
     sns.heatmap(
-        pivot_table_color_binned.drop("Total"),
-        annot=pivot_table_color.drop("Total"),
+        pivot_table_color_binned.drop(total_name),
+        annot=pivot_table_color.drop(total_name),
         fmt=".2f",
         cmap=sns.light_palette((22, 200, 40), input="husl", as_cmap=True),
         cbar=False,
@@ -89,7 +94,7 @@ def make_table(user_id):
     # Create a separate heatmap for the 'Total' column
     ax1 = plt.subplot(gs[0, 1])
     sns.heatmap(
-        pivot_table_sorted[["Total"]].drop(["Total"]),
+        pivot_table_sorted[[total_name]].drop([total_name]),
         annot=True,
         cbar=False,
         fmt=".2f",
@@ -106,7 +111,7 @@ def make_table(user_id):
     # Create a separate heatmap for the 'Total' row
     ax2 = plt.subplot(gs[1, 0])
     sns.heatmap(
-        pivot_table_sorted.loc[["Total"], :].drop(columns=["Total"]),
+        pivot_table_sorted.loc[[total_name], :].drop(columns=[total_name]),
         annot=True,
         cbar=False,
         fmt=".2f",
@@ -131,12 +136,15 @@ def make_table(user_id):
     fig.savefig(f"user_data/{user_id}/monthly_pivot_{user_id}.jpg")
 
 
-def make_chart(user_id):
+def monthly_line_chart(user_id):
     records_file = f"user_data/{user_id}/spendings_{user_id}.csv"
-
+    
     df = pd.read_csv(records_file)
     df["timestamp"] = pd.to_datetime(df["timestamp"])
     df = df.set_index("timestamp")
+    exchange_rates = get_exchange_rate()
+    currency = get_user_currency(user_id)
+    df = recalculate_currency(df, currency,exchange_rates)
     df = df.resample("D").sum()  # Group by day and sum the amounts
     # print(df)
     # # Step 2: Filter out outliers using the IQR method
@@ -147,7 +155,7 @@ def make_chart(user_id):
     # df_filtered = df.loc[filter]
 
     # Calculate a rolling average with a window size (adjust as needed)
-    rolling_avg = df["amount"].rolling(window=3).mean()
+    rolling_avg = df["amount_cr_currency"].rolling(window=3).mean()
 
     # Create the chart
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -198,14 +206,16 @@ def make_yearly_pie_chart(user_id):
 
     # Extract year
     data["year"] = data["timestamp"].dt.year
-
+    exchange_rates = get_exchange_rate()
+    currency = get_user_currency(user_id)
+    data = recalculate_currency(data, currency,exchange_rates)
     # Get unique years
     years = data["year"].unique()
 
     # Loop through each year and create a pie chart
     for year in years:
         yearly_data = data[data["year"] == year]
-        category_sum = yearly_data.groupby("category")["amount"].sum()
+        category_sum = yearly_data.groupby("category")["amount_cr_currency"].sum()
 
         # Calculate total sum
         total_sum = category_sum.sum()
@@ -228,7 +238,7 @@ def make_yearly_pie_chart(user_id):
             text.set_rotation(0)
 
         plt.title(
-            f"Spending Distribution by Category in {year} (Total: ${total_sum:.2f})"
+            f"Spending Distribution by Category in {year} (Total: {currency}{total_sum:.2f})"
         )
         plt.ylabel("")
         # plt.show()

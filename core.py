@@ -5,10 +5,10 @@ from pandas_ops import (
     show_top_subcategories,
     get_top_categories,
     calculate_limit,
-    get_user_path,
+    get_user_path,get_user_currency, 
 )
-from charts import make_chart, make_table, make_yearly_pie_chart
-from utils import process_transaction_input, get_user_currency, process_income_input
+from charts import monthly_line_chart, monthly_pivot_chart, make_yearly_pie_chart
+from utils import process_transaction_input, process_income_input
 from file_ops import (
     create_user_dir_and_copy_dict,
     backup_spendings,
@@ -25,9 +25,9 @@ from file_ops import (
     record_exists,
     check_dictionary_format,
     update_user_list,
-    read_dictionary,
     archive_user_data,
     backup_charts,
+    read_config,
 )
 
 
@@ -608,6 +608,17 @@ async def help(update: Update, context):
     await update.message.reply_text(texts.HELP_TEXT, parse_mode=ParseMode.HTML)
     return TRANSACTION
 
+async def about(update: Update, context):
+    log_user_interaction(
+        update.effective_user.id,
+        update.effective_user.first_name,
+        update.effective_user.username,
+    )
+    user_id = update.effective_user.id
+    texts = check_language(update, context)
+    name,currency,language,limit = read_config(user_id)
+    await update.message.reply_text(texts.ABOUT.format(name,currency,language,limit), parse_mode=ParseMode.HTML)
+    return TRANSACTION
 
 async def cancel(update: Update, context):
     texts = check_language(update, context)
@@ -689,8 +700,8 @@ async def send_chart(update: Update, context: CallbackContext) -> None:
         update.effective_user.first_name,
         update.effective_user.username,
     )
-    make_table(user_id)
-    make_chart(user_id)
+    monthly_pivot_chart(user_id)
+    monthly_line_chart(user_id)
     directory = f"user_data/{user_id}"
 
     # List all files in the directory and filter for those containing 'Monthly'
@@ -783,7 +794,8 @@ def main():
     application.add_handler(CommandHandler("show_last", latest_records))
     application.add_handler(CommandHandler("delete", delete_records))
     application.add_handler(CommandHandler("delete_income", delete_records))
-
+   
+    application.add_handler(CommandHandler("about", about))
     application.add_handler(CommandHandler("help", help))
     application.add_handler(CommandHandler("download", download_spendings))
     application.add_handler(CommandHandler("cancel", cancel))
@@ -813,7 +825,7 @@ def main():
     )
     application.add_handler(upload_conv_handler)
 
-    conv_handler = ConversationHandler(
+    spendings_handler = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
             CommandHandler("change_cat", add_cat),
@@ -846,7 +858,7 @@ def main():
         allow_reentry=True,
         fallbacks=[CommandHandler("cancel", cancel)],
     )
-    application.add_handler(conv_handler)
+    application.add_handler(spendings_handler)
     # message handler for text input
     application.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text)

@@ -1,6 +1,6 @@
 import os, shutil, configparser, csv, time, pandas as pd, json, datetime
 
-from pandas_ops import show_sum_per_cat, show_av_per_day, show_total
+from pandas_ops import show_sum_per_cat, show_av_per_day, show_total, get_exchange_rate, get_user_currency, recalculate_currency
 
 
 async def archive_user_data(user_id: str):
@@ -23,10 +23,17 @@ async def archive_user_data(user_id: str):
     return "Your data has been deleted."
 
 
-def read_config(user_id: str, section: str, key: str) -> str:
+def read_config(user_id: str) -> str:
     config_path = f"user_data/{user_id}/config.ini"
-    config = configparser.ConfigParser().read(config_path)
-    return config.get(section, key)
+    config = configparser.ConfigParser()
+    config.read(config_path)
+
+    #language = config.get("DEFAULT", "language", fallback="en")
+    name = config.get('DEFAULT', 'name', fallback=None)
+    currency = config.get('DEFAULT', 'currency', fallback=None)
+    language = config.get('DEFAULT', 'language', fallback=None)
+    limit = config.getfloat('DEFAULT', 'monthly_limit', fallback=None)
+    return name,currency,language,limit
 
 
 def update_user_list(user_id: str, username: str, tg_username: str):
@@ -131,22 +138,28 @@ def get_latest_records(user_id, record_num_or_category):
     records = pd.DataFrame()  # Initialize records as an empty DataFrame
     if os.path.exists(records_file):
         df = pd.read_csv(records_file)[::-1].reset_index(drop=True)
+        #change dataset to local currency
+        exchange_rates = get_exchange_rate()
+        currency = get_user_currency(user_id)
+
         df["index"] = df.index + 1  # Add 1 if your CSV doesn't have a header row
         df = df[::-1]
         try:
             record_num = int(record_num_or_category)
             records = df.tail(record_num)
-            total_amount = records["amount"].sum()
+            records = recalculate_currency(records, currency,exchange_rates)
+            total_amount = records["amount_cr_currency"].sum()
 
         except ValueError:
             category = record_num_or_category
             records = df[df["category"] == category]
-            total_amount = records["amount"].sum()
+            records = recalculate_currency(records, currency,exchange_rates)
+            total_amount = records["amount_cr_currency"].sum()
         if records.empty:
             return None, total_amount
 
     records_list = records.apply(
-        lambda x: f"{x['index']}: {x['timestamp']}, {x['category']}, {x['subcategory']}, {x['amount']}, {x['currency']}",
+        lambda x: f"{x['index']}: {x['timestamp']}, {x['category']}, {x['subcategory']}, {x['amount_cr_currency']}, {currency}",
         axis=1,
     ).tolist()
 
