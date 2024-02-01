@@ -36,7 +36,7 @@ Sum per category:\n{sum_per_cat}\n
 Average per day for top 5 most often categories is {av_per_day_sum}{currency}, which is {comparison}% from yesterday.\n
 Per category:\n{av_per_day}
 
-Total average {record_type} per day: {total_av_per_day}{currency}, 
+Total average {record_type} per day: {total_av_per_day}{currency}, excluding Rent and Investing
 You will {record_type2}: <b>{predicted_total}</b>{currency} by the end of the month with the same load.
 """
 START_COMMAND_PROMPT = "Please type /start to begin or /help to get help."

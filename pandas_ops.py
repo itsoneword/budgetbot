@@ -98,7 +98,12 @@ def show_av_per_day(user_id, file_path):
 
     # Calculate the average per day
     av_per_day = round(total_per_cat / day_number, 1)
-    total_av_per_day = round(current_month_data["amount_cr_currency"].sum() / day_number, 1)
+    
+    rent_sum = current_month_data.loc[current_month_data['category'] == 'rent', 'amount_cr_currency'].sum()
+    investing_sum = current_month_data.loc[current_month_data['category'] == 'investing', 'amount_cr_currency'].sum()
+    excluding_amount = rent_sum + investing_sum
+ 
+    total_av_per_day = round((current_month_data["amount_cr_currency"].sum() - excluding_amount) / day_number, 1)
 
     # Calculate the prediction for the end of the month
     current_month_days = calendar.monthrange(datetime.now().year, datetime.now().month)[
@@ -138,15 +143,24 @@ def calculate_limit(user_id):
 
     monthly_limit = float(config.get("DEFAULT", "MONTHLY_LIMIT"))
     total_spendings = show_total(user_id, file_path)
+   
+    # EXcluding Investing and Rent because it is not daily spendings.
+    exclude_df = get_current_month_data(user_id, file_path)
+    rent_sum = exclude_df.loc[exclude_df['category'] == 'rent', 'amount_cr_currency'].sum()
+    investing_sum = exclude_df.loc[exclude_df['category'] == 'investing', 'amount_cr_currency'].sum()
+    excluding_amount = rent_sum + investing_sum
+ 
+    #print ("this is the print statement 23222222!!!",excluding_amount)
     # Calculate daily and weekly limits
     current_date = datetime.now()
     days_in_month = calendar.monthrange(current_date.year, current_date.month)[1]
-    daily_limit = monthly_limit / days_in_month
-    weekly_limit = daily_limit * 7
+    daily_limit = (monthly_limit - excluding_amount) / days_in_month
+    #weekly_limit = daily_limit * 7
 
     # Calculate current daily average
     current_day = current_date.day
-    current_daily_average = total_spendings / current_day
+    #not_spendings = 
+    current_daily_average = (total_spendings - excluding_amount) / current_day
 
     # Calculate percentage difference
     percent_difference = ((current_daily_average - daily_limit) / daily_limit) * 100

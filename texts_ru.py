@@ -36,7 +36,7 @@ RECORDS_TEMPLATE = """
 Средняя сумма в день по 5 наиболее частым категориям {av_per_day_sum}{currency}, что составляет {comparison}% от вчерашнего дня.\n
 По категориям:\n{av_per_day}
 
-Общая среднедневная {record_type} составляет: {total_av_per_day}{currency}, 
+Общая среднедневная {record_type} составляет: {total_av_per_day}{currency}, без учета Аренды и Инвестиций
 Вы {record_type2}: <b>{predicted_total}</b>{currency} к концу месяца при такой же нагрузке.
 """
 START_COMMAND_PROMPT = (

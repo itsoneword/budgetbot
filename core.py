@@ -435,7 +435,8 @@ async def show_records(update: Update, context):
                 ),
                 parse_mode=ParseMode.HTML,
             )
-    except Exception:
+    except Exception as e:
+        print(f"Exception: {e}")       
         pass
     return TRANSACTION
 
@@ -457,7 +458,7 @@ async def show_detailed(update: Update, context):
         # Get the top subcategories for this category
         category_subcats = top_subcats[top_subcats["category"] == category]
         for _, row in category_subcats.iterrows():
-            output += f"   {row['subcategory']}: {row['amount']}\n"
+            output += f"   {row['subcategory']}: {row['amount_cr_currency']}\n"
 
         output += "\n"
 
