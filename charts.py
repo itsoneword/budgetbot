@@ -137,6 +137,74 @@ def monthly_pivot_chart(user_id):
 
 
 def monthly_line_chart(user_id):
+
+    data = pd.read_csv(f"user_data/{user_id}/spendings_{user_id}.csv")
+
+    # Convert timestamp column to datetime
+    data['timestamp'] = pd.to_datetime(data['timestamp'])
+
+    # Filter data for the last 6 months
+    six_months_ago = pd.Timestamp.today() - pd.DateOffset(months=8)
+    filtered_data = data[data['timestamp'] > six_months_ago]
+            
+    # Extract month and year from timestamp
+
+    filtered_data['month'] = filtered_data['timestamp'].dt.to_period('M')
+    #filtered_data['month'] = filtered_data['timestamp'].dt.to_period('M').astype(str).str.replace('-', '').astype(int)
+
+    # Group by category and month, then sum the amount
+    monthly_sum = filtered_data.groupby(['category', 'month'], as_index=False)['amount'].sum()
+
+    # Ensure 'amount' column is numeric
+    monthly_sum['amount'] = pd.to_numeric(monthly_sum['amount'])
+
+    # Check if there are any NaN values in the DataFrame
+    #print(monthly_sum.isnull().sum())
+
+    # Remove duplicate entries if present
+    monthly_sum = monthly_sum.drop_duplicates()
+
+    # Compute total sum of amounts for each category
+    category_totals = monthly_sum.groupby('category')['amount'].sum()
+
+    # Select top 5 categories
+    top_categories = category_totals.nlargest(8).index
+ 
+            # Combine remaining categories into "Other"
+    monthly_sum['category'] = monthly_sum['category'].apply(lambda x: x if x in top_categories else 'Other')
+ 
+         # Compute total sum of amounts for each category
+    monthly_sum = monthly_sum.groupby(['category', 'month'], as_index=False)['amount'].sum()
+
+    # Pivot the data for stacked area chart
+    pivot_table = monthly_sum.pivot(index='month', columns='category', values='amount').fillna(0)
+
+    # Set up the plot
+    plt.figure(figsize=(14, 8))
+
+    # Plot stacked area chart
+    pivot_table.plot(kind='area', ax=plt.gca(), stacked=True)
+
+    # Add vertical lines for each month
+    for month in pivot_table.index:
+        plt.axvline(x=month, color='gray', linestyle='-', linewidth=1)
+
+    # Add labels and legend
+    plt.xlabel('Month')
+    plt.ylabel('Total Amount')
+    plt.title('Monthly Total Amount by Top 7 Categories (Stacked)')
+    plt.legend(title='Category')
+
+    # Add horizontal lines based on the total amount values
+    max_total_amount = pivot_table.sum(axis=1).max()  # Maximum total amount across all months
+    line_values = np.arange(500, max_total_amount + 500, 500)  # Values for the horizontal lines
+    for val in line_values:
+        plt.axhline(y=val, color='red', linestyle='--', linewidth=1)
+
+    # Show plot
+    plt.savefig(f"user_data/{user_id}/monthly_chart_{user_id}.jpg")
+
+def monthly_line_chart_old(user_id):
     records_file = f"user_data/{user_id}/spendings_{user_id}.csv"
     
     df = pd.read_csv(records_file)
