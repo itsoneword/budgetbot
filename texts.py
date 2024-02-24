@@ -60,7 +60,7 @@ NO_RECORDS_TO_DELETE = "No records to delete."
 RECORD_DELETED = "Deleted record number {}."
 NOT_ENOUGH_RECORDS = "There are less than {} records."
 HELP_TEXT = """
-About☝🏼 New release 0.0.4 from 24.02.24. 👌🏼 
+About☝🏼 New release 0.0.6 from 24.02.24. 👌🏼 
 New features were added. 🎉
 Possibility to set monthly limit and track daily. Please, consider re-running /start to set up the limit.
 Rent and investing categoies are excluded from daily average.
@@ -99,4 +99,4 @@ Please choose one of the recently used or <b>enter a new one manually</b>:"""
 NOTIFY_OTHER_CAT = """Your transactions for '<code>{}</code>'  were saved under category 'other', because we could not find any match in the dictionary.
 If you know which Category to use, please, add it into the dictionary via /change_cat , or add another transaction in <code>category subcategory amount</code> format, and it will be automatically updated in the database."""
 LAST_RECORDS = "List of transactoins with index number.\nThe sum is: <b>{}</b> \n\n{} \n\nTo delete type /delete followed by the transaction index."
-ABOUT = 'Hello, {}!\nYour curent Currency is <b>{}</b> Language is <b>{}</b>, and \nMonthly limit is <b>{}</b>'
+ABOUT = 'Hello, {}!\nYour curent Currency is <b>{}</b> Language is <b>{}</b>, and \nMonthly limit is <b>{}</b> \nCurrent version is 0.0.6 from 24.2.24'
