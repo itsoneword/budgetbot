@@ -78,7 +78,7 @@ def log_user_interaction(user_id: str, username: str, tg_username: str):
 config = configparser.ConfigParser()
 config.read("configs/config")
 token = config["TELEGRAM"]["TOKEN"]
-
+print (config["TELEGRAM"]["TEST"])
 (
     LANGUAGE,
     CURRENCY,
@@ -205,8 +205,8 @@ async def save_limit(update: Update, context: CallbackContext):
 
     # Save the limit to the config file as a string
     save_user_setting(user_id, "MONTHLY_LIMIT", str(limit))
-
-    await update.effective_message.reply_text("Limit saved successfully.")
+    await update.effective_message.reply_text(texts.LIMIT_SET)
+    await update.effective_message.reply_text(texts.TRANSACTION_START_TEXT)
     return TRANSACTION  # Or whatever state should come next
 
 
@@ -221,7 +221,10 @@ async def skip_limit(update: Update, context: CallbackContext):
         message_id=update.effective_message.message_id,
         reply_markup=None,
     )
+    save_user_setting(user_id, "MONTHLY_LIMIT", str(9999999))
+
     await update.effective_message.reply_text(texts.NO_LIMIT)
+    await update.effective_message.reply_text(texts.TRANSACTION_START_TEXT)
     return TRANSACTION  # Or whatever state should come next
 
 

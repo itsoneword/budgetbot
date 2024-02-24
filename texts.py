@@ -4,7 +4,8 @@ CHOOSE_CURRENCY_TEXT = "Now, please choose your preferred currency:"
 CURRENCY_REPLY = "Currency saved as {}"
 CHOOSE_LIMIT_TEXT = "Please, enter your expected monthly limit or click Skip"
 NO_LIMIT = "No Limit set!"
-TRANSACTION_START_TEXT = """Limit saved successfully. Now, you can send transactions. There are 3 possible formats: \n
+LIMIT_SET = "Limit successfully set."
+TRANSACTION_START_TEXT = """Now, you can send transactions. The following formats are supported: \n
 Full:   <code>date category subcategory amount</code> 
 W/ category:    <code>transport taxi 5</code>
 W/o category:     <code>taxi 5</code> 
@@ -59,9 +60,11 @@ NO_RECORDS_TO_DELETE = "No records to delete."
 RECORD_DELETED = "Deleted record number {}."
 NOT_ENOUGH_RECORDS = "There are less than {} records."
 HELP_TEXT = """
-About☝🏼 New release 0.0.3 from 14.06.23. 👌🏼 
+About☝🏼 New release 0.0.4 from 24.02.24. 👌🏼 
 New features were added. 🎉
 Possibility to set monthly limit and track daily. Please, consider re-running /start to set up the limit.
+Rent and investing categoies are excluded from daily average.
+Onboarding Start message is fixed. Consider sending /start to check it.
 
 Bellow the list of available commands. We are constantly working on the product, so if you have noticed any problems or 
 want to have additional functionality, contact @dy0r2 
