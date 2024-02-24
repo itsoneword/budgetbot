@@ -1,4 +1,4 @@
-import os, shutil, configparser, csv, time, pandas as pd, json, datetime
+import os, shutil, configparser, csv, time, pandas as pd, json, datetime, subprocess
 
 from pandas_ops import show_sum_per_cat, show_av_per_day, show_total, get_exchange_rate, get_user_currency, recalculate_currency
 
@@ -381,6 +381,17 @@ def create_user_dir_and_copy_dict(user_id):
     if not os.path.exists(f"{user_dir}/dictionary_{user_id}.json"):
         shutil.copy("configs/dictionary.json", f"{user_dir}/dictionary_{user_id}.json")
     return user_dir
+
+def check_log(record_num):
+    #filepath = "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/user_data/46304833/spendings_46304833.csv"
+    #with open(filepath, 'r') as file:
+     #   lines = file.readlines()
+    command = f'docker logs --tail {record_num} budgetbot'
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    return result.stdout
+
+    #return lines[-record_num:]
+
 
 
 # def save_to_file(file_path, data, mode="a"):

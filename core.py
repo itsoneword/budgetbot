@@ -28,6 +28,7 @@ from file_ops import (
     archive_user_data,
     backup_charts,
     read_config,
+    check_log,
 )
 
 
@@ -624,6 +625,25 @@ async def about(update: Update, context):
     await update.message.reply_text(texts.ABOUT.format(name,currency,language,limit), parse_mode=ParseMode.HTML)
     return TRANSACTION
 
+async def show_log(update: Update, context: CallbackContext):
+    texts = check_language(update, context)
+    #command = update.effective_message.text.split()[0][1:]
+    record_num = 10  # Default value
+
+    if context.args:
+        try:
+            record_num = int(context.args[0])
+        except ValueError:
+            await update.message.reply_text(texts.INVALID_RECORD_NUM)
+            return
+        
+    log_info = check_log(record_num)
+    await update.message.reply_text(
+        log_info,
+        reply_markup=ReplyKeyboardRemove(),
+    )
+    return TRANSACTION
+
 async def cancel(update: Update, context):
     texts = check_language(update, context)
     await update.message.reply_text(
@@ -806,6 +826,8 @@ def main():
     # application.add_handler(CommandHandler("leave", archive_profile))
     application.add_handler(CommandHandler("monthly_stat", send_chart))
     application.add_handler(CommandHandler("yearly_stat", send_yearly_piechart))
+    application.add_handler(CommandHandler("show_log", show_log))
+
 
     income_handler = ConversationHandler(
         entry_points=[CommandHandler("income", start_income)],
