@@ -387,7 +387,11 @@ def check_log(record_num):
     #with open(filepath, 'r') as file:
      #   lines = file.readlines()
     command = f'docker logs --tail {record_num} budgetbot'
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    try:
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    except Exception as e:
+        result = e
+        return e
     return result.stdout
 
     #return lines[-record_num:]
