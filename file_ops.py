@@ -383,18 +383,22 @@ def create_user_dir_and_copy_dict(user_id):
     return user_dir
 
 def check_log(record_num):
-    #filepath = "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/user_data/46304833/spendings_46304833.csv"
-    #with open(filepath, 'r') as file:
-     #   lines = file.readlines()
-    command = f'docker logs --tail {record_num} budgetbot'
-    try:
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    except Exception as e:
-        result = e
-        return e
-    return result.stdout
-
-    #return lines[-record_num:]
+    filepath = "user_data/global_log.txt"
+    with open(filepath, 'r') as file:
+       lines = file.readlines()
+   # print("called checklog")
+    # command = f'docker logs --tail {record_num} budgetbot'
+    # try:
+    #     print("trying to call docker command")
+    #     result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    # except Exception as e:
+    #     print("We are in exception")
+    #     result = e
+    #     return e
+    # print("result is : ",result)
+    #return result.stdout
+    return "still under dev."
+#    return lines[-record_num:]
 
 
 

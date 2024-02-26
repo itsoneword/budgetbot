@@ -207,7 +207,7 @@ async def save_limit(update: Update, context: CallbackContext):
     # Save the limit to the config file as a string
     save_user_setting(user_id, "MONTHLY_LIMIT", str(limit))
     await update.effective_message.reply_text(texts.LIMIT_SET)
-    await update.effective_message.reply_text(texts.TRANSACTION_START_TEXT)
+    await update.effective_message.reply_text(texts.TRANSACTION_START_TEXT, parse_mode=ParseMode.HTML)
     return TRANSACTION  # Or whatever state should come next
 
 
@@ -225,7 +225,7 @@ async def skip_limit(update: Update, context: CallbackContext):
     save_user_setting(user_id, "MONTHLY_LIMIT", str(9999999))
 
     await update.effective_message.reply_text(texts.NO_LIMIT)
-    await update.effective_message.reply_text(texts.TRANSACTION_START_TEXT)
+    await update.effective_message.reply_text(texts.TRANSACTION_START_TEXT, parse_mode=ParseMode.HTML)
     return TRANSACTION  # Or whatever state should come next
 
 
@@ -715,6 +715,7 @@ async def archive_profile(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     result = await archive_user_data(user_id)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=result)
+    return ConversationHandler.END
 
 
 async def send_chart(update: Update, context: CallbackContext) -> None:
@@ -823,7 +824,7 @@ def main():
     application.add_handler(CommandHandler("help", help))
     application.add_handler(CommandHandler("download", download_spendings))
     application.add_handler(CommandHandler("cancel", cancel))
-    # application.add_handler(CommandHandler("leave", archive_profile))
+    application.add_handler(CommandHandler("leave", archive_profile))
     application.add_handler(CommandHandler("monthly_stat", send_chart))
     application.add_handler(CommandHandler("yearly_stat", send_yearly_piechart))
     application.add_handler(CommandHandler("show_log", show_log))

@@ -14,8 +14,13 @@ def process_transaction_input(user_id, parts):
     subcat_to_cat = read_subcat_to_cat_from_file(subcat_to_cat_file, user_id)
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
     if len(parts) > 2:
+        #print(parts[0][0] , type(parts[0][0]))
+        #print (parts[0][0].isdigit() , parts[0][-1].isdigit())
         if parts[0][0].isdigit() and parts[0][-1].isdigit():
-            timestamp = toDateUtc(parts[0])
+            try:
+                timestamp = toDateUtc(parts[0])
+            except Exception as e:
+                print(e)
             if len(parts) > 3:
                 category = parts[1]
                 subcategory = parts[2]
