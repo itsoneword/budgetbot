@@ -58,7 +58,7 @@ logger = logging.getLogger("user_interactions")
 logger.setLevel(logging.INFO)
 
 # Create file handler
-handler = logging.FileHandler("user_data/global_log.txt")
+handler = logging.FileHandler("./user_data/global_log.txt")
 handler.setLevel(logging.INFO)
 # Create formatter and add it to the handler
 formatter = logging.Formatter("%(asctime)s - %(message)s")
