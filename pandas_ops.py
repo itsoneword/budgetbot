@@ -69,7 +69,7 @@ def show_top_subcategories(user_id):
     top_subcats = sum_per_subcat.sort_values(
         ["category", "amount_cr_currency"], ascending=[True, False]
     )
-    top_subcats = top_subcats.groupby("category").head(3)
+    top_subcats = top_subcats.groupby("category").head(5)
 
     return top_subcats
 

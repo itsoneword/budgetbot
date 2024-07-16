@@ -7,7 +7,7 @@ from pandas_ops import (
     calculate_limit,
     get_user_path,get_user_currency, 
 )
-from charts import monthly_line_chart, monthly_pivot_chart, make_yearly_pie_chart
+from charts import monthly_line_chart, monthly_pivot_chart, make_yearly_pie_chart,monthly_ext_pivot_chart
 from utils import process_transaction_input, process_income_input
 from file_ops import (
     create_user_dir_and_copy_dict,
@@ -745,6 +745,33 @@ async def send_chart(update: Update, context: CallbackContext) -> None:
     await context.bot.send_media_group(chat_id=update.effective_chat.id, media=media)
 
 
+async def send_ext_chart(update: Update, context: CallbackContext) -> None:
+    user_id = str(update.effective_user.id)
+    log_user_interaction(
+        update.effective_user.id,
+        update.effective_user.first_name,
+        update.effective_user.username,
+    )
+    monthly_ext_pivot_chart(user_id)
+    #monthly_line_chart(user_id)
+    directory = f"user_data/{user_id}"
+
+    # List all files in the directory and filter for those containing 'Monthly'
+    monthly_images = [
+        file
+        for file in os.listdir(directory)
+        if "monthly_pivot" in file and file.endswith(".jpg")
+    ]
+    # Create a list of InputMediaPhoto objects
+    media = []
+    for image in monthly_images:
+        with open(os.path.join(directory, image), "rb") as file:
+            media.append(InputMediaPhoto(file))
+
+    backup_charts(user_id, monthly_images)
+    await context.bot.send_media_group(chat_id=update.effective_chat.id, media=media)
+
+
 async def send_yearly_piechart(update: Update, context: CallbackContext) -> None:
     user_id = str(update.effective_user.id)
     log_user_interaction(
@@ -826,6 +853,7 @@ def main():
     application.add_handler(CommandHandler("cancel", cancel))
     application.add_handler(CommandHandler("leave", archive_profile))
     application.add_handler(CommandHandler("monthly_stat", send_chart))
+    application.add_handler(CommandHandler("monthly_ext_stat", send_ext_chart))
     application.add_handler(CommandHandler("yearly_stat", send_yearly_piechart))
     application.add_handler(CommandHandler("show_log", show_log))
 

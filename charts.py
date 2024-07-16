@@ -12,7 +12,7 @@ def monthly_pivot_chart(user_id):
     data["timestamp"] = pd.to_datetime(data["timestamp"])
     #  Determine the current date
     # Calculate the start date (six months ago)
-    start_date = (datetime.now() - relativedelta(months=6)).replace(day=1)
+    start_date = (datetime.now() - relativedelta(months=7)).replace(day=1)
     # Filter data to include only the last six months
     data = data[data["timestamp"] >= start_date]
     #call getting exchange rates:
@@ -37,7 +37,7 @@ def monthly_pivot_chart(user_id):
     pivot_table = pd.pivot_table(
         data,
         values="amount_cr_currency",
-        index=["category"],
+        index=["category"],  # Include subcategory in the index
         columns=["month_name"],
         aggfunc=np.sum,
         fill_value=0,
@@ -75,7 +75,7 @@ def monthly_pivot_chart(user_id):
 
     # Create a figure and a set of subplots with specified layout
     fig = plt.figure(figsize=(8, 10))
-    gs = GridSpec(3, 2, height_ratios=[9, 1, 1], width_ratios=[9, 1])
+    gs = GridSpec(3, 2, height_ratios=[8, 1, 1], width_ratios=[9, 1])
     # Define your colors in RGB
 
     # Create a heatmap with the transformed data for the color mapping and the actual data for the annotations
@@ -135,6 +135,66 @@ def monthly_pivot_chart(user_id):
     # plt.show()
     fig.savefig(f"user_data/{user_id}/monthly_pivot_{user_id}.jpg")
 
+
+def monthly_ext_pivot_chart(user_id):
+    # Load the data
+    df = pd.read_csv(f"user_data/{user_id}/spendings_{user_id}.csv")
+
+# Step 2: Preprocess the data
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df['month'] = df['timestamp'].dt.to_period('M')
+    df['cat_subcat'] = df['category'] + ':' + df['subcategory']
+
+      # Step 2: Preprocess the data
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df['month'] = df['timestamp'].dt.to_period('M')
+    df['year'] = df['timestamp'].dt.year
+    df['cat_subcat'] = df['category'] + ':' + df['subcategory']
+    
+    # Step 3: Filter for the current year
+    current_year = datetime.now().year
+    df = df[df['year'] == current_year]
+    
+    # Step 3: Group the data and sum the amounts
+    grouped = df.groupby(['month', 'cat_subcat'])['amount'].sum().reset_index()
+
+    # Print the grouped data to ensure correctness
+    #print(grouped)
+    
+    # Step 4: Create a pivot table
+    pivot_table = grouped.pivot(index='cat_subcat', columns='month', values='amount').fillna(0)
+    
+    # Step 5: Sort the pivot table by total value
+    pivot_table['Total'] = pivot_table.sum(axis=1)
+    pivot_table = pivot_table.sort_values(by='Total', ascending=False)#.drop(columns='Total')
+    
+    # Print the pivot table to ensure correctness
+    #print(pivot_table)
+    
+    # Step 6: Generate the heatmap with controlled formatting
+    plt.figure(figsize=(12, 24))
+    sns.heatmap(
+        pivot_table,
+        annot=True,
+        cbar=False,
+        fmt=".2f",
+        vmax=400, 
+        vmin=50, 
+        cmap='Reds',
+        #cbar_kws={'shrink': 0.5}  # Shrink the color bar to fit better
+    )
+    #sns.heatmap(pivot_table, vmax=500,  fmt=".2g",cmap='Reds' )
+    plt.title('Monthly Expenses Heatmap')
+    plt.ylabel('Category:Subcategory')
+    plt.xlabel('Month')
+        
+    # Adjust the y-axis to avoid overlap of labels
+    plt.yticks(rotation=0, ha='right')
+
+    # Step 7: Save the heatmap as an image
+    plt.savefig(f"user_data/{user_id}/monthly_pivot_{user_id}.jpg")
+    plt.close()
+    print('Done with chart function, pass to sending')
 
 def monthly_line_chart(user_id):
 
