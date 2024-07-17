@@ -76,6 +76,7 @@ want to have additional functionality, contact @dy0r2
 <b>/income</b> - Add your income. 🆕
 <b>/show_income</b> - Show current month income, per category and average.🆕
 <b>/monthly_stat</b> - Show monthly chart and heatmap based on your spendings.🆕
+<b>/monthly_ext_stat</b> - Show monthly based heatmap for current year per Subcategory.🆕
 <b>/show_cat</b> - Show currently used dictionary.
 <b>/change_cat</b> - Modify existing dictionary, add or delete category.  
 <b>/delete N</b> - Delete transaction with number = N. Number is shown in /show_last command. 1 is default value.
