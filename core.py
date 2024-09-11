@@ -49,10 +49,20 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+from logging.handlers import TimedRotatingFileHandler
+
 
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO , handlers=[
+        TimedRotatingFileHandler(
+            'app.log',
+            when="m",
+            interval=10,
+            backupCount=5
+        )
+    ])
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 logger = logging.getLogger("user_interactions")
 logger.setLevel(logging.INFO)
