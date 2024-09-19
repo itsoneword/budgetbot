@@ -271,11 +271,18 @@ def get_records(user_id, command):
         file_path = f"user_data/{user_id}/spendings_{user_id}.csv"
     if not os.path.exists(file_path):
         return None
+    print("start GetRecords executed")
+
     sum_per_cat = show_sum_per_cat(user_id, file_path)
+    print("GetRecords executed, sum_per_cat = ", sum_per_cat)
+
     av_per_day, total_av_per_day, prediction, comparison = show_av_per_day(
         user_id, file_path
     )
+    print("GetRecords executed, show_av_per_day = ", av_per_day)
+
     total_spendings = show_total(user_id, file_path)
+    print("GetRecords executed")
     return (
         sum_per_cat,
         av_per_day,

@@ -30,10 +30,12 @@ def get_current_month_data(user_id, file_path):
     current_year = datetime.now().year
 
     # Filter the DataFrame to include only records from the current month
+
     current_month_data = data[
         (data["timestamp"].dt.month == current_month)
         & (data["timestamp"].dt.year == current_year)
-    ]
+    ].copy()
+    #current_month_data_copy = current_month_data.copy()
         #recalc total in current currency
     exchange_rates = get_exchange_rate()
     currency = get_user_currency(user_id)
@@ -191,14 +193,22 @@ def calculate_limit(user_id):
         days_zero_spending,
         new_daily_limit,
     ]
+import pandas as pd
 
 def calculate_new_value(data, user_currency, exchange_rates):
     current_currency = user_currency.upper()
-   # tx_currency, amount = None, None
-    tx_currency = data["currency"]
-    amount = data["amount"]
-   # print("Vars are type of:", type(tx_currency), type(amount) )
-   # print(tx_currency, amount )
+    
+    if isinstance(data, pd.DataFrame):
+        # If data is a DataFrame, apply the function to each row
+        return data.apply(lambda row: calculate_new_value_single(row, current_currency, exchange_rates), axis=1)
+    else:
+        # If data is a single row (Series or dict), process it directly
+        return calculate_new_value_single(data, current_currency, exchange_rates)
+
+def calculate_new_value_single(row, current_currency, exchange_rates):
+    tx_currency = row["currency"]
+    amount = row["amount"]
+    
     try:
         if tx_currency == current_currency:
             return amount
@@ -215,12 +225,14 @@ def calculate_new_value(data, user_currency, exchange_rates):
         else:
             print(f"Unsupported original currency: {tx_currency}")
             return amount
-    except:
-        print("tx currency and current currency:",tx_currency, current_currency)
-
+    except Exception as e:
+        print(f"Error processing row: {row}")
+        print(f"Exception: {str(e)}")
+        return amount
 
 def recalculate_currency(data, user_currency, exchange_rates):
-    data['amount_cr_currency'] = data.apply(lambda row: calculate_new_value(row, user_currency, exchange_rates), axis=1)
+    data.loc[:,'amount_cr_currency'] = calculate_new_value(data, user_currency, exchange_rates)
+
     return data
 
 def get_user_currency(user_id):
@@ -235,7 +247,7 @@ def get_user_currency(user_id):
     except (configparser.Error, FileNotFoundError, KeyError):
         # Handle errors by setting a default value (USD)
         currency = "USD"
-    
+   #print("getUserCurrency exceuted")
     return currency
 
 def get_exchange_rate():

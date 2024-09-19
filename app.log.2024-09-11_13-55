@@ -1,0 +1,212 @@
+2024-09-11 13:37:58,166 - telegram.ext.Application - INFO - Application started
+2024-09-11 13:38:08,390 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, handle_text
+2024-09-11 13:38:08,392 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, save_transaction
+2024-09-11 13:39:02,151 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2024-09-11 13:39:02,153 - telegram.ext.Application - INFO - Application.stop() complete
+2024-09-11 13:39:04,324 - telegram.ext.Application - INFO - Application started
+2024-09-11 13:39:09,924 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, handle_text
+2024-09-11 13:39:09,926 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, save_transaction
+2024-09-11 13:44:17,405 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2024-09-11 13:44:17,408 - telegram.ext.Application - INFO - Application.stop() complete
+2024-09-11 13:44:19,695 - telegram.ext.Application - INFO - Application started
+2024-09-11 13:44:24,236 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, handle_text
+2024-09-11 13:44:24,237 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, save_transaction
+2024-09-11 13:44:31,383 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, handle_text
+2024-09-11 13:44:31,394 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, save_transaction
+2024-09-11 13:45:56,571 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, show_records
+2024-09-11 13:45:56,597 - telegram.ext.Application - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "/opt/homebrew/lib/python3.11/site-packages/telegram/ext/_application.py", line 1234, in process_update
+    await coroutine
+  File "/opt/homebrew/lib/python3.11/site-packages/telegram/ext/_basehandler.py", line 157, in handle_update
+    return await self.callback(update, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/core.py", line 399, in show_records
+    records = get_records(user_id, command)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/file_ops.py", line 274, in get_records
+    sum_per_cat = show_sum_per_cat(user_id, file_path)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/pandas_ops.py", line 51, in show_sum_per_cat
+    current_month_data.groupby("category")["amount_cr_currency"]
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.11/site-packages/pandas/core/groupby/generic.py", line 1964, in __getitem__
+    return super().__getitem__(key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.11/site-packages/pandas/core/base.py", line 244, in __getitem__
+    raise KeyError(f"Column not found: {key}")
+KeyError: 'Column not found: amount_cr_currency'
+2024-09-11 13:46:06,105 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, show_records
+2024-09-11 13:46:06,116 - telegram.ext.Application - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "/opt/homebrew/lib/python3.11/site-packages/telegram/ext/_application.py", line 1234, in process_update
+    await coroutine
+  File "/opt/homebrew/lib/python3.11/site-packages/telegram/ext/_basehandler.py", line 157, in handle_update
+    return await self.callback(update, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/core.py", line 399, in show_records
+    records = get_records(user_id, command)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/file_ops.py", line 274, in get_records
+    sum_per_cat = show_sum_per_cat(user_id, file_path)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/pandas_ops.py", line 51, in show_sum_per_cat
+    current_month_data.groupby("category")["amount_cr_currency"]
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.11/site-packages/pandas/core/groupby/generic.py", line 1964, in __getitem__
+    return super().__getitem__(key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.11/site-packages/pandas/core/base.py", line 244, in __getitem__
+    raise KeyError(f"Column not found: {key}")
+KeyError: 'Column not found: amount_cr_currency'
+2024-09-11 13:46:14,367 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, start
+2024-09-11 13:46:16,185 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, language
+2024-09-11 13:46:17,468 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, save_currency
+2024-09-11 13:46:18,755 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, skip_limit
+2024-09-11 13:46:21,817 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, show_records
+2024-09-11 13:46:21,841 - telegram.ext.Application - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "/opt/homebrew/lib/python3.11/site-packages/telegram/ext/_application.py", line 1234, in process_update
+    await coroutine
+  File "/opt/homebrew/lib/python3.11/site-packages/telegram/ext/_basehandler.py", line 157, in handle_update
+    return await self.callback(update, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/core.py", line 399, in show_records
+    records = get_records(user_id, command)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/file_ops.py", line 274, in get_records
+    sum_per_cat = show_sum_per_cat(user_id, file_path)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/pandas_ops.py", line 51, in show_sum_per_cat
+    current_month_data.groupby("category")["amount_cr_currency"]
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.11/site-packages/pandas/core/groupby/generic.py", line 1964, in __getitem__
+    return super().__getitem__(key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.11/site-packages/pandas/core/base.py", line 244, in __getitem__
+    raise KeyError(f"Column not found: {key}")
+KeyError: 'Column not found: amount_cr_currency'
+2024-09-11 13:49:17,775 - telegram.ext.Application - INFO - Application started
+2024-09-11 13:49:21,597 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, show_records
+2024-09-11 13:49:21,620 - telegram.ext.Application - ERROR - No error handlers are registered, logging exception.
+AttributeError: 'float' object has no attribute 'rint'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/homebrew/lib/python3.11/site-packages/telegram/ext/_application.py", line 1234, in process_update
+    await coroutine
+  File "/opt/homebrew/lib/python3.11/site-packages/telegram/ext/_basehandler.py", line 157, in handle_update
+    return await self.callback(update, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/core.py", line 399, in show_records
+    records = get_records(user_id, command)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/file_ops.py", line 275, in get_records
+    av_per_day, total_av_per_day, prediction, comparison = show_av_per_day(
+                                                           ^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/pandas_ops.py", line 102, in show_av_per_day
+    av_per_day = round(total_per_cat / day_number, 1)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.11/site-packages/pandas/core/generic.py", line 1663, in __round__
+    return self.round(decimals).__finalize__(self, method="__round__")
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.11/site-packages/pandas/core/series.py", line 2692, in round
+    result = self._values.round(decimals)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: loop of ufunc does not support argument 0 of type float which has no callable rint method
+2024-09-11 13:49:26,069 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, handle_text
+2024-09-11 13:49:26,078 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, save_transaction
+2024-09-11 13:51:22,082 - telegram.ext.Application - INFO - Application started
+2024-09-11 13:51:25,429 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, show_records
+2024-09-11 13:51:25,455 - telegram.ext.Application - ERROR - No error handlers are registered, logging exception.
+AttributeError: 'float' object has no attribute 'rint'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/homebrew/lib/python3.11/site-packages/telegram/ext/_application.py", line 1234, in process_update
+    await coroutine
+  File "/opt/homebrew/lib/python3.11/site-packages/telegram/ext/_basehandler.py", line 157, in handle_update
+    return await self.callback(update, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/core.py", line 399, in show_records
+    records = get_records(user_id, command)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/file_ops.py", line 275, in get_records
+    av_per_day, total_av_per_day, prediction, comparison = show_av_per_day(
+                                                           ^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/pandas_ops.py", line 102, in show_av_per_day
+    av_per_day = round(total_per_cat / day_number, 1)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.11/site-packages/pandas/core/generic.py", line 1663, in __round__
+    return self.round(decimals).__finalize__(self, method="__round__")
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.11/site-packages/pandas/core/series.py", line 2692, in round
+    result = self._values.round(decimals)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: loop of ufunc does not support argument 0 of type float which has no callable rint method
+2024-09-11 13:53:26,594 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2024-09-11 13:53:26,596 - telegram.ext.Application - INFO - Application.stop() complete
+2024-09-11 13:53:28,736 - telegram.ext.Application - INFO - Application started
+2024-09-11 13:53:37,153 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, show_records
+2024-09-11 13:53:37,174 - telegram.ext.Application - ERROR - No error handlers are registered, logging exception.
+AttributeError: 'float' object has no attribute 'rint'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/homebrew/lib/python3.11/site-packages/telegram/ext/_application.py", line 1234, in process_update
+    await coroutine
+  File "/opt/homebrew/lib/python3.11/site-packages/telegram/ext/_basehandler.py", line 157, in handle_update
+    return await self.callback(update, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/core.py", line 399, in show_records
+    records = get_records(user_id, command)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/file_ops.py", line 279, in get_records
+    av_per_day, total_av_per_day, prediction, comparison = show_av_per_day(
+                                                           ^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/pandas_ops.py", line 102, in show_av_per_day
+    av_per_day = round(total_per_cat / day_number, 1)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.11/site-packages/pandas/core/generic.py", line 1663, in __round__
+    return self.round(decimals).__finalize__(self, method="__round__")
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.11/site-packages/pandas/core/series.py", line 2692, in round
+    result = self._values.round(decimals)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: loop of ufunc does not support argument 0 of type float which has no callable rint method
+2024-09-11 13:55:02,014 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2024-09-11 13:55:02,016 - telegram.ext.Application - INFO - Application.stop() complete
+2024-09-11 13:55:04,061 - telegram.ext.Application - INFO - Application started
+2024-09-11 13:55:05,503 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, show_records
+2024-09-11 13:55:05,519 - telegram.ext.Application - ERROR - No error handlers are registered, logging exception.
+AttributeError: 'float' object has no attribute 'rint'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/homebrew/lib/python3.11/site-packages/telegram/ext/_application.py", line 1234, in process_update
+    await coroutine
+  File "/opt/homebrew/lib/python3.11/site-packages/telegram/ext/_basehandler.py", line 157, in handle_update
+    return await self.callback(update, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/core.py", line 399, in show_records
+    records = get_records(user_id, command)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/file_ops.py", line 279, in get_records
+    av_per_day, total_av_per_day, prediction, comparison = show_av_per_day(
+                                                           ^^^^^^^^^^^^^^^^
+  File "/Users/vyacheslav.dubinin/Library/Mobile Documents/com~apple~CloudDocs/Documents/Documents - SkyNet_1/Programming/budgetbot/pandas_ops.py", line 102, in show_av_per_day
+    av_per_day = round(total_per_cat / day_number, 1)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.11/site-packages/pandas/core/generic.py", line 1663, in __round__
+    return self.round(decimals).__finalize__(self, method="__round__")
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.11/site-packages/pandas/core/series.py", line 2692, in round
+    result = self._values.round(decimals)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: loop of ufunc does not support argument 0 of type float which has no callable rint method
+2024-09-11 13:55:14,934 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, handle_text
+2024-09-11 13:55:14,937 - user_interactions - INFO - UserID: 46304833, Slava, DY0R2, save_transaction
