@@ -55,7 +55,7 @@ from logging.handlers import TimedRotatingFileHandler
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO , handlers=[
         TimedRotatingFileHandler(
-            'app.log',
+            'user_data/app.log',
             when="m",
             interval=10,
             backupCount=5
