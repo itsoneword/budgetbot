@@ -4,8 +4,12 @@ from dateutil.relativedelta import relativedelta
 from datetime import datetime
 from file_ops import backup_charts
 from pandas_ops import get_user_currency, get_exchange_rate, recalculate_currency
+plt.style.use('ggplot')
+
 
 def monthly_pivot_chart(user_id):
+    print('test printing pivot started')
+
     # Load the data
     data = pd.read_csv(f"user_data/{user_id}/spendings_{user_id}.csv")
     # Convert the 'timestamp' column to datetime
@@ -134,10 +138,12 @@ def monthly_pivot_chart(user_id):
     plt.tight_layout()
     # plt.show()
     fig.savefig(f"user_data/{user_id}/monthly_pivot_{user_id}.jpg")
+    plt.close()
 
 
 def monthly_ext_pivot_chart(user_id):
     # Load the data
+    print('test pring chart started')
     df = pd.read_csv(f"user_data/{user_id}/spendings_{user_id}.csv")
 
 # Step 2: Preprocess the data
@@ -193,27 +199,25 @@ def monthly_ext_pivot_chart(user_id):
 
     # Step 7: Save the heatmap as an image
     plt.savefig(f"user_data/{user_id}/monthly_pivot_{user_id}.jpg")
+
     plt.close()
     print('Done with chart function, pass to sending')
 
 def monthly_line_chart(user_id):
-
     data = pd.read_csv(f"user_data/{user_id}/spendings_{user_id}.csv")
 
     # Convert timestamp column to datetime
     data['timestamp'] = pd.to_datetime(data['timestamp'])
 
     # Filter data for the last 6 months
-    six_months_ago = pd.Timestamp.today() - pd.DateOffset(months=8)
-    filtered_data = data[data['timestamp'] > six_months_ago]
-            
+    twelve_months_ago = (pd.Timestamp.today() - pd.DateOffset(months=12)).replace(day=1)
+  
     # Extract month and year from timestamp
-
+    filtered_data = data[data['timestamp'] >= twelve_months_ago].copy()
     filtered_data['month'] = filtered_data['timestamp'].dt.to_period('M')
-    #filtered_data['month'] = filtered_data['timestamp'].dt.to_period('M').astype(str).str.replace('-', '').astype(int)
-
     # Group by category and month, then sum the amount
-    monthly_sum = filtered_data.groupby(['category', 'month'], as_index=False)['amount'].sum()
+    #monthly_sum = filtered_data.groupby(['category', 'month'], as_index=False)['amount'].sum()
+    monthly_sum = filtered_data.groupby(['category', 'month']).agg({'amount': 'sum'}).reset_index()
 
     # Ensure 'amount' column is numeric
     monthly_sum['amount'] = pd.to_numeric(monthly_sum['amount'])
@@ -228,20 +232,21 @@ def monthly_line_chart(user_id):
     category_totals = monthly_sum.groupby('category')['amount'].sum()
 
     # Select top 5 categories
-    top_categories = category_totals.nlargest(8).index
- 
+    #top_categories = category_totals.nlargest(8).index
+    top_categories = category_totals.sort_values(ascending=False).head(8).index
+
             # Combine remaining categories into "Other"
     monthly_sum['category'] = monthly_sum['category'].apply(lambda x: x if x in top_categories else 'Other')
  
          # Compute total sum of amounts for each category
-    monthly_sum = monthly_sum.groupby(['category', 'month'], as_index=False)['amount'].sum()
-
+    #monthly_sum = monthly_sum.groupby(['category', 'month'], as_index=False)['amount'].sum()
+    monthly_sum = monthly_sum.groupby(['category', 'month']).agg({'amount': 'sum'}).reset_index()
     # Pivot the data for stacked area chart
     pivot_table = monthly_sum.pivot(index='month', columns='category', values='amount').fillna(0)
 
     # Set up the plot
     plt.figure(figsize=(14, 8))
-
+    #plt.style.use('seaborn')
     # Plot stacked area chart
     pivot_table.plot(kind='area', ax=plt.gca(), stacked=True)
 
@@ -261,8 +266,11 @@ def monthly_line_chart(user_id):
     for val in line_values:
         plt.axhline(y=val, color='red', linestyle='--', linewidth=1)
 
-    # Show plot
+        # Show plot
     plt.savefig(f"user_data/{user_id}/monthly_chart_{user_id}.jpg")
+    plt.close()
+
+
 
 def monthly_line_chart_old(user_id):
     records_file = f"user_data/{user_id}/spendings_{user_id}.csv"
