@@ -12,3 +12,5 @@ user_list.csv
 .DS_Store
 /configs/config
 /userdatabot
+.secrets
+.vscode
