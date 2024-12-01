@@ -766,21 +766,30 @@ async def send_ext_chart(update: Update, context: CallbackContext) -> None:
     #monthly_line_chart(user_id)
     directory = f"user_data/{user_id}"
 
-    # List all files in the directory and filter for those containing 'Monthly'
+    # List all files in the directory and filter for those containing 'Monthly_pivot'
     monthly_images = [
         file
         for file in os.listdir(directory)
         if "monthly_pivot" in file and file.endswith(".jpg")
     ]
+    print(monthly_images)
     # Create a list of InputMediaPhoto objects
     media = []
     for image in monthly_images:
-        with open(os.path.join(directory, image), "rb") as file:
-            media.append(InputMediaPhoto(file))
+        file_path = os.path.join(directory, image)
+        media.append(InputMediaPhoto(open(file_path, "rb")))
 
     backup_charts(user_id, monthly_images)
-    await context.bot.send_media_group(chat_id=update.effective_chat.id, media=media)
+    try:
+            await context.bot.send_media_group(chat_id=update.effective_chat.id, media=media)
+    except Exception as e:
+            print(f"Error sending media group: {e}")
+            await update.message.reply_text(f"Error sending media group: {e}")
 
+    finally:
+            # Close all opened files
+            for item in media:
+                item.media.close()
 
 async def send_yearly_piechart(update: Update, context: CallbackContext) -> None:
     user_id = str(update.effective_user.id)

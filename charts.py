@@ -16,7 +16,9 @@ def monthly_pivot_chart(user_id):
     data["timestamp"] = pd.to_datetime(data["timestamp"])
     #  Determine the current date
     # Calculate the start date (six months ago)
-    start_date = (datetime.now() - relativedelta(months=7)).replace(day=1)
+    #start_date = (datetime.now() - relativedelta(months=7)).replace(day=1)
+    start_date = (datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0) - relativedelta(months=7))
+    print(start_date)
     # Filter data to include only the last six months
     data = data[data["timestamp"] >= start_date]
     #call getting exchange rates:
@@ -140,68 +142,84 @@ def monthly_pivot_chart(user_id):
     fig.savefig(f"user_data/{user_id}/monthly_pivot_{user_id}.jpg")
     plt.close()
 
-
+    
 def monthly_ext_pivot_chart(user_id):
-    # Load the data
-    print('test pring chart started')
+    # Load and preprocess data
     df = pd.read_csv(f"user_data/{user_id}/spendings_{user_id}.csv")
-
-# Step 2: Preprocess the data
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
-    df['month'] = df['timestamp'].dt.to_period('M')
-    df['cat_subcat'] = df['category'] + ':' + df['subcategory']
-
-      # Step 2: Preprocess the data
     df['timestamp'] = pd.to_datetime(df['timestamp'])
     df['month'] = df['timestamp'].dt.to_period('M')
     df['year'] = df['timestamp'].dt.year
-    df['cat_subcat'] = df['category'] + ':' + df['subcategory']
     
-    # Step 3: Filter for the current year
+    # Filter current year
     current_year = datetime.now().year
     df = df[df['year'] == current_year]
     
-    # Step 3: Group the data and sum the amounts
-    grouped = df.groupby(['month', 'cat_subcat'])['amount'].sum().reset_index()
-
-    # Print the grouped data to ensure correctness
-    #print(grouped)
+    # Calculate category totals first
+    category_totals = df.groupby('category')['amount'].sum().sort_values(ascending=False)
     
-    # Step 4: Create a pivot table
-    pivot_table = grouped.pivot(index='cat_subcat', columns='month', values='amount').fillna(0)
-    
-    # Step 5: Sort the pivot table by total value
-    pivot_table['Total'] = pivot_table.sum(axis=1)
-    pivot_table = pivot_table.sort_values(by='Total', ascending=False)#.drop(columns='Total')
-    
-    # Print the pivot table to ensure correctness
-    #print(pivot_table)
-    
-    # Step 6: Generate the heatmap with controlled formatting
-    plt.figure(figsize=(12, 24))
-    sns.heatmap(
-        pivot_table,
-        annot=True,
-        cbar=False,
-        fmt=".2f",
-        vmax=400, 
-        vmin=50, 
-        cmap='Reds',
-        #cbar_kws={'shrink': 0.5}  # Shrink the color bar to fit better
+    # Create hierarchical grouping
+    grouped = df.groupby(['category', 'subcategory', 'month'])['amount'].sum().reset_index()
+    #print("grouped")
+    # Create pivot table
+    pivot_table = grouped.pivot_table(
+        index=['category', 'subcategory'],
+        columns='month',
+        values='amount',
+        fill_value=0
     )
-    #sns.heatmap(pivot_table, vmax=500,  fmt=".2g",cmap='Reds' )
-    plt.title('Monthly Expenses Heatmap')
-    plt.ylabel('Category:Subcategory')
-    plt.xlabel('Month')
-        
-    # Adjust the y-axis to avoid overlap of labels
-    plt.yticks(rotation=0, ha='right')
+    
+    # Calculate totals and sort
+    pivot_table['Total'] = pivot_table.sum(axis=1)
+    pivot_table = pivot_table[pivot_table['Total'] >= 50]
+    # Reorder categories based on total amounts
+    pivot_table = pivot_table.reindex(category_totals.index, level=0)
+    #print("pivot reindex done")
+    # Plotting with improved formatting
+    plt.figure(figsize=(15, len(pivot_table.index) * 0.4))  # Adjust height based on number of rows
+    
+ # Add logarithmic normalization
+    log_norm = plt.Normalize(vmin=np.log1p(pivot_table[pivot_table > 0].min().min()), 
+                           vmax=np.log1p(pivot_table.max().max()))
+    
+    # Modify the heatmap to use log scaling
+    sns.heatmap(
+        np.log1p(pivot_table),  # Apply log transformation to values for coloring
+        annot=pivot_table,      # Show original values in cells
+        fmt='.0f',
+        cmap='Reds',
+        cbar=False,  
+        norm=log_norm,
+        square=False,
+        annot_kws={'size': 8}  # Smaller font for numbers
+    )
+    #print("3rd checkpoint")
 
-    # Step 7: Save the heatmap as an image
-    plt.savefig(f"user_data/{user_id}/monthly_pivot_{user_id}.jpg")
+    # Improve readability
+    plt.title('Monthly Expenses Heatmap', pad=12, size=12)
+    plt.ylabel('Category:Subcategory', size=10)
+    plt.xlabel('Month', size=10)
+    plt.xticks(rotation=45, ha='right',fontsize=10)
+    plt.yticks(rotation=0, ha='right',fontsize=10)
+    plt.tight_layout()
+    
+    print("4rth checkpoint")
+    # Rotate x-axis labels for better readability
+    plt.xticks(rotation=45, ha='right',fontsize=10)
+    plt.yticks(rotation=0, ha='right',fontsize=10)
+    
+    # Add more space at the bottom for month labels
+    plt.tight_layout()
+   # print("5rth checkpoint")
+
+    # Save with high resolution
+    plt.savefig(f"user_data/{user_id}/monthly_pivot_{user_id}.jpg", 
+                bbox_inches='tight', 
+                dpi=200,  # Reduced DPI
+                #quality=70,  # Reduced JPEG quality
+                facecolor='white')  # Enable JPEG optimization
+    print("final checkpoint")
 
     plt.close()
-    print('Done with chart function, pass to sending')
 
 def monthly_line_chart(user_id):
     data = pd.read_csv(f"user_data/{user_id}/spendings_{user_id}.csv")
@@ -230,7 +248,6 @@ def monthly_line_chart(user_id):
 
     # Compute total sum of amounts for each category
     category_totals = monthly_sum.groupby('category')['amount'].sum()
-
     # Select top 5 categories
     #top_categories = category_totals.nlargest(8).index
     top_categories = category_totals.sort_values(ascending=False).head(8).index
@@ -259,7 +276,6 @@ def monthly_line_chart(user_id):
     plt.ylabel('Total Amount')
     plt.title('Monthly Total Amount by Top 7 Categories (Stacked)')
     plt.legend(title='Category')
-
     # Add horizontal lines based on the total amount values
     max_total_amount = pivot_table.sum(axis=1).max()  # Maximum total amount across all months
     line_values = np.arange(500, max_total_amount + 500, 500)  # Values for the horizontal lines
