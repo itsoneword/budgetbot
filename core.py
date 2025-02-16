@@ -98,7 +98,10 @@ print (config["TELEGRAM"]["TEST"])
     CHOOSE_CATEGORY,
     SPECIFY_CATEGORY,
     ADD_CATEGORY,
-) = range(7)
+    SETTINGS_LANGUAGE,
+    SETTINGS_CURRENCY,
+    SETTINGS_LIMIT,
+) = range(10)
 WAITING_FOR_DOCUMENT = 1
 PROCESS_INCOME = 1
 
@@ -110,7 +113,7 @@ def get_user_language(user_id):
     language = config.get(
         "DEFAULT", "language", fallback="en"
     )  # Fallback to 'en' if not set
-    print(language)
+   # print(language)
     return language
 
 
@@ -487,9 +490,19 @@ async def handle_text(update: Update, context):
     log_user_interaction(
         user_id, update.effective_user.first_name, update.effective_user.username
     )
-    # If the user has an existing config file
+
+    if context.user_data.get('awaiting_limit'):
+        try:
+            new_limit = float(update.message.text)
+            save_user_setting(user_id, "MONTHLY_LIMIT", str(new_limit))
+            context.user_data['awaiting_limit'] = False
+            await update.message.reply_text(texts.LIMIT_SET)
+            return TRANSACTION
+        except ValueError:
+            await update.message.reply_text("Invalid limit. Please enter a number.")
+            return SETTINGS_LIMIT
+
     if check_config_exists(user_id):
-        # Check if the input is a valid transaction (e.g., "taxi 10")
         parts = update.message.text.lower().split()
         try:
             if float(parts[-1]):
@@ -497,7 +510,6 @@ async def handle_text(update: Update, context):
         except ValueError:
             pass
 
-    # If the input is not a valid transaction or the user hasn't started yet
     await update.message.reply_text(texts.START_COMMAND_PROMPT)
 
 
@@ -631,8 +643,22 @@ async def about(update: Update, context):
     )
     user_id = update.effective_user.id
     texts = check_language(update, context)
-    name,currency,language,limit = read_config(user_id)
-    await update.message.reply_text(texts.ABOUT.format(name,currency,language,limit), parse_mode=ParseMode.HTML)
+    name, currency, language, limit = read_config(user_id)
+    
+    keyboard = [
+        [
+            InlineKeyboardButton("Change Language", callback_data="change_language"),
+            InlineKeyboardButton("Change Currency", callback_data="change_currency"),
+        ],
+        [InlineKeyboardButton("Change Limit", callback_data="change_limit")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        texts.ABOUT.format(name, currency, language, limit), 
+        parse_mode=ParseMode.HTML,
+        reply_markup=reply_markup
+    )
     return TRANSACTION
 
 async def show_log(update: Update, context: CallbackContext):
@@ -766,30 +792,21 @@ async def send_ext_chart(update: Update, context: CallbackContext) -> None:
     #monthly_line_chart(user_id)
     directory = f"user_data/{user_id}"
 
-    # List all files in the directory and filter for those containing 'Monthly_pivot'
+    # List all files in the directory and filter for those containing 'Monthly'
     monthly_images = [
         file
         for file in os.listdir(directory)
         if "monthly_pivot" in file and file.endswith(".jpg")
     ]
-    print(monthly_images)
     # Create a list of InputMediaPhoto objects
     media = []
     for image in monthly_images:
-        file_path = os.path.join(directory, image)
-        media.append(InputMediaPhoto(open(file_path, "rb")))
+        with open(os.path.join(directory, image), "rb") as file:
+            media.append(InputMediaPhoto(file))
 
     backup_charts(user_id, monthly_images)
-    try:
-            await context.bot.send_media_group(chat_id=update.effective_chat.id, media=media)
-    except Exception as e:
-            print(f"Error sending media group: {e}")
-            await update.message.reply_text(f"Error sending media group: {e}")
+    await context.bot.send_media_group(chat_id=update.effective_chat.id, media=media)
 
-    finally:
-            # Close all opened files
-            for item in media:
-                item.media.close()
 
 async def send_yearly_piechart(update: Update, context: CallbackContext) -> None:
     user_id = str(update.effective_user.id)
@@ -854,6 +871,81 @@ async def process_income(update: Update, context: CallbackContext):
     return ConversationHandler.END
 
 
+async def settings_callback(update: Update, context: CallbackContext):
+    query = update.callback_query
+    user_id = str(update.effective_user.id)
+    texts = check_language(update, context)
+    action = query.data
+    
+    if action == "change_language":
+        keyboard = [
+            [
+                InlineKeyboardButton("English", callback_data="lang_en"),
+                InlineKeyboardButton("Русский", callback_data="lang_ru"),
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(
+            texts.SELECT_LANGUAGE,
+            reply_markup=reply_markup
+        )
+        return SETTINGS_LANGUAGE
+        
+    elif action == "change_currency":
+        keyboard = [
+            [
+                InlineKeyboardButton("USD", callback_data="cur_USD"),
+                InlineKeyboardButton("EUR", callback_data="cur_EUR"),
+                InlineKeyboardButton("AMD", callback_data="cur_AMD"),
+                InlineKeyboardButton("RUB", callback_data="cur_RUB"),
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(
+            texts.CHOOSE_CURRENCY_TEXT,
+            reply_markup=reply_markup
+        )
+        return SETTINGS_CURRENCY
+        
+    elif action == "change_limit":
+        context.user_data['awaiting_limit'] = True
+        await query.edit_message_text(texts.CHOOSE_LIMIT_TEXT)
+        return SETTINGS_LIMIT
+
+async def handle_settings_language(update: Update, context: CallbackContext):
+    query = update.callback_query
+    user_id = str(update.effective_user.id)
+    texts = check_language(update, context)
+    
+    new_lang = query.data.split('_')[1]
+    save_user_setting(user_id, "LANGUAGE", new_lang)
+    await query.edit_message_text(texts.LANGUAGE_REPLY.format(new_lang))
+    return TRANSACTION
+
+async def handle_settings_currency(update: Update, context: CallbackContext):
+    query = update.callback_query
+    user_id = str(update.effective_user.id)
+    texts = check_language(update, context)
+    
+    new_currency = query.data.split('_')[1]
+    save_user_setting(user_id, "CURRENCY", new_currency)
+    await query.edit_message_text(texts.CURRENCY_REPLY.format(new_currency))
+    return TRANSACTION
+
+async def handle_settings_limit(update: Update, context: CallbackContext):
+    user_id = str(update.effective_user.id)
+    texts = check_language(update, context)
+    
+    try:
+        new_limit = float(update.message.text)
+        save_user_setting(user_id, "MONTHLY_LIMIT", str(new_limit))
+        await update.message.reply_text(texts.LIMIT_SET)
+    except ValueError:
+        await update.message.reply_text("Invalid limit. Please enter a number.")
+        return SETTINGS_LIMIT
+    
+    return TRANSACTION
+
 def main():
     application = Application.builder().token(token).build()
 
@@ -907,27 +999,27 @@ def main():
         ],
         states={
             LANGUAGE: [CallbackQueryHandler(language)],
-            # NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_name)],
             CURRENCY: [CallbackQueryHandler(save_currency)],
             LIMIT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, save_limit),
                 CallbackQueryHandler(skip_limit, pattern="^skip$"),
             ],
             TRANSACTION: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, save_transaction)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, save_transaction),
+                CallbackQueryHandler(settings_callback, pattern="^change_"),
             ],
-            # PROCESS_NEXT: [CallbackQueryHandler(process_next)],
             CHOOSE_CATEGORY: [
                 CallbackQueryHandler(choose_category),
                 MessageHandler(
                     filters.TEXT & ~filters.COMMAND, handle_specify_category
                 ),
             ],
-            # SPECIFY_CATEGORY: [
-            # ],
             ADD_CATEGORY: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, save_category)
             ],
+            SETTINGS_LANGUAGE: [CallbackQueryHandler(handle_settings_language, pattern="^lang_")],
+            SETTINGS_CURRENCY: [CallbackQueryHandler(handle_settings_currency, pattern="^cur_")],
+            SETTINGS_LIMIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_settings_limit)],
         },
         allow_reentry=True,
         fallbacks=[CommandHandler("cancel", cancel)],
@@ -937,6 +1029,12 @@ def main():
     application.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text)
     )
+
+    # Add handlers for settings changes
+    application.add_handler(CallbackQueryHandler(settings_callback, pattern="^change_"))
+    application.add_handler(CallbackQueryHandler(handle_settings_language, pattern="^lang_"))
+    application.add_handler(CallbackQueryHandler(handle_settings_currency, pattern="^cur_"))
+    
     application.run_polling()
 
 
