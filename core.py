@@ -1,4 +1,9 @@
 import os, logging, configparser, inspect, re, importlib
+import datetime
+import pandas as pd
+import matplotlib.pyplot as plt
+from collections import Counter
+from dateutil.relativedelta import relativedelta
 
 from pandas_ops import (
     show_sum_per_cat,
@@ -77,8 +82,8 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
-def log_user_interaction(user_id: str, username: str, tg_username: str):
-    calling_function_name = inspect.stack()[1].function
+def log_user_interaction(user_id: str, username: str, tg_username: str, function_name=None):
+    calling_function_name = function_name if function_name else inspect.stack()[1].function
 
     log_message = (
         f"UserID: {user_id}, {username}, {tg_username}, {calling_function_name}"
@@ -945,6 +950,183 @@ async def handle_settings_limit(update: Update, context: CallbackContext):
         return SETTINGS_LIMIT
     
     return TRANSACTION
+async def show_statistics(update: Update, context: CallbackContext) -> None:
+    """Show statistics of bot usage for the last 3 months"""
+    user_id = update.effective_user.id
+    username = update.effective_user.first_name
+    tg_username = update.effective_user.username
+    log_user_interaction(user_id, username, tg_username, "show_statistics")
+    
+    print(f"[STATS] Starting statistics generation for user {user_id}")
+    await update.message.reply_text("Analyzing bot usage statistics for the last 3 months... Please wait.")
+    
+    # Path to the global log file
+    log_file_path = "user_data/global_log.txt"
+    
+    if not os.path.exists(log_file_path):
+        print(f"[STATS] Error: Log file not found at {log_file_path}")
+        await update.message.reply_text("No log data found.")
+        return
+    
+    print(f"[STATS] Reading log file from {log_file_path}")
+    # Read the log file
+    with open(log_file_path, 'r') as file:
+        log_lines = file.readlines()
+    
+    print(f"[STATS] Found {len(log_lines)} log entries to process")
+    
+    # Calculate the date 3 months ago from today
+    three_months_ago = datetime.datetime.now() - relativedelta(months=3)
+    print(f"[STATS] Filtering data from {three_months_ago} onwards")
+    
+    # Parse log data
+    data = []
+    skipped_entries = 0
+    for line in log_lines:
+        try:
+            # Extract timestamp, user info, and action
+            parts = line.strip().split(' - ')
+            if len(parts) != 2:
+                skipped_entries += 1
+                continue
+                
+            timestamp_str = parts[0]
+            user_action_info = parts[1]
+            
+            # Parse timestamp
+            timestamp = datetime.datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S,%f")
+            
+            # Skip entries older than 3 months
+            if timestamp < three_months_ago:
+                skipped_entries += 1
+                continue
+                
+            # Extract user info and action
+            user_action_parts = user_action_info.split(', ')
+            if len(user_action_parts) < 4:
+                skipped_entries += 1
+                continue
+                
+            user_id = user_action_parts[0].replace("UserID: ", "")
+            username = user_action_parts[1]
+            tg_username = user_action_parts[2]
+            action = user_action_parts[3]
+            
+            data.append({
+                'timestamp': timestamp,
+                'date': timestamp.date(),
+                'user_id': user_id,
+                'username': username,
+                'tg_username': tg_username,
+                'action': action
+            })
+            
+        except Exception as e:
+            print(f"[STATS] Error parsing log line: {e}")
+            skipped_entries += 1
+            continue
+    
+    print(f"[STATS] Successfully parsed {len(data)} entries, skipped {skipped_entries} entries")
+    
+    if not data:
+        print("[STATS] No valid data found for the last 3 months")
+        await update.message.reply_text("No data found for the last 3 months.")
+        return
+    
+    # Create DataFrame
+    print("[STATS] Creating DataFrame from parsed data")
+    df = pd.DataFrame(data)
+    
+    # Generate statistics
+    total_actions = len(df)
+    unique_users = df['user_id'].nunique()
+    action_counts = df['action'].value_counts().to_dict()
+    daily_counts = df.groupby('date').size()
+    
+    print(f"[STATS] Statistics summary: {total_actions} actions, {unique_users} unique users")
+    print(f"[STATS] Top actions: {list(sorted(action_counts.items(), key=lambda x: x[1], reverse=True)[:5])}")
+    
+    # Create a plot for daily activity by user
+    print("[STATS] Generating daily activity by user plot")
+    plt.figure(figsize=(14, 8))
+    
+    # Group by date and user, then count actions
+    user_daily_counts = df.groupby(['date', 'username']).size().unstack().fillna(0)
+    
+    # Plot stacked bar chart for user activity
+    user_daily_counts.plot(kind='bar', stacked=True)
+    plt.title('Daily Bot Activity by User (Last 3 Months)')
+    plt.xlabel('Date')
+    plt.ylabel('Number of Actions')
+    plt.grid(True, axis='y')
+    plt.legend(title='Users', bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.tight_layout()
+    
+    # Save the plot
+    plot_path = "user_data/bot_statistics_by_user.png"
+    plt.savefig(plot_path)
+    plt.close()
+    print(f"[STATS] Daily activity by user plot saved to {plot_path}")
+    
+    # Create a plot for action distribution
+    print("[STATS] Generating action distribution plot")
+    plt.figure(figsize=(12, 6))
+    action_series = pd.Series(action_counts)
+    action_series.sort_values(ascending=False).head(10).plot(kind='bar')
+    plt.title('Top 10 Bot Actions (Last 3 Months)')
+    plt.xlabel('Action')
+    plt.ylabel('Count')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    
+    # Save the plot
+    action_plot_path = "user_data/action_statistics.png"
+    plt.savefig(action_plot_path)
+    plt.close()
+    print(f"[STATS] Action distribution plot saved to {action_plot_path}")
+    
+    # Create a plot for user activity summary
+    print("[STATS] Generating user activity summary plot")
+    plt.figure(figsize=(12, 6))
+    user_counts = df.groupby('username').size().sort_values(ascending=False)
+    user_counts.plot(kind='bar')
+    plt.title('Total Actions by User (Last 3 Months)')
+    plt.xlabel('User')
+    plt.ylabel('Number of Actions')
+    plt.grid(True, axis='y')
+    plt.tight_layout()
+    
+    # Save the plot
+    user_plot_path = "user_data/user_statistics.png"
+    plt.savefig(user_plot_path)
+    plt.close()
+    print(f"[STATS] User activity summary plot saved to {user_plot_path}")
+    
+    # Prepare statistics message
+    stats_message = f"📊 *Bot Usage Statistics (Last 3 Months)*\n\n"
+    stats_message += f"Total actions: {total_actions}\n"
+    stats_message += f"Unique users: {unique_users}\n\n"
+    stats_message += "*Top 5 Actions:*\n"
+    
+    # Add top 5 actions to the message
+    for action, count in sorted(action_counts.items(), key=lambda x: x[1], reverse=True)[:5]:
+        stats_message += f"- {action}: {count}\n"
+    
+    # Add top 5 users to the message
+    stats_message += "\n*Top 5 Users by Activity:*\n"
+    for username, count in user_counts.head(5).items():
+        stats_message += f"- {username}: {count} actions\n"
+    
+    # Send statistics message
+    print("[STATS] Sending statistics message to user")
+    await update.message.reply_text(stats_message, parse_mode='Markdown')
+    
+    # Send the plots
+    print("[STATS] Sending plots to user")
+    await update.message.reply_photo(open(plot_path, 'rb'), caption="Daily activity by user over the last 3 months")
+    await update.message.reply_photo(open(action_plot_path, 'rb'), caption="Top 10 actions over the last 3 months")
+    await update.message.reply_photo(open(user_plot_path, 'rb'), caption="Total actions by user over the last 3 months")
+    print("[STATS] Statistics generation completed successfully")
 
 def main():
     application = Application.builder().token(token).build()
@@ -967,6 +1149,8 @@ def main():
     application.add_handler(CommandHandler("monthly_ext_stat", send_ext_chart))
     application.add_handler(CommandHandler("yearly_stat", send_yearly_piechart))
     application.add_handler(CommandHandler("show_log", show_log))
+    application.add_handler(CommandHandler("statistic", show_statistics))
+    application.add_handler(CommandHandler("statistics", show_statistics))  # Add plural form
 
 
     income_handler = ConversationHandler(

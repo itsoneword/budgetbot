@@ -391,21 +391,21 @@ def create_user_dir_and_copy_dict(user_id):
 
 def check_log(record_num):
     filepath = "user_data/global_log.txt"
-    with open(filepath, 'r') as file:
-       lines = file.readlines()
-   # print("called checklog")
-    # command = f'docker logs --tail {record_num} budgetbot'
-    # try:
-    #     print("trying to call docker command")
-    #     result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    # except Exception as e:
-    #     print("We are in exception")
-    #     result = e
-    #     return e
-    # print("result is : ",result)
-    #return result.stdout
-    return "still under dev."
-#    return lines[-record_num:]
+    try:
+        with open(filepath, 'r') as file:
+            lines = file.readlines()
+        
+        # Get the last record_num lines
+        last_lines = lines[-record_num:] if record_num < len(lines) else lines
+        
+        # Join the lines into a single string
+        log_content = ''.join(last_lines)
+        
+        return log_content if log_content else "No log entries found."
+    except FileNotFoundError:
+        return "Log file not found."
+    except Exception as e:
+        return f"Error reading log file: {str(e)}"
 
 
 
