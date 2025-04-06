@@ -1,6 +1,16 @@
-import os, shutil, configparser, csv, time, pandas as pd, json, datetime, subprocess
+import os, shutil, configparser, csv, time, pandas as pd, json, datetime
 
-from pandas_ops import show_sum_per_cat, show_av_per_day, show_total, get_exchange_rate, get_user_currency, recalculate_currency
+from pandas_ops import (
+    show_sum_per_cat, 
+    show_av_per_day,
+    show_total,
+    get_exchange_rate,
+    get_user_currency,
+    recalculate_currency,
+    show_last_month_sum_per_cat,
+    show_last_month_av_per_day,
+    show_last_month_total,
+)
 
 
 async def archive_user_data(user_id: str):
@@ -293,6 +303,32 @@ def get_records(user_id, command):
     )
 
 
+def get_last_month_records(user_id, command):
+    if command == "show_income":
+        file_path = f"user_data/{user_id}/income_{user_id}.csv"
+    else:
+        file_path = f"user_data/{user_id}/spendings_{user_id}.csv"
+    if not os.path.exists(file_path):
+        return None
+    
+    sum_per_cat = show_last_month_sum_per_cat(user_id, file_path)
+    
+    av_per_day, total_av_per_day, prediction, comparison = show_last_month_av_per_day(
+        user_id, file_path
+    )
+    
+    total_spendings = show_last_month_total(user_id, file_path)
+    print("GetLastMonthRecords executed")
+    return (
+        sum_per_cat,
+        av_per_day,
+        total_spendings,
+        total_av_per_day,
+        prediction,
+        comparison,
+    )
+
+
 def save_user_transaction(user_id, transaction_data):
     user_dir = f"user_data/{user_id}"
     spendings_file = f"{user_dir}/spendings_{user_id}.csv"
@@ -407,45 +443,64 @@ def check_log(record_num):
     except Exception as e:
         return f"Error reading log file: {str(e)}"
 
+def get_frequently_used_categories(user_id, limit=10):
+    """Get recently used categories for a user, ordered by most recent first."""
+    file_path = f"user_data/{user_id}/spendings_{user_id}.csv"
+    if not os.path.exists(file_path):
+        return []
+    
+    try:
+        df = pd.read_csv(file_path)
+        if df.empty or 'category' not in df.columns or 'timestamp' not in df.columns:
+            return []
+        
+        # Convert timestamp to datetime for proper sorting
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        
+        # Get categories sorted by recency (most recent first)
+        categories = df.sort_values(by='timestamp', ascending=False)['category'].head(limit).unique().tolist()
+        print
+        return categories
+    except Exception as e:
+        print(f"Error getting recently used categories: {e}")
+        return []
 
+def get_frequently_used_subcategories(user_id, category, limit=10):
+    """Get frequently used subcategories for a specific category, ordered by frequency."""
+    file_path = f"user_data/{user_id}/spendings_{user_id}.csv"
+    if not os.path.exists(file_path):
+        return []
+    
+    try:
+        df = pd.read_csv(file_path)
+        if df.empty or 'category' not in df.columns or 'subcategory' not in df.columns:
+            return []
+        
+        # Filter by category and get subcategories sorted by frequency
+        category_df = df[df['category'] == category]
+        subcategories = category_df['subcategory'].value_counts().head(limit).index.tolist()
+        return subcategories
+    except Exception as e:
+        print(f"Error getting frequently used subcategories: {e}")
+        return []
 
-# def save_to_file(file_path, data, mode="a"):
-#     with open(file_path, mode) as file:
-#         file.write(data)
+def get_recent_amounts(user_id, subcategory, limit=5):
+    """Get recent transaction amounts for a specific subcategory."""
+    file_path = f"user_data/{user_id}/spendings_{user_id}.csv"
+    if not os.path.exists(file_path):
+        return []
+    
+    try:
+        df = pd.read_csv(file_path)
+        if df.empty or 'subcategory' not in df.columns or 'amount' not in df.columns:
+            return []
+        
+        # Filter by subcategory, sort by timestamp (most recent first) and get amounts
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        subcategory_df = df[df['subcategory'] == subcategory].sort_values(by='timestamp', ascending=False)
+        amounts = subcategory_df['amount'].head(limit).tolist()
+        return amounts
+    except Exception as e:
+        print(f"Error getting recent amounts: {e}")
+        return []
 
-
-# def read_from_file(file_path):
-#     if os.path.exists(file_path):
-#         with open(file_path, "r") as file:
-#             return file.readlines()
-#     else:
-#         return None
-
-
-# def delete_line_from_file(file_path, line_content):
-#     lines = read_from_file(file_path)
-#     if lines:
-#         with open(file_path, "w") as file:
-#             for line in lines:
-#                 if line.strip("\n") != line_content:
-#                     file.write(line)
-# def get_records(user_id):
-#     file_path = f"user_data/{user_id}/spendings_{user_id}.csv"
-
-#     if not os.path.exists(file_path):
-#         return None
-
-#     sum_per_cat = show_sum_per_cat(user_id)
-#     av_per_day = show_av_per_day(user_id)
-#     total_spendings = show_total(user_id)
-
-#     return sum_per_cat, av_per_day, total_spendings
-
-
-# def update_spendings_file(user_id: str, new_spendings_data: bytes):
-#     user_dir = f"user_data/{user_id}"
-#     spendings_file_path = f"{user_dir}/spendings_{user_id}.csv"
-#     backup_spendings(user_id)
-#     # Write the new spendings data to the spendings file
-#     with open(spendings_file_path, "wb") as file:
-#         file.write(new_spendings_data)

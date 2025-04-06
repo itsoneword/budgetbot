@@ -2,6 +2,14 @@
 
 BudgetBot is a powerful and user-friendly Telegram bot designed to help you manage your personal finances. With BudgetBot, you can easily track your daily expenses, incomes, and gain insights into your spending habits.
 
+
+## major release of 0.2.0 from 1.4.25
+Communication cahnged mostly to inline keyboard
+Adding transactoin now offers a list of existing cat|subcat
+namings of cats|subcats does not allow symbols anymore
+category edit process is now easier with inline keyboard
+deletion of transactions is more interactive with inline keyboard.
+
 ## fix patch from 12.3.25
 Fix minor issues with charts
 
@@ -169,4 +177,33 @@ BudgetBot is licensed under the [MIT License](LICENSE).
 ## Contact
 
 If you have any questions or feedback, please feel free to contact me directly tg: @dy0r2.
+
+## Project Structure
+
+The project now follows a more organized structure:
+
+- `/src`: Contains all the core Python files for the application
+- Root directory: Contains configuration files, deployment-related files, and the main entry point
+
+## Running the Project
+
+To run the project, use:
+
+```bash
+python3 run.py
+```
+
+## Installation
+
+1. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+2. Ensure the required directories exist:
+```bash
+mkdir -p user_data
+```
+
+3. Configure the application by setting up the config file in the configs directory.
 

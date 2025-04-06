@@ -1,4 +1,5 @@
 config.ini
+/configs/config
 /user_data/
 /myenv
 /newvenv
@@ -10,7 +11,9 @@ user_list.csv
 /tests
 /__pycache__/
 .DS_Store
-/configs/config
 /userdatabot
 .secrets
 .vscode
+.env
+config
+todos.txt

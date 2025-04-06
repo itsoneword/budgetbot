@@ -44,6 +44,32 @@ def get_current_month_data(user_id, file_path):
     return current_month_data
 
 
+def get_last_month_data(user_id, file_path):
+    data = pd.read_csv(file_path)
+
+    # Convert 'timestamp' column to datetime objects
+    data["timestamp"] = pd.to_datetime(data["timestamp"])
+
+    # Get the last month and year
+    current_date = datetime.now()
+    last_month_date = current_date.replace(day=1) - timedelta(days=1)
+    last_month = last_month_date.month
+    last_month_year = last_month_date.year
+
+    # Filter the DataFrame to include only records from last month
+    last_month_data = data[
+        (data["timestamp"].dt.month == last_month)
+        & (data["timestamp"].dt.year == last_month_year)
+    ].copy()
+
+    # Recalculate totals in current currency
+    exchange_rates = get_exchange_rate()
+    currency = get_user_currency(user_id)
+    last_month_data = recalculate_currency(last_month_data, currency, exchange_rates)
+
+    return last_month_data
+
+
 def show_sum_per_cat(user_id, file_path):
     file_path = get_user_path(user_id)
     current_month_data = get_current_month_data(user_id, file_path)
@@ -135,6 +161,55 @@ def show_total(user_id, file_path):
     current_month_data = get_current_month_data(user_id, file_path)
     total_spendings = current_month_data["amount_cr_currency"].sum()
     return total_spendings
+
+
+def show_last_month_sum_per_cat(user_id, file_path):
+    file_path = get_user_path(user_id)
+    last_month_data = get_last_month_data(user_id, file_path)
+    sum_per_cat = (
+        last_month_data.groupby("category")["amount_cr_currency"]
+        .sum()
+        .sort_values(ascending=False)
+    )
+    return sum_per_cat
+
+
+def show_last_month_total(user_id, file_path):
+    last_month_data = get_last_month_data(user_id, file_path)
+    total_spendings = last_month_data["amount_cr_currency"].sum()
+    return total_spendings
+
+
+def show_last_month_av_per_day(user_id, file_path):
+    last_month_data = get_last_month_data(user_id, file_path)
+    selected_categories = get_top_categories(file_path)
+    # Filter the data to only include the selected categories
+    filtered_data = last_month_data[
+        last_month_data["category"].isin(selected_categories)
+    ]
+    total = show_last_month_total(user_id, file_path)
+    # Calculate the total sum per selected category
+    total_per_cat = filtered_data.groupby("category")["amount_cr_currency"].sum()
+    
+    # Get the number of days in last month
+    current_date = datetime.now()
+    last_month_date = current_date.replace(day=1) - timedelta(days=1)
+    days_in_last_month = calendar.monthrange(last_month_date.year, last_month_date.month)[1]
+    
+    # Calculate the average per day
+    av_per_day = round(total_per_cat / days_in_last_month, 1)
+    
+    rent_sum = last_month_data.loc[last_month_data['category'] == 'rent', 'amount_cr_currency'].sum()
+    investing_sum = last_month_data.loc[last_month_data['category'] == 'investing', 'amount_cr_currency'].sum()
+    excluding_amount = rent_sum + investing_sum
+ 
+    total_av_per_day = round((last_month_data["amount_cr_currency"].sum() - excluding_amount) / days_in_last_month, 1)
+
+    # No need for prediction or comparison since the month is already over
+    prediction = total
+    comparison = 0
+
+    return av_per_day, total_av_per_day, prediction, comparison
 
 
 def calculate_limit(user_id):
@@ -231,6 +306,7 @@ def calculate_new_value_single(row, current_currency, exchange_rates):
         return amount
 
 def recalculate_currency(data, user_currency, exchange_rates):
+    data = data.copy()
     data.loc[:,'amount_cr_currency'] = calculate_new_value(data, user_currency, exchange_rates)
 
     return data

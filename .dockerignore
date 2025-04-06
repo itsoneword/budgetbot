@@ -1,0 +1,53 @@
+# Version control
+.git/
+.github/
+.gitignore
+
+# Environment and IDE
+.env
+.env.*
+venv/
+myenv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.idea/
+.vscode/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Test and documentation
+tests/
+docs/
+
+# Build files
+deploy.sh
+docker-compose.yml
+.dockerignore
+*.md
+LICENSE
+
+# Debug logs
+*.log
+
+# Development files
+back/
+
+# Test files
+*.test.py
+*_test.py
+
+# Keep user_data out of the image (will be mounted as volume)
+user_data/
+
+# Any other files/directories you want to exclude
+# Add them here
+
+config
+user_list.csv
+todos.txt
