@@ -9,10 +9,8 @@ from keyboards import (
     create_category_edit_keyboard, create_category_options_keyboard,
     create_tasks_keyboard, create_task_options_keyboard, create_confirmation_keyboard, create_main_menu_keyboard
 )
-
-# Define states - simplified to fewer states with more context
-# We'll use just 4 states instead of 14 to make it cleaner
-(CATEGORY_MANAGEMENT, CATEGORY_EDIT, TASK_MANAGEMENT, TASK_EDIT) = range(18, 22)
+# Import states from central file
+from src.states import *
 
 # Map old states to new ones for reference during refactoring
 # SHOW_CATEGORIES, SELECT_CATEGORY -> CATEGORY_MANAGEMENT
@@ -20,20 +18,20 @@ from keyboards import (
 # EDIT_TASKS, SELECT_TASK_ACTION, DELETE_TASK -> TASK_MANAGEMENT
 # EDIT_TASK, CONFIRM_TASK_EDIT, ADD_TASK, CONFIRM_TASK_DELETE -> TASK_EDIT
 
-# Keep these for backward compatibility with existing imports
+# # Keep these for backward compatibility with existing imports
 
-CATEGORY_OPTIONS = CATEGORY_EDIT
-CHANGE_NAME = CATEGORY_EDIT
-CONFIRM_NAME_CHANGE = CATEGORY_EDIT
-DELETE_CATEGORY = CATEGORY_EDIT
-CONFIRM_DELETE = CATEGORY_EDIT
-EDIT_TASKS = TASK_MANAGEMENT
-SELECT_TASK_ACTION = TASK_MANAGEMENT
-EDIT_TASK = TASK_EDIT
-CONFIRM_TASK_EDIT = TASK_EDIT
-ADD_TASK = TASK_EDIT
-DELETE_TASK = TASK_MANAGEMENT
-CONFIRM_TASK_DELETE = TASK_EDIT
+# CATEGORY_OPTIONS = CATEGORY_EDIT
+# CHANGE_NAME = CATEGORY_EDIT
+# CONFIRM_NAME_CHANGE = CATEGORY_EDIT
+# DELETE_CATEGORY = CATEGORY_EDIT
+# CONFIRM_DELETE = CATEGORY_EDIT
+# EDIT_TASKS = TASK_MANAGEMENT
+# SELECT_TASK_ACTION = TASK_MANAGEMENT
+# EDIT_TASK = TASK_EDIT
+# CONFIRM_TASK_EDIT = TASK_EDIT
+# ADD_TASK = TASK_EDIT
+# DELETE_TASK = TASK_MANAGEMENT
+# CONFIRM_TASK_DELETE = TASK_EDIT
 
 async def show_categories(update: Update, context: CallbackContext) -> int:
     """Show list of categories as inline keyboard"""
@@ -43,7 +41,10 @@ async def show_categories(update: Update, context: CallbackContext) -> int:
     # Get categories from dictionary
     cat_dict = read_dictionary(user_id)
     categories = list(cat_dict.keys())
-    #print(f"DEBUG: categories: {categories}")
+    
+    # Get current page from context or default to 0
+    current_page = context.user_data.get("current_page", 0)
+    
     # Store categories in context
     context.user_data["categories"] = categories
     
@@ -55,8 +56,7 @@ async def show_categories(update: Update, context: CallbackContext) -> int:
         return ConversationHandler.END
     
     # Create keyboard with categories
-    #print("Before creating categories keyboard")
-    reply_markup = create_category_edit_keyboard(categories, texts)
+    reply_markup = create_category_edit_keyboard(categories, texts, current_page)
     
     if update.callback_query:
         await update.callback_query.edit_message_text(
@@ -70,7 +70,7 @@ async def show_categories(update: Update, context: CallbackContext) -> int:
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
-    #print(f"DEBUG: show_categories returning CATEGORY_MANAGEMENT")
+    print(f"DEBUG: show_categories returning CATEGORY_MANAGEMENT state")
     return CATEGORY_MANAGEMENT
 
 async def handle_category_selection(update: Update, context: CallbackContext) -> int:
@@ -92,7 +92,25 @@ async def handle_category_selection(update: Update, context: CallbackContext) ->
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
-        return ConversationHandler.END
+        # Return TRANSACTION state to ensure menu commands work
+        return TRANSACTION
+    
+    # Handle pagination for categories
+    if callback_data == "catpage_prev":
+        current_page = context.user_data.get("current_page", 0)
+        context.user_data["current_page"] = max(0, current_page - 1)
+        return await show_categories(update, context)
+    
+    if callback_data == "catpage_next":
+        current_page = context.user_data.get("current_page", 0)
+        categories = context.user_data.get("categories", [])
+        items_per_page = 15
+        
+        # Check if there are more pages
+        if (current_page + 1) * items_per_page < len(categories):
+            context.user_data["current_page"] = current_page + 1
+        
+        return await show_categories(update, context)
     
     if callback_data == "add_new_category":
         # Prompt user to enter new category name

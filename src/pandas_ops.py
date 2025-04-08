@@ -327,12 +327,20 @@ def get_user_currency(user_id):
     return currency
 
 def get_exchange_rate():
+    """
+    Fetches current exchange rates for USD to other currencies (USDEUR, USDRUB, USDAMD, USDUSD, USDTHB).
+    Returns rates in format where USDAMD = ~400 (number of AMD per 1 USD).
+    Caches results for 12 hours to avoid excessive API calls.
+    """
     # Define currency pairs
-    currency_pairs = ['USDEUR', 'USDRUB', 'USDAMD', 'USDUSD']
+    currency_pairs = ['USDEUR', 'USDRUB', 'USDAMD', 'USDUSD', 'USDTHB']
     # Initialize exchange rates dictionary
     exchange_rates = {}
     # Get current time
     current_time = datetime.now()
+
+    # Ensure configs directory exists
+    os.makedirs('configs', exist_ok=True)
 
     # Load existing exchange rates and last update time from the file
     try:
@@ -340,33 +348,70 @@ def get_exchange_rate():
             data = json.load(file)
             existing_time = datetime.fromisoformat(data['last_update'])
             exchange_rates = data['exchange_rates']
+            
+            # Verify all required rates exist
+            all_rates_exist = all(pair in exchange_rates for pair in currency_pairs)
+            if not all_rates_exist:
+                # Force update if any rate is missing
+                existing_time = current_time - timedelta(days=1)
     except (FileNotFoundError, json.JSONDecodeError):
         # Handle file not found or invalid JSON data
         existing_time = current_time - timedelta(days=1)  # Set a default time to force an update
-         # Create the file and initialize with default data
-        with open('configs/exchangerates.json', 'w') as file:
-            json.dump({'exchange_rates': exchange_rates, 'last_update': existing_time.isoformat()}, file)
+        # Initialize with empty exchange rates
+        exchange_rates = {}
+    
     # Check if more than 12 hours have passed since the last update
     time_difference = current_time - existing_time
-    if time_difference > timedelta(hours=12):
-        # Request and update exchange rates
-        for pair in currency_pairs:
-            base, target = pair[:3], pair[3:]
-            symbol = f'{target}=X'
-            # Fetch the exchange rate from Yahoo Finance
-            try:
-                data = yf.Ticker(symbol)    
-                # Get the most recent exchange rate
-                latest_rate = data.info['bid']
-                exchange_rates[pair] = latest_rate
-                print("Prices were updated",current_time, exchange_rates)
-            except:
-                continue
-        # Update the last update time
-        print("Exchange rate date:", existing_time )
-        last_update_time = current_time.isoformat()
-        # Save exchange rates and last update time to the file
-        with open('configs/exchangerates.json', 'w') as file:
-            json.dump({'exchange_rates': exchange_rates, 'last_update': last_update_time}, file)
+    if time_difference > timedelta(hours=12) or not exchange_rates:
+        print("Fetching fresh exchange rates")
+        try:
+            # Use Exchange Rates API (free and reliable)
+            api_url = "https://open.er-api.com/v6/latest/USD"
+            import requests
+            response = requests.get(api_url)
+            response.raise_for_status()
+            
+            api_data = response.json()
+            if api_data["result"] == "success":
+                # Extract rates directly (these are already in USD-to-currency format)
+                rates = api_data["rates"]
+                
+                # Set the values for our currency pairs
+                exchange_rates['USDEUR'] = rates.get('EUR', 0.92)  # Default fallback if API fails
+                exchange_rates['USDRUB'] = rates.get('RUB', 90.0)
+                exchange_rates['USDAMD'] = rates.get('AMD', 400.0)
+                exchange_rates['USDUSD'] = 1.0  # Always 1.0
+                exchange_rates['USDTHB'] = rates.get('THB', 35.0)
+                
+                print("Successfully fetched exchange rates:", exchange_rates)
+                
+                # Update the last update time
+                last_update_time = current_time.isoformat()
+                
+                # Save exchange rates and last update time to the file
+                with open('configs/exchangerates.json', 'w') as file:
+                    json.dump({'exchange_rates': exchange_rates, 'last_update': last_update_time}, file)
+            else:
+                print("API error, falling back to default rates")
+                # If API fails and no cached rates, set defaults
+                if not exchange_rates:
+                    exchange_rates = {
+                        'USDEUR': 0.92, 
+                        'USDRUB': 90.0, 
+                        'USDAMD': 400.0, 
+                        'USDUSD': 1.0,
+                        'USDTHB': 35.0
+                    }
+        except Exception as e:
+            print(f"Error fetching exchange rates: {str(e)}")
+            # If API fails and no cached rates, set defaults
+            if not exchange_rates:
+                exchange_rates = {
+                    'USDEUR': 0.92, 
+                    'USDRUB': 90.0, 
+                    'USDAMD': 400.0, 
+                    'USDUSD': 1.0,
+                    'USDTHB': 35.0
+                }
     
     return exchange_rates

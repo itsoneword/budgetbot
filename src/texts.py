@@ -8,18 +8,19 @@ LIMIT_SET = "Limit successfully set."
 TRANSACTION_START_TEXT = """Settings successfully saved. Now you can use the bot to track your expenses! 
 \n
 There are 2 possible formats: 
-1. Through /menu - Add transaction
+1. Through /menu => Add transaction
 2. Through text input:
-
 <b>full:</b>
 <code>date category subcategory amount</code>
-
 <b>With category:</b> 
-<code>transport taxi 5</code>
-
+<code>transport taxi amount</code>
 <b>Without category:</b> 
-<code>taxi 5</code>
+<code>taxi amount</code>
 
+Few examples for reference:
+<code>taxi 5</code>
+<code>home groccery 25</code>
+ 
 If the date is not specified, the transaction will be saved with the current date and time.
 
 If the category is not specified, the bot will suggest choosing it from the dictionary.
@@ -108,6 +109,7 @@ want to have additional functionality, contact @dy0r2
 /leave - Deleting your profile! Please, be accurate as this action cannot be reversed.
 
 """
+UPLOAD_FILE_TEXT = "Please upload your spendings file. It should be in CSV format."
 UPLOADING_FINISHED = "Spendings file updated!"
 INCOME_TYPE1 = "income"
 INCOME_TYPE2 = "earn"
@@ -168,7 +170,16 @@ SELECT_RECORDS_COUNT = "Select the number of records to display:"
 LOADING_TRANSACTIONS = "Loading {count} last transactions..."
 
 # Transaction entry texts
-SELECT_TRANSACTION_CATEGORY = "Please select a category for your transaction from previously user, or send transaction into the chat as: <b>Transaction amount</b>"
+SELECT_TRANSACTION_CATEGORY = """Please select a category where you would like to save your expense.
+You can also send a transaction in the chat in one of the following formats:
+
+<code>taxi 5</code>
+<code>home groceries 25</code>
+<code>01.04 travel tickets 125</code>
+
+If the date is not specified, the transaction will be saved with the current date and time.
+If the category is not specified, the bot will suggest choosing it from existing ones or creating a new one.
+"""
 SELECT_TRANSACTION_SUBCATEGORY = "Please select a subcategory or enter manually in format 'Subcategory amount':"
 RECENT_SUBCATEGORY_AMOUNTS = "Recent amounts for '{subcategory}':"
 ENTER_TRANSACTION_AMOUNT = "Please enter the amount for '{subcategory}':"
@@ -176,9 +187,13 @@ CONFIRM_TRANSACTION_DETAILS = "Please confirm your transaction:\n\n<b>Category:<
 TRANSACTION_CONFIRMED = "Transaction saved successfully!"
 MANUAL_SUBCATEGORY_DETECTED = "I detected subcategory '{subcategory}' and amount {amount}."
 NO_SUBCATEGORIES_FOUND = "No subcategories found for this category. Please enter a subcategory and amount manually."
+PROGRESS_MSG = "Transaction {}/{} saved: {} {}"
+MULTI_TRANSACTION_START = "Processing {} transactions..."
 
 # Transaction edit text strings
-EDIT_TRANSACTIONS_PROMPT = "📝 <b>Edit Transactions</b>\nTotal: <b>{}</b> {}\nSelect a transaction to edit:"
+EDIT_TRANSACTIONS_PROMPT = """📝 <b>Edit recent transactions</b>
+This menu allows you see last 30 transactions and quicly edit it. For more detailed view, go to Show Transactions => All transactions.
+\nTotal: <b>{}</b> {}\nSelect a transaction to edit:"""
 TRANSACTION_DETAILS = "<b>Transaction Details</b>\n\nDate: {timestamp}\nCategory: {category}\nSubcategory: {subcategory}\nAmount: {amount} {currency}\n\nSelect what you want to edit:"
 ENTER_NEW_DATE_PROMPT = "Please enter the new date in format <code>DD.MM</code> or <code>DD.MM.YYYY</code>:"
 SELECT_NEW_CATEGORY = "Please select the new category:"
@@ -198,6 +213,16 @@ ERROR_DELETING_TRANSACTION = "❌ Error deleting transaction. Please try again."
 ERROR_UPDATING_TRANSACTION = "❌ Error updating transaction. Please try again."
 ERROR_SELECTING_TRANSACTION = "❌ Error selecting transaction. Please try again."
 
+# Detailed transactions view texts
+SELECT_TRANSACTION_TO_EDIT = "Click on a number to edit the corresponding transaction."
+FILTERED_TRANSACTIONS_TEXT = "📊 <b>Filtered Transactions</b>\n\nPeriod: <b>{period}</b>\nCategories: <b>{categories}</b>"
+SELECT_CATEGORIES_TEXT = "📂 <b>Select Categories</b>\nChoose categories to view their transactions:"
+SELECT_TIME_PERIOD_TEXT = "⏱️ <b>Select Time Period</b>\nChoose which time period to view:"
+NO_TRANSACTIONS_FOUND = "No transactions found for the selected categories and period."
+NO_CATEGORIES_FOUND = "No categories found in your transaction history."
+DETAILED_SUMMARY_TEMPLATE = "<b>Detailed Summary</b>\n\nPeriod: <b>{period}</b>\nTotal: <b>{total} {currency}</b>\nTransactions: <b>{transaction_count}</b>"
+VIEW_TRANSACTIONS_BUTTON = "📋 View transactions"
+
 # Button text variables
 SKIP_BUTTON = "Skip"
 CHANGE_LANGUAGE_BUTTON = "🌍 Change language"
@@ -215,17 +240,19 @@ ADD_TRANSACTION_BUTTON = "💰 Add transaction"
 SHOW_TRANSACTIONS_BUTTON = "📊 Show transactions"
 SETTINGS_BUTTON = "⚙️ Settings"
 EDIT_CATEGORIES_BUTTON = "📝 Edit categories"
-EDIT_TRANSACTIONS_BUTTON = "✏️ Edit transactions"
+EDIT_TRANSACTIONS_BUTTON = "✏️ Edit Recent Entry"
 HELP_BUTTON = "❓ Help"
 MONTHLY_SUMMARY_BUTTON = "📊 Monthly summary"
 LAST_MONTH_SUMMARY_BUTTON = "📈 Last month"
-LAST_TRANSACTIONS_BUTTON = "📋 Last transactions"
+LAST_TRANSACTIONS_BUTTON = "📋 All transactions"
 MONTHLY_CHARTS_BUTTON = "📈 Monthly charts"
 DETAILED_STAT_BUTTON = "📊 Detailed stat"
 YEARLY_CHARTS_BUTTON = "📊 Yearly charts"
 INCOME_STATS_BUTTON = "💵 Income stats"
 BACK_TO_MAIN_MENU_BUTTON = "🔙 Back to main menu"
+RETURN_BACK_BUTTON = "👈🏻 Return back"
 CONFIRM_BUTTON = "✅ Confirm"
+CONFIRM_DELETE_BUTTON = "Confirm delete!"
 EDIT_DATE_BUTTON = "📅 Edit date"
 EDIT_CATEGORY_BUTTON = "📁 Edit category"
 EDIT_SUBCATEGORY_BUTTON = "📂 Edit name"
@@ -233,7 +260,7 @@ EDIT_AMOUNT_BUTTON = "💰 Edit amount"
 DELETE_TRANSACTION_BUTTON = "🗑️ Delete transaction"
 DELETE_CATEGORY_BUTTON = "🗑️ Delete category"
 EDIT_TASKS_BUTTON = "📝 Edit spendings"
-BACK_TO_CATEGORIES_BUTTON = "🔙 Back to categories"
+
 ADD_NEW_TASK_BUTTON = "➕ Add new spending"
 BACK_TO_CATEGORY_BUTTON = "🔙 Back to category"
 EDIT_TASK_BUTTON = "✏️ Edit spending"
@@ -245,3 +272,26 @@ ABOUT_BUTTON = "ℹ️ About"
 SHOW_CATEGORIES_BUTTON = "📋 Show categories"
 ADD_REMOVE_CATEGORY_BUTTON = "➕ Add/remove category"
 CHANGE_NAME_BUTTON = "✏️ Change name"
+
+# New text templates for detailed transactions feature
+SELECT_CATEGORIES_TEXT = "📊 <b>Select Categories</b>\nChoose categories to include in the detailed report. Select multiple categories by tapping on them (they will be marked with ✅)."
+SELECT_TIME_PERIOD_TEXT = "⏱️ <b>Select Time Period</b>\nChoose a time period for your transaction report:"
+DETAILED_SUMMARY_TEMPLATE = """📊 <b>Detailed Summary for {period}</b>
+
+Total spending: <b>{total} {currency}</b>
+Number of transactions: {transaction_count}"""
+FILTERED_TRANSACTIONS_TEXT = """📋 <b>Transactions for {period}</b>
+Categories: {categories}
+
+Select a transaction to view details:"""
+NO_CATEGORIES_FOUND = "❌ No categories found in your spending history."
+NO_TRANSACTIONS_FOUND = "❌ No transactions found for the selected categories and time period."
+
+# Button text for detailed transactions
+THREE_MONTH_BUTTON = "3 months"
+SIX_MONTH_BUTTON = "6 months"
+TWELVE_MONTH_BUTTON = "12 months"
+YEAR_TO_DATE_BUTTON = "Year to date"
+SELECT_ALL_BUTTON = "✅ Select All"
+CONTINUE_BUTTON = "▶️ Continue"
+VIEW_TRANSACTIONS_BUTTON = "📋 View Transactions"

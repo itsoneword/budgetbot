@@ -1,6 +1,7 @@
 import os, logging, configparser, inspect, re, asyncio
 from datetime import datetime, timedelta
 from language_util import check_language
+import sys
 
 from pandas_ops import (
     show_sum_per_cat,
@@ -11,7 +12,7 @@ from pandas_ops import (
     get_user_currency,
 )
 from charts import monthly_line_chart, monthly_pivot_chart, make_yearly_pie_chart,monthly_ext_pivot_chart
-from utils import process_transaction_input, process_income_input
+from src.show_transactions import process_transaction_input, process_income_input
 from keyboards import (
     create_language_keyboard,
     create_skip_keyboard,
@@ -19,7 +20,6 @@ from keyboards import (
     create_category_keyboard,
     create_found_category_keyboard,
     create_multiple_categories_keyboard,
-    create_all_categories_keyboard,
     create_settings_language_keyboard,
     create_settings_currency_keyboard,
     create_main_menu_keyboard,
@@ -31,49 +31,18 @@ from keyboards import (
     create_amounts_keyboard,
     create_confirm_transaction_keyboard,
 )
-from file_ops import (
-    create_user_dir_and_copy_dict,
-    backup_spendings,
-    save_user_setting,
-    save_user_transaction,
-    save_user_income,
-    get_records,
-    get_last_month_records,
-    check_config_exists,
-    read_dictionary,
-    add_category,
-    remove_category,
-    get_latest_records,
-    delete_record,
-    record_exists,
-    check_dictionary_format,
-    update_user_list,
-    archive_user_data,
-    backup_charts,
-    read_config,
-    check_log,
-    get_frequently_used_categories,
-    get_frequently_used_subcategories,
-    get_recent_amounts,
-)
+from file_ops import *
 
 from change_data import (
-    CATEGORY_MANAGEMENT, CATEGORY_EDIT, TASK_MANAGEMENT, TASK_EDIT,
-    show_categories, handle_category_selection, handle_category_option, handle_change_name,
-    handle_rename_confirmation, handle_delete_cat_confirmation, handle_tasks_action,
-    handle_task_option, handle_add_task, handle_edit_task, handle_task_edit_confirmation,
-    handle_task_delete_confirmation, handle_add_new_category,
-)
-
-from save_transaction import (
-    TRANSACTION, HANDLE_TRANSACTION_CREATE_CATEGORY, 
-    process_next_transaction, create_new_category_transaction, 
-    select_category_for_transaction, save_transaction
+    show_categories, handle_category_selection, handle_category_option, 
+    handle_change_name, handle_add_new_category, handle_rename_confirmation, 
+    handle_delete_cat_confirmation, handle_tasks_action, handle_task_option,
+    handle_add_task, handle_edit_task, handle_task_edit_confirmation,
+    handle_task_delete_confirmation
 )
 
 from change_transactions import (
-    TRANSACTION_LIST, TRANSACTION_EDIT, EDIT_DATE, EDIT_CATEGORY, EDIT_SUBCATEGORY, EDIT_AMOUNT, CONFIRM_DELETE,
-    show_transactions, handle_transaction_selection, handle_edit_option, handle_edit_date,
+    show_recent_entries, handle_transaction_selection, handle_edit_option, handle_edit_date,
     handle_edit_category, handle_edit_subcategory, handle_edit_amount, handle_delete_tx_confirmation
 )
 
@@ -96,17 +65,50 @@ from telegram.ext import (
 )
 from logging.handlers import TimedRotatingFileHandler
 
+# Import transaction handlers directly
+from save_transaction import (
+    save_transaction ,
+    process_next_transaction ,
+    create_new_category_transaction ,
+    select_category_for_transaction ,
+    handle_transaction_category ,
+    handle_transaction_subcategory ,
+    handle_transaction_amount ,
+    handle_transaction_confirmation 
+)
+
+# Import the detailed transactions module
+from src.detailed_transactions import (
+    start_detailed_transactions,
+    handle_category_selection as handle_detailed_category_selection,
+    handle_time_period_selection,
+    handle_summary_action,
+    handle_transaction_navigation,
+)
+
+# Import all states from the central states file
+from src.states import *
 
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO , handlers=[
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
+    level=logging.INFO,
+    handlers=[
         TimedRotatingFileHandler(
             'user_data/app.log',
             when="m",
             interval=10,
             backupCount=5
-        )
+        ),
     ])
-logging.getLogger("httpx").setLevel(logging.WARNING)
+
+# Add console handler for warnings and errors
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.WARNING)  # Only show WARNING and above
+console_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+console_handler.setFormatter(console_formatter)
+logging.getLogger().addHandler(console_handler)
+
+logging.getLogger("httpx").setLevel(logging.INFO)
 
 logger = logging.getLogger(__name__)
 logger = logging.getLogger("user_interactions")
@@ -140,30 +142,8 @@ if token == "":
     config.read("config")
     token = config["TELEGRAM"]["TOKEN"]
 
-print (config["TELEGRAM"]["TOKEN"])
-(
-    LANGUAGE,
-    CURRENCY,
-    LIMIT,
-    TRANSACTION,
-    CHOOSE_CATEGORY,
-    SPECIFY_CATEGORY,
-    ADD_CATEGORY,
-    SETTINGS_LANGUAGE,
-    SETTINGS_CURRENCY,
-    SETTINGS_LIMIT,
+#print (config["TELEGRAM"]["TOKEN"])
 
-    SELECT_CATEGORIES,
-    SELECT_RECORDS_COUNT,
-    SELECT_TRANSACTION_CATEGORY,
-    SELECT_TRANSACTION_SUBCATEGORY,
-    ENTER_TRANSACTION_AMOUNT,
-    CONFIRM_TRANSACTION,
-) = range(16)
-# Define states
-WAITING_FOR_DOCUMENT = 1
-PROCESS_INCOME = 1
-DELETE_PROFILE = 1
 
 async def start(update: Update, context: CallbackContext):
     user_id = str(update.effective_user.id)
@@ -185,7 +165,7 @@ async def start(update: Update, context: CallbackContext):
     return LANGUAGE
 
 
-async def language(update: Update, context: CallbackContext):
+async def save_language(update: Update, context: CallbackContext):
     #print("language is called! ")
     query = update.callback_query
     user_language = query.data
@@ -699,7 +679,7 @@ async def start_upload(update: Update, context: CallbackContext) -> int:
         update.effective_user.first_name,
         update.effective_user.username,
     )
-    await update.message.reply_text("Please upload your file")
+    await update.message.reply_text(UPLOAD_FILE_TEXT)
     return WAITING_FOR_DOCUMENT
 
 
@@ -722,8 +702,8 @@ async def receive_document(update: Update, context: CallbackContext) -> int:
     new_spendings_file = await context.bot.get_file(update.message.document.file_id)
 
     # Create the backup and get the path to the current spendings file
-    backup_spendings(user_id)
     spendings_file_path = f"user_data/{user_id}/spendings_{user_id}.csv"
+    backup_spendings(user_id, spendings_file_path)
 
     # Download the new file directly to the spendings file path
     await new_spendings_file.download_to_drive(custom_path=spendings_file_path)
@@ -874,34 +854,34 @@ async def process_income(update: Update, context: CallbackContext):
     return ConversationHandler.END
 
 
-async def settings_callback(update: Update, context: CallbackContext):
-    query = update.callback_query
-    user_id = str(update.effective_user.id)
-    texts = check_language(update, context)
-    action = query.data
+# async def settings_callback(update: Update, context: CallbackContext):
+#     query = update.callback_query
+#     user_id = str(update.effective_user.id)
+#     texts = check_language(update, context)
+#     action = query.data
     
-    if action == "change_language":
-        reply_markup = create_settings_language_keyboard()
-        await query.edit_message_text(
-            texts.SELECT_LANGUAGE,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        return SETTINGS_LANGUAGE
+#     if action == "change_language":
+#         reply_markup = create_settings_language_keyboard()
+#         await query.edit_message_text(
+#             texts.SELECT_LANGUAGE,
+#             reply_markup=reply_markup,
+#             parse_mode=ParseMode.HTML
+#         )
+#         return SETTINGS_LANGUAGE
         
-    elif action == "change_currency":
-        reply_markup = create_settings_currency_keyboard()
-        await query.edit_message_text(
-            texts.CHOOSE_CURRENCY_TEXT,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        return SETTINGS_CURRENCY
+#     elif action == "change_currency":
+#         reply_markup = create_settings_currency_keyboard()
+#         await query.edit_message_text(
+#             texts.CHOOSE_CURRENCY_TEXT,
+#             reply_markup=reply_markup,
+#             parse_mode=ParseMode.HTML
+#         )
+#         return SETTINGS_CURRENCY
         
-    elif action == "change_limit":
-        context.user_data['awaiting_limit'] = True
-        await query.edit_message_text(texts.CHOOSE_LIMIT_TEXT)
-        return SETTINGS_LIMIT
+#     elif action == "change_limit":
+#         context.user_data['awaiting_limit'] = True
+#         await query.edit_message_text(texts.CHOOSE_LIMIT_TEXT)
+#         return SETTINGS_LIMIT
 
 async def handle_settings_language(update: Update, context: CallbackContext):
     query = update.callback_query
@@ -969,7 +949,15 @@ async def show_menu(update: Update, context: CallbackContext):
     log_user_interaction(
         user_id, update.effective_user.first_name, update.effective_user.username
     )
-    print(" texts is", texts)
+    
+    # Clear user_data cache when returning to main menu
+    # Keep only essential data like language settings
+    language = context.user_data.get('language', None)
+    context.user_data.clear()
+    print("context.user_data is", context.user_data)
+    if language:
+        context.user_data['language'] = language
+    
     reply_markup = create_main_menu_keyboard(texts)
     await update.message.reply_text(
         texts.MAIN_MENU_TEXT,
@@ -1026,16 +1014,13 @@ async def menu_call(update: Update, context: CallbackContext):
     if action == "edit_show_categories":
         await query.answer()
         # Call our show_categories function
-        #print(f" Returning state from show_categories after edit_show_categories")
         return await show_categories(update, context)
     
     # Add handler for edit_transactions menu option
     elif action == "menu_edit_transactions":
         await query.answer()
-        # Import the transaction editing functionality
-        from change_transactions import show_transactions, TRANSACTION_LIST
-        #print(f" Starting transaction editing")
-        return await show_transactions(update, context)
+        # Use our dedicated wrapper function
+        return await show_recent_entries(update, context)
     
     # Show transactions menu options
     elif action == "show_monthly_summary":
@@ -1072,15 +1057,11 @@ async def menu_call(update: Update, context: CallbackContext):
         return TRANSACTION
         
     elif action == "show_last_transactions":
-        # Show keyboard for selecting number of records instead of immediately showing records
+        # UPDATED: Start the detailed transactions flow instead of showing record count keyboard
         await query.answer()
-        reply_markup = create_records_count_keyboard(texts)
-        await query.edit_message_text(
-            texts.SELECT_RECORDS_COUNT,
-            reply_markup=reply_markup
-        )
-        #print(f" Returning state SELECT_RECORDS_COUNT after show_last_transactions")
-        return SELECT_RECORDS_COUNT
+        # Call our new function to show category selection
+        return await start_detailed_transactions(update, context)
+        
         
     elif action == "show_monthly_charts":
         # Use existing function for monthly charts
@@ -1195,28 +1176,14 @@ async def menu_call(update: Update, context: CallbackContext):
         return TRANSACTION
         
     elif action == "menu_edit_categories":
-        # This should use the category editor function and keyboard
-        # Get categories from dictionary
-        cat_dict = read_dictionary(user_id)
-        categories = list(cat_dict.keys())
+        await query.answer()
+        # Import show_categories from change_data
+        from change_data import show_categories, CATEGORY_MANAGEMENT
         
-        if not categories:
-            await query.edit_message_text(texts.NO_CATEGORIES_FOUND)
-            return TRANSACTION
-            
-        # Store categories and current page in context
-        context.user_data["categories"] = categories
+        # Reset the current page when entering category management
         context.user_data["current_page"] = 0
         
-        # Use the original create_category_keyboard function, not the new one for transactions
-        reply_markup = create_category_keyboard(categories, context.user_data["current_page"], texts)
-        await query.edit_message_text(
-            texts.EDIT_CATEGORIES_PROMPT,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        #print(f" Returning state EDIT_CATEGORIES after menu_edit_categories")
-        return SELECT_CATEGORIES
+        return await show_categories(update, context)
         
     elif action == "menu_help":
         await query.edit_message_text(
@@ -1303,438 +1270,36 @@ async def menu_call(update: Update, context: CallbackContext):
             parse_mode="MarkdownV2"
         )
         return ADD_CATEGORY
-    
+    print(f" Returning state TRANSACTION after menu_call")
     return TRANSACTION
-
-# New handler functions for transaction entry
-
-async def handle_transaction_category(update: Update, context: CallbackContext):
-    """Handle category selection for transaction entry"""
-    print("Debug: handle_transaction_category called")
-    query = update.callback_query
-    user_id = str(update.effective_user.id)
-    texts = check_language(update, context)
-    action = query.data
-    
-    # Handle pagination
-    if action == "txpage_prev":
-        context.user_data["tx_page"] -= 1
-        categories = context.user_data.get("tx_categories", [])
-        reply_markup = create_tx_categories_keyboard(categories, context.user_data["tx_page"], texts)
-        await query.edit_message_reply_markup(reply_markup=reply_markup)
-        return SELECT_TRANSACTION_CATEGORY
-    
-    elif action == "txpage_next":
-        context.user_data["tx_page"] += 1
-        categories = context.user_data.get("tx_categories", [])
-        reply_markup = create_tx_categories_keyboard(categories, context.user_data["tx_page"], texts)
-        await query.edit_message_reply_markup(reply_markup=reply_markup)
-        return SELECT_TRANSACTION_CATEGORY
-    
-    # Handle category selection
-    elif action.startswith("txcat_"):
-        # Extract category name from callback data
-        category = action[6:]  # Remove "txcat_" prefix
-        
-        # Store selected category in context
-        context.user_data["tx_category"] = category
-        context.user_data["tx_subpage"] = 0
-        
-        # Get frequently used subcategories for this category
-        subcategories = get_frequently_used_subcategories(user_id, category)
-        
-        # If no subcategories found, check dictionary
-        if not subcategories:
-            cat_dict = read_dictionary(user_id)
-            if category in cat_dict and cat_dict[category]:
-                subcategories = cat_dict[category]
-        
-        # Store subcategories in context
-        context.user_data["tx_subcategories"] = subcategories
-        
-        if subcategories:
-            # Create and show the subcategories keyboard
-            reply_markup = create_subcategories_keyboard(subcategories, category, context.user_data["tx_subpage"], texts)
-            await query.edit_message_text(
-                texts.SELECT_TRANSACTION_SUBCATEGORY,
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.HTML
-            )
-        else:
-            # No subcategories found, ask user to enter manually
-            await query.edit_message_text(
-                texts.NO_SUBCATEGORIES_FOUND,
-                parse_mode=ParseMode.HTML
-            )
-        print("Debug: Returning state SELECT_TRANSACTION_SUBCATEGORY")
-        return SELECT_TRANSACTION_SUBCATEGORY
-    
-    # Handle cancel
-    elif action == "cancel_transaction":
-        await query.edit_message_text(
-            texts.TRANSACTION_CANCELED,
-            parse_mode=ParseMode.HTML
-        )
-        # Show main menu
-        reply_markup = create_main_menu_keyboard(texts)
-        await query.message.reply_text(
-            texts.MAIN_MENU_TEXT,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        return TRANSACTION
-    
-    # Handle unexpected callback data
-    await query.answer("Unexpected option")
-    return SELECT_TRANSACTION_CATEGORY
-
-async def handle_transaction_subcategory(update: Update, context: CallbackContext):
-    """Handle subcategory selection or manual entry for transaction"""
-    user_id = str(update.effective_user.id)
-    texts = check_language(update, context)
-    
-    # Check if this is a callback query (subcategory selected from keyboard)
-    if update.callback_query:
-        query = update.callback_query
-        action = query.data
-        
-        # Handle pagination
-        if action == "txsubpage_prev":
-            context.user_data["tx_subpage"] -= 1
-            subcategories = context.user_data.get("tx_subcategories", [])
-            category = context.user_data.get("tx_category", "")
-            reply_markup = create_subcategories_keyboard(subcategories, category, context.user_data["tx_subpage"], texts)
-            await query.edit_message_reply_markup(reply_markup=reply_markup)
-            return SELECT_TRANSACTION_SUBCATEGORY
-        
-        elif action == "txsubpage_next":
-            context.user_data["tx_subpage"] += 1
-            subcategories = context.user_data.get("tx_subcategories", [])
-            category = context.user_data.get("tx_category", "")
-            reply_markup = create_subcategories_keyboard(subcategories, category, context.user_data["tx_subpage"], texts)
-            await query.edit_message_reply_markup(reply_markup=reply_markup)
-            return SELECT_TRANSACTION_SUBCATEGORY
-        
-        # Handle back to categories
-        elif action == "back_to_categories":
-            categories = context.user_data.get("tx_categories", [])
-            print("Debug: Returning state SELECT_TRANSACTION_CATEGORY")
-            reply_markup = create_tx_categories_keyboard(categories, texts, context.user_data.get("tx_page", 0) )
-            await query.edit_message_text(
-                texts.SELECT_TRANSACTION_CATEGORY,
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.HTML
-            )
-            return SELECT_TRANSACTION_CATEGORY
-        
-        # Handle subcategory selection
-        elif action.startswith("txsubcat_"):
-            # Extract subcategory name from callback data
-            subcategory = action[9:]  # Remove "txsubcat_" prefix
-            
-            # Store selected subcategory in context
-            context.user_data["tx_subcategory"] = subcategory
-            
-            # Get recent amounts for this subcategory
-            amounts = get_recent_amounts(user_id, subcategory)
-            
-            if amounts:
-                # Show recent amounts keyboard
-                reply_markup = create_amounts_keyboard(amounts, texts)
-                await query.edit_message_text(
-                    texts.RECENT_SUBCATEGORY_AMOUNTS.format(subcategory=subcategory),
-                    reply_markup=reply_markup,
-                    parse_mode=ParseMode.HTML
-                )
-            else:
-                # No recent amounts, ask for amount entry
-                await query.edit_message_text(
-                    texts.ENTER_TRANSACTION_AMOUNT.format(subcategory=subcategory),
-                    parse_mode=ParseMode.HTML
-                )
-            
-            return ENTER_TRANSACTION_AMOUNT
-        
-        # Handle cancel
-        elif action == "cancel_transaction":
-            await query.edit_message_text(
-                texts.TRANSACTION_CANCELED,
-                parse_mode=ParseMode.HTML
-            )
-            # Show main menu
-            reply_markup = create_main_menu_keyboard(texts)
-            await query.message.reply_text(
-                texts.MAIN_MENU_TEXT,
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.HTML
-            )
-            return TRANSACTION
-    
-    # Handle manual entry (text message)
-    else:
-        # Parse the text to extract subcategory and amount
-        parts = update.message.text.lower().split()
-        
-        try:
-            # Check if the format is correct (last part should be a number)
-            amount = float(parts[-1])
-            subcategory = " ".join(parts[:-1])
-            
-            # Store subcategory and amount in context
-            context.user_data["tx_subcategory"] = subcategory
-            context.user_data["tx_amount"] = amount
-            
-            # Inform user about detected values
-            await update.message.reply_text(
-                texts.MANUAL_SUBCATEGORY_DETECTED.format(subcategory=subcategory, amount=amount),
-                parse_mode=ParseMode.HTML
-            )
-            
-            # Move to confirmation step
-            category = context.user_data.get("tx_category", "")
-            currency = get_user_currency(user_id)
-            current_date = datetime.now().strftime("%Y-%m-%d")
-            
-            reply_markup = create_confirm_transaction_keyboard(texts)
-            await update.message.reply_text(
-                texts.CONFIRM_TRANSACTION_DETAILS.format(
-                    category=category,
-                    subcategory=subcategory,
-                    amount=amount,
-                    currency=currency,
-                    date=current_date
-                ),
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.HTML
-            )
-            
-            return CONFIRM_TRANSACTION
-            
-        except (ValueError, IndexError):
-            # Invalid format, ask user to try again
-            await update.message.reply_text(
-                texts.TRANSACTION_ERROR_TEXT,
-                parse_mode=ParseMode.HTML
-            )
-            return SELECT_TRANSACTION_SUBCATEGORY
-    
-    # Handle unexpected callback data
-    await update.callback_query.answer("Unexpected option")
-
-    return SELECT_TRANSACTION_SUBCATEGORY
-
-async def handle_transaction_amount(update: Update, context: CallbackContext):
-    """Handle amount entry or selection for transaction"""
-    user_id = str(update.effective_user.id)
-    texts = check_language(update, context)
-    
-    # Check if this is a callback query (amount selected from keyboard)
-    if update.callback_query:
-        query = update.callback_query
-        action = query.data
-        
-        # Handle back to subcategories
-        if action == "back_to_subcategories":
-            subcategories = context.user_data.get("tx_subcategories", [])
-            category = context.user_data.get("tx_category", "")
-            reply_markup = create_subcategories_keyboard(subcategories, category, context.user_data.get("tx_subpage", 0), texts)
-            await query.edit_message_text(
-                texts.SELECT_TRANSACTION_SUBCATEGORY,
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.HTML
-            )
-            return SELECT_TRANSACTION_SUBCATEGORY
-        
-        # Handle amount selection
-        elif action.startswith("txamount_"):
-            # Extract amount from callback data
-            amount = float(action[9:])  # Remove "txamount_" prefix
-            
-            # Store selected amount in context
-            context.user_data["tx_amount"] = amount
-            
-            # Move to confirmation step
-            category = context.user_data.get("tx_category", "")
-            subcategory = context.user_data.get("tx_subcategory", "")
-            currency = get_user_currency(user_id)
-            current_date = datetime.now().strftime("%Y-%m-%d")
-            
-            reply_markup = create_confirm_transaction_keyboard(texts)
-            await query.edit_message_text(
-                texts.CONFIRM_TRANSACTION_DETAILS.format(
-                    category=category,
-                    subcategory=subcategory,
-                    amount=amount,
-                    currency=currency,
-                    date=current_date
-                ),
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.HTML
-            )
-            
-            return CONFIRM_TRANSACTION
-        
-        # Handle cancel
-        elif action == "cancel_transaction":
-            await query.edit_message_text(
-                texts.TRANSACTION_CANCELED,
-                parse_mode=ParseMode.HTML
-            )
-            # Show main menu
-            reply_markup = create_main_menu_keyboard(texts)
-            await query.message.reply_text(
-                texts.MAIN_MENU_TEXT,
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.HTML
-            )
-            return TRANSACTION
-    
-    # Handle manual entry (text message)
-    else:
-        try:
-            # Convert the text to a float
-            amount = float(update.message.text.strip())
-            
-            # Store amount in context
-            context.user_data["tx_amount"] = amount
-            
-            # Move to confirmation step
-            category = context.user_data.get("tx_category", "")
-            subcategory = context.user_data.get("tx_subcategory", "")
-            currency = get_user_currency(user_id)
-            current_date = datetime.now().strftime("%Y-%m-%d")
-            
-            reply_markup = create_confirm_transaction_keyboard(texts)
-            await update.message.reply_text(
-                texts.CONFIRM_TRANSACTION_DETAILS.format(
-                    category=category,
-                    subcategory=subcategory,
-                    amount=amount,
-                    currency=currency,
-                    date=current_date
-                ),
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.HTML
-            )
-            
-            return CONFIRM_TRANSACTION
-            
-        except ValueError:
-            # Invalid format, ask user to try again
-            await update.message.reply_text(
-                texts.TRANSACTION_ERROR_TEXT,
-                parse_mode=ParseMode.HTML
-            )
-            return SELECT_TRANSACTION_SUBCATEGORY
-    
-    # Handle unexpected callback data
-    if update.callback_query:
-        await update.callback_query.answer("Unexpected option")
-    return SELECT_TRANSACTION_SUBCATEGORY
-
-async def handle_transaction_confirmation(update: Update, context: CallbackContext):
-    """Handle transaction confirmation"""
-    query = update.callback_query
-    user_id = str(update.effective_user.id)
-    texts = check_language(update, context)
-    action = query.data
-    
-    if action == "confirm_transaction":
-        # Get transaction details from context
-        category = context.user_data.get("tx_category", "")
-        subcategory = context.user_data.get("tx_subcategory", "")
-        amount = context.user_data.get("tx_amount", 0)
-        currency = get_user_currency(user_id)
-        timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-        
-        # Create transaction data
-        transaction_data = {
-            "id": user_id,
-            "amount": amount,
-            "currency": currency,
-            "category": category,
-            "subcategory": subcategory,
-            "timestamp": timestamp,
-        }
-        
-        # Save the transaction
-        save_user_transaction(user_id, transaction_data)
-        
-        # Add subcategory to category dictionary if it's not there already
-        cat_dict = read_dictionary(user_id)
-        if category in cat_dict and subcategory not in cat_dict[category]:
-            add_category(user_id, category, subcategory)
-        
-        # Inform user about successful save
-        await query.edit_message_text(
-            texts.TRANSACTION_CONFIRMED,
-            parse_mode=ParseMode.HTML
-        )
-        
-        # Show main menu
-        reply_markup = create_main_menu_keyboard(texts)
-        await query.message.reply_text(
-            texts.MAIN_MENU_TEXT,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        
-        # Check if we need to show limit warnings
-        try:
-            (
-                current_daily_average,
-                percent_difference,
-                daily_limit,
-                days_zero_spending,
-                new_daily_limit,
-            ) = calculate_limit(user_id)
-            
-            if current_daily_average > daily_limit:
-                await query.message.reply_text(
-                    texts.LIMIT_EXCEEDED.format(
-                        percent_difference=percent_difference,
-                        current_daily_average=current_daily_average,
-                        daily_limit=daily_limit,
-                        days_zero_spending=days_zero_spending,
-                        new_daily_limit=new_daily_limit,
-                        currency=currency,
-                    ),
-                )
-        except Exception as e:
-            print(f"Exception calculating limit: {e}")
-        
-        return TRANSACTION
-    
-    elif action == "cancel_transaction":
-        await query.edit_message_text(
-            texts.TRANSACTION_CANCELED,
-            parse_mode=ParseMode.HTML
-        )
-        # Show main menu
-        reply_markup = create_main_menu_keyboard(texts)
-        await query.message.reply_text(
-            texts.MAIN_MENU_TEXT,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        return TRANSACTION
-    
-    # Handle unexpected callback data
-    await query.answer("Unexpected option")
-    return TRANSACTION
-
-# async def change_cat(update: Update, context: CallbackContext) -> int:
-#     #print(f" change_cat called")
-#     query = update.callback_query
-#     user_id = str(update.effective_user.id)
-#     return await select_category_for_transaction(update, context)
-
+ 
 async def menu_callback(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
     user_id = str(update.effective_user.id)
-    #print(f" menu_callback called")
+    print(f" menu_callback called")
     return await menu_call(update, context)
     
+async def update_file_structure(update: Update, context: CallbackContext) -> None:
+    """Handle the /update_file command to update the structure of the user's spendings file."""
+    user_id = str(update.effective_user.id)
+    texts = check_language(update, context)
+    log_user_interaction(
+        update.effective_user.id,
+        update.effective_user.first_name,
+        update.effective_user.username,
+    )
+    if user_id == "46304833":
+        # Call the function to update the file structure
+        result = migrate_all_user_files_to_new_structure()
+        
+    # Send a message back to the user with the result
+    if result["success"]:
+        await update.message.reply_text(f"✅ {result['message']}")
+    else:
+        await update.message.reply_text(f"❌ {result['message']}")
+    
+    return TRANSACTION
+
 def main():
     application = Application.builder().token(token).build()
 
@@ -1753,6 +1318,7 @@ def main():
     application.add_handler(CommandHandler("monthly_ext_stat", send_ext_chart))
     application.add_handler(CommandHandler("yearly_stat", send_yearly_piechart))
     application.add_handler(CommandHandler("show_log", show_log))
+    application.add_handler(CommandHandler("update_files", update_file_structure))
 
     # Handler for the leave command to archive user profile
     leave_handler = ConversationHandler(
@@ -1798,7 +1364,7 @@ def main():
             MessageHandler(filters.Regex(r"\b\w+\s+\d+$"), handle_text),
         ],
         states={
-            LANGUAGE: [CallbackQueryHandler(language)],
+            LANGUAGE: [CallbackQueryHandler(save_language)],
             CURRENCY: [CallbackQueryHandler(save_currency)],
             LIMIT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, save_limit),
@@ -1806,7 +1372,7 @@ def main():
             ],
             TRANSACTION: [
                 # Transaction category selection
-                CallbackQueryHandler(select_category_for_transaction, pattern="^(cat_|page_next|page_prev|show_all_categories|use_|create_new_category)"),
+                CallbackQueryHandler(select_category_for_transaction, pattern="^(cat_|show_all_categories|use_|create_new_category)"),
                 # Transaction flow
                 CallbackQueryHandler(handle_transaction_category, pattern="^txcat_"),
                 CallbackQueryHandler(handle_transaction_subcategory, pattern="^txsubcat_"),
@@ -1815,32 +1381,17 @@ def main():
                 # Navigation and menus
                 CallbackQueryHandler(menu_call, pattern="^(cancel_transaction|back_to_main_menu)"),
                 CallbackQueryHandler(menu_call, pattern="^menu_"),
-                CallbackQueryHandler(show_categories, pattern="^menu_edit_categories$"),
-                CallbackQueryHandler(settings_callback, pattern="^change_"),
                 # For showing various reports
                 CallbackQueryHandler(menu_call, pattern="^(show_monthly_summary|show_last_month_summary|show_last_transactions|show_monthly_charts|show_extended_stats|show_yearly_charts|show_income_stats)"),
                 # For text input of transaction amount
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_transaction_amount),
             ],
-            CHOOSE_CATEGORY: [
-                CallbackQueryHandler(select_category_for_transaction),
-                MessageHandler(
-                    filters.TEXT & ~filters.COMMAND, create_new_category_transaction
-                ),
-            ],
-            ADD_CATEGORY: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, save_category)
-            ],
-            SETTINGS_LANGUAGE: [CallbackQueryHandler(handle_settings_language, pattern="^lang_")],
-            SETTINGS_CURRENCY: [CallbackQueryHandler(handle_settings_currency, pattern="^cur_")],
-            SETTINGS_LIMIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_settings_limit)],
-
-            SELECT_RECORDS_COUNT: [
-                CallbackQueryHandler(handle_records_count, pattern="^(count_|back_to_transactions)"),
-            ],
+            # Add the category management states from change_data
             CATEGORY_MANAGEMENT: [
-                CallbackQueryHandler(handle_category_selection, pattern="^(cat_|add_new_category|)"),
-                CallbackQueryHandler(menu_call, pattern="^back_to_main_menu"),
+                CallbackQueryHandler(handle_category_selection, pattern="^cat_"),
+                CallbackQueryHandler(handle_category_selection, pattern="^catpage_(prev|next)$"),
+                CallbackQueryHandler(handle_category_selection, pattern="^add_new_category$"),
+                CallbackQueryHandler(handle_category_selection, pattern="^back_to_main_menu$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_add_new_category),
             ],
             CATEGORY_EDIT: [
@@ -1854,8 +1405,19 @@ def main():
                 CallbackQueryHandler(handle_task_option, pattern="^(back_to_tasks_|edit_task_|delete_task_)"),
                 CallbackQueryHandler(handle_task_delete_confirmation, pattern="^(confirm_delete_task_|cancel_delete_task_)"),
             ],
+            SETTINGS_LANGUAGE: [
+                CallbackQueryHandler(handle_settings_language, pattern="^(lang_)"),
+            ],
+            SETTINGS_CURRENCY: [
+                CallbackQueryHandler(handle_settings_currency, pattern="^(cur_)"),
+            ],
+            SETTINGS_LIMIT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_settings_limit)
+            ],
+            SELECT_RECORDS_COUNT: [
+                CallbackQueryHandler(handle_records_count, pattern="^(count_|back_to_transactions)"),
+            ],
             TASK_EDIT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_edit_task),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_add_task),
                 CallbackQueryHandler(handle_task_edit_confirmation, pattern="^(confirm_rename_task_|cancel_rename_task_)"),
             ],
@@ -1875,18 +1437,16 @@ def main():
             CONFIRM_TRANSACTION: [
                 CallbackQueryHandler(handle_transaction_confirmation, pattern="^(confirm_transaction|cancel_transaction)"),
             ],
-            SELECT_CATEGORIES: [
-                CallbackQueryHandler(handle_category_selection, pattern="^cat_"),
-                CallbackQueryHandler(menu_call, pattern="^(page_prev|page_next)"),
-                CallbackQueryHandler(menu_call, pattern="^menu_"),
-                CallbackQueryHandler(menu_call, pattern="^back_to_main_menu"),
+            HANDLE_TRANSACTION_CREATE_CATEGORY: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, create_new_category_transaction),
             ],
             TRANSACTION_LIST: [
                 CallbackQueryHandler(handle_transaction_selection, pattern="^(tx_|tx_next_page|tx_prev_page)"),
                 CallbackQueryHandler(menu_call, pattern="^back_to_main_menu"),
             ],
             TRANSACTION_EDIT: [
-                CallbackQueryHandler(handle_edit_option, pattern="^(edit_date|edit_category|edit_subcategory|edit_amount|delete_transaction|back_to_transactions)"),
+                CallbackQueryHandler(handle_edit_option, pattern="^(edit_date|edit_category|edit_subcategory|edit_amount|delete_transaction)"),
+                CallbackQueryHandler(handle_edit_option, pattern="^back_to_transactions"),
             ],
             EDIT_DATE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_edit_date),
@@ -1904,8 +1464,24 @@ def main():
             CONFIRM_DELETE: [
                 CallbackQueryHandler(handle_delete_tx_confirmation, pattern="^(confirm|cancel)"),
             ],
-            HANDLE_TRANSACTION_CREATE_CATEGORY: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, create_new_category_transaction),
+            TX_CHOOSE_CATEGORY: [
+                CallbackQueryHandler(select_category_for_transaction, pattern="^cat_"),
+                CallbackQueryHandler(select_category_for_transaction, pattern="^catpage_(prev|next)$"),
+                CallbackQueryHandler(select_category_for_transaction, pattern="^(show_all_categories|use_|create_new_category)"),
+                CallbackQueryHandler(menu_call, pattern="^back_to_main_menu"),
+            ],
+            # Add the new detailed transactions states
+            SELECT_CATEGORIES: [
+                CallbackQueryHandler(handle_detailed_category_selection, pattern="^(selcat_|selcatpage_|back_to_transactions)"),
+            ],
+            SELECT_TIME_PERIOD: [
+                CallbackQueryHandler(handle_time_period_selection, pattern="^(period_|back_to_categories)"),
+            ],
+            SHOW_SUMMARY: [
+                CallbackQueryHandler(handle_summary_action, pattern="^(view_transactions|back_|back_to_main_menu)"),
+            ],
+            SHOW_TRANSACTIONS: [
+                CallbackQueryHandler(handle_transaction_navigation, pattern="^(tx_|dtx_display_|dtx_prev_page|dtx_next_page|back_)"),
             ],
         },
         allow_reentry=True,

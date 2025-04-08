@@ -13,20 +13,7 @@ def create_language_keyboard():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# def create_currency_keyboard(texts=None):
-#     """Create a keyboard for currency selection"""
-#     keyboard = [
-#         [
-#             InlineKeyboardButton("USD", callback_data="USD"),
-#             InlineKeyboardButton("EUR", callback_data="EUR"),
-#             InlineKeyboardButton("AMD", callback_data="AMD"),
-#             InlineKeyboardButton("RUB", callback_data="RUB"),
-#             InlineKeyboardButton("THB", callback_data="THB"),
-
-#         ],
-#     ]
-#     return InlineKeyboardMarkup(keyboard)
-
+ 
 def create_skip_keyboard(texts):
     """Create a keyboard with just a skip button"""
     keyboard = [[InlineKeyboardButton(texts.SKIP_BUTTON, callback_data="skip")]]
@@ -43,59 +30,60 @@ def create_settings_keyboard(texts):
     ]
     return InlineKeyboardMarkup(keyboard)
 
-def create_category_keyboard(categories, current_page, texts, items_per_page=5):
-    """
-    Create a paginated inline keyboard for selecting categories.
-    
-    Args:
-        categories: List of all categories
-        current_page: Current page number (0-based)
-        texts: The texts module with localized strings
-        items_per_page: Number of categories to show per page
-        
-    Returns:
-        InlineKeyboardMarkup: Keyboard with category buttons
-    """
+def create_category_keyboard(categories, current_page, texts, items_per_page=10):
     #print("DEBUG: Creating category keyboard")
-    keyboard = []
-    
-    # Calculate start and end indices for categories on current page
-    start_idx = current_page * items_per_page
-    end_idx = min(start_idx + items_per_page, len(categories))
-    #print(f"DEBUG: Page {current_page}, showing categories from index {start_idx} to {end_idx-1}")
-    
-    # Add category buttons for current page
-    for cat in categories[start_idx:end_idx]:
-        #print(f"DEBUG: Adding category button for '{cat}'")
-        keyboard.append([InlineKeyboardButton(cat, callback_data=f"cat_{cat}")])
-    
-    # Add navigation buttons
-    nav_buttons = []
-    
-    # Add previous page button if not on first page
-    if current_page > 0:
-        #print(f"DEBUG: Adding 'Back' button for page navigation")
-        nav_buttons.append(InlineKeyboardButton(texts.BACK_BUTTON, callback_data="page_prev"))
-    
-    # Add next page button if not on last page
-    if end_idx < len(categories):
-        #print(f"DEBUG: Adding 'Next' button for page navigation")
-        nav_buttons.append(InlineKeyboardButton(texts.NEXT_BUTTON, callback_data="page_next"))
-    
-    # Add navigation row if there are any navigation buttons
-    if nav_buttons:
-        #print(f"DEBUG: Adding navigation row with {len(nav_buttons)} buttons")
-        keyboard.append(nav_buttons)
-    
-    # Add option to create a new category
-    #print("DEBUG: Adding 'Create new category' button")
-    keyboard.append([InlineKeyboardButton(texts.CREATE_CATEGORY_BUTTON, callback_data="create_new_category")])
-    
-    #print("DEBUG: Adding 'Cancel' button")
-    keyboard.append([InlineKeyboardButton(texts.BACK_TO_MAIN_MENU_BUTTON, callback_data="cancel_transaction")])
-    
-    #print(f"DEBUG: Completed keyboard with {len(keyboard)} rows")
-    return InlineKeyboardMarkup(keyboard)
+    try:
+        keyboard = []
+        nav_buttons = []  # Define nav_buttons here
+        
+        # Calculate start and end indices for categories on current page
+        start_idx = current_page * items_per_page
+        end_idx = min(start_idx + items_per_page, len(categories))
+        # print(f"DEBUG: Page {current_page}, showing categories from index {start_idx} to {end_idx-1}")
+        
+        # Add category buttons for current page in 2 columns
+        current_page_categories = categories[start_idx:end_idx]
+        
+        # Process categories in pairs for 2 columns
+        for i in range(0, len(current_page_categories), 2):
+            row = []
+            # Add first category in the pair
+            row.append(InlineKeyboardButton(current_page_categories[i], callback_data=f"cat_{current_page_categories[i]}"))
+            
+            # Add second category if it exists
+            if i + 1 < len(current_page_categories):
+                row.append(InlineKeyboardButton(current_page_categories[i+1], callback_data=f"cat_{current_page_categories[i+1]}"))
+            
+            keyboard.append(row)
+        
+        # Add previous page button if not on first page
+        if current_page > 0:
+            # print(f"DEBUG: Adding 'Back' button for page navigation")
+            nav_buttons.append(InlineKeyboardButton(texts.BACK_BUTTON, callback_data="catpage_prev"))
+        
+        # Add next page button if not on last page
+        if end_idx < len(categories):
+            # print(f"DEBUG: Adding 'Next' button for page navigation")
+            nav_buttons.append(InlineKeyboardButton(texts.NEXT_BUTTON, callback_data="catpage_next"))
+        
+        # Add navigation row if there are any navigation buttons
+        if nav_buttons:
+            # print(f"DEBUG: Adding navigation row with {len(nav_buttons)} buttons")
+            keyboard.append(nav_buttons)
+            
+        # Add option to create a new category
+        keyboard.append([InlineKeyboardButton(texts.CREATE_CATEGORY_BUTTON, callback_data="create_new_category")])
+        
+        # Add back button
+        keyboard.append([InlineKeyboardButton(texts.BACK_TO_MAIN_MENU_BUTTON, callback_data="cancel_transaction")])
+        
+        return InlineKeyboardMarkup(keyboard)
+        
+    except Exception as e:
+        #print(f"DEBUG: ERROR in create_category_keyboard: {e}")
+        # Return a simple fallback keyboard to not break the flow
+        keyboard = [[InlineKeyboardButton("Error - Back to Menu", callback_data="back_to_main_menu")]]
+        return InlineKeyboardMarkup(keyboard)
 
 def create_found_category_keyboard(found_category, texts):
     """Create a keyboard for when a category is found for a subcategory"""
@@ -118,16 +106,7 @@ def create_multiple_categories_keyboard(matching_categories, texts):
     
     return InlineKeyboardMarkup(keyboard)
 
-def create_all_categories_keyboard(all_categories, current_page, texts):
-    """Create a keyboard with all categories and a cancel button"""
-    #print("DEBUG: Creating all categories keyboard")
-    keyboard = create_category_keyboard(all_categories, current_page, texts)
-    #print(f"DEBUG: Got keyboard with {len(keyboard.inline_keyboard)} rows")
-    # Add cancel button to the list of buttons
-    #print("DEBUG: Adding cancel button to keyboard")
-    # keyboard.inline_keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel_transaction")])
-    #print(f"DEBUG: Final keyboard has {len(keyboard.inline_keyboard)} rows")
-    return keyboard
+ 
 
 def create_settings_language_keyboard():
     """Create a keyboard specifically for language settings with lang_ prefixed callbacks"""
@@ -182,7 +161,6 @@ def create_show_transactions_keyboard(texts):
         ],
         [
             InlineKeyboardButton(texts.DETAILED_STAT_BUTTON, callback_data="show_extended_stats"),
-            InlineKeyboardButton(texts.LAST_TRANSACTIONS_BUTTON, callback_data="show_last_transactions"),
         ],
         [
             InlineKeyboardButton(texts.YEARLY_CHARTS_BUTTON, callback_data="show_yearly_charts"),
@@ -190,7 +168,9 @@ def create_show_transactions_keyboard(texts):
 
         ],
         [
-            InlineKeyboardButton(texts.INCOME_STATS_BUTTON, callback_data="show_income_stats")
+            InlineKeyboardButton(texts.LAST_TRANSACTIONS_BUTTON, callback_data="show_last_transactions")
+
+            # InlineKeyboardButton(texts.INCOME_STATS_BUTTON, callback_data="show_income_stats")
         ],
         [
             InlineKeyboardButton(texts.BACK_TO_MAIN_MENU_BUTTON, callback_data="back_to_main_menu")
@@ -350,18 +330,36 @@ def create_confirm_transaction_keyboard(texts):
     ]
     return InlineKeyboardMarkup(keyboard)
 
-def create_category_edit_keyboard(categories: list, texts):
-    """Create a keyboard with category buttons in 2 columns for category editing"""
+def create_category_edit_keyboard(categories: list, texts, current_page=0, items_per_page=16):
+    """Create a keyboard with category buttons in 2 columns for category editing with pagination"""
     keyboard = []
-    row = []
     
-    for i, category in enumerate(categories):
-        row.append(InlineKeyboardButton(category, callback_data=f"cat_{category}"))
+    # Calculate start and end indices for current page
+    start_idx = current_page * items_per_page
+    end_idx = min(start_idx + items_per_page, len(categories))
+    
+    # Add category buttons, 2 per row
+    for i in range(start_idx, end_idx, 2):
+        row = []
+        # Add first category button
+        row.append(InlineKeyboardButton(categories[i], callback_data=f"cat_{categories[i]}"))
         
-        # Create a new row after every 2 buttons
-        if len(row) == 2 or i == len(categories) - 1:
-            keyboard.append(row)
-            row = []
+        # Add second category button if available
+        if i + 1 < end_idx:
+            row.append(InlineKeyboardButton(categories[i+1], callback_data=f"cat_{categories[i+1]}"))
+        
+        keyboard.append(row)
+    
+    # Add navigation buttons if needed
+    nav_row = []
+    if current_page > 0:
+        nav_row.append(InlineKeyboardButton(texts.PREVIOUS_BUTTON, callback_data="catpage_prev"))
+        
+    if end_idx < len(categories):
+        nav_row.append(InlineKeyboardButton(texts.NEXT_BUTTON, callback_data="catpage_next"))
+    
+    if nav_row:
+        keyboard.append(nav_row)
     
     # Add new category button
     keyboard.append([InlineKeyboardButton(texts.CREATE_CATEGORY_BUTTON, callback_data="add_new_category")])
@@ -487,13 +485,185 @@ def create_transaction_edit_keyboard(transaction, texts):
     
     return InlineKeyboardMarkup(keyboard)
 
-def create_transaction_confirmation_keyboard(texts):
+def create_tx_del_confirmation_keyboard(texts):
     """Create a keyboard for confirming an action"""
     keyboard = [
         [
-            InlineKeyboardButton(texts.CONFIRM_BUTTON, callback_data="confirm"),
+            InlineKeyboardButton(texts.DELETE_TRANSACTION_BUTTON, callback_data="confirm"),
             InlineKeyboardButton(texts.CANCEL_BUTTON, callback_data="cancel")
         ]
     ]
+    
+    return InlineKeyboardMarkup(keyboard)
+
+def create_category_selection_keyboard(categories, selected_categories, texts, current_page=0, items_per_page=16):
+    """Create a keyboard with selectable categories for detailed stats"""
+    keyboard = []
+    
+    # Calculate start and end indices for current page
+    start_idx = current_page * items_per_page
+    end_idx = min(start_idx + items_per_page, len(categories))
+    
+    # Add category buttons, 2 per row
+    for i in range(start_idx, end_idx, 2):
+        row = []
+        # Add first category button with selection indicator
+        category_text = categories[i]
+        if category_text in selected_categories:
+            category_text = f"✅ {category_text}"
+        row.append(InlineKeyboardButton(category_text, callback_data=f"selcat_{categories[i]}"))
+        
+        # Add second category button if available
+        if i + 1 < end_idx:
+            category_text = categories[i+1]
+            if category_text in selected_categories:
+                category_text = f"✅ {category_text}"
+            row.append(InlineKeyboardButton(category_text, callback_data=f"selcat_{categories[i+1]}"))
+        
+        keyboard.append(row)
+    
+    # Add navigation buttons if needed
+    nav_row = []
+    if current_page > 0:
+        nav_row.append(InlineKeyboardButton(texts.PREVIOUS_BUTTON, callback_data="selcatpage_prev"))
+        
+    if end_idx < len(categories):
+        nav_row.append(InlineKeyboardButton(texts.NEXT_BUTTON, callback_data="selcatpage_next"))
+    
+    if nav_row:
+        keyboard.append(nav_row)
+    
+    # Add select all and continue buttons
+    keyboard.append([
+        InlineKeyboardButton(texts.SELECT_ALL_BUTTON, callback_data="selcat_all"),
+        InlineKeyboardButton(texts.CONTINUE_BUTTON, callback_data="selcat_continue")
+    ])
+    
+    # Add back button
+    keyboard.append([InlineKeyboardButton(texts.BACK_BUTTON, callback_data="back_to_transactions")])
+    
+    return InlineKeyboardMarkup(keyboard)
+
+def create_time_period_keyboard(texts):
+    """Create a keyboard with time period options"""
+    keyboard = [
+        [
+            InlineKeyboardButton(texts.THREE_MONTH_BUTTON, callback_data="period_3m"),
+            InlineKeyboardButton(texts.SIX_MONTH_BUTTON, callback_data="period_6m")
+        ],
+        [
+            InlineKeyboardButton(texts.TWELVE_MONTH_BUTTON, callback_data="period_12m"),
+            InlineKeyboardButton(texts.YEAR_TO_DATE_BUTTON, callback_data="period_ytd")
+        ],
+        [InlineKeyboardButton(texts.BACK_BUTTON, callback_data="back_to_categories")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def create_detailed_transactions_keyboard(transactions, selected_categories, current_page, texts, items_per_page=15, total_count=None):
+    """Create a keyboard with numbered buttons and navigation for detailed transactions view"""
+    keyboard = []
+    
+    # Calculate the visible transactions range
+    total_transactions = len(transactions)
+    
+    # Create number selection buttons, up to 5 buttons per row
+    rows = []
+    current_row = []
+    
+    # Create numbered buttons matching the display numbers (1-15)
+    for i in range(1, total_transactions + 1):
+        # For each visible transaction, create a button with its display number
+        # Use the display number directly in the callback data
+        current_row.append(InlineKeyboardButton(str(i), callback_data=f"dtx_display_{i}"))
+        
+        # Create rows with 5 buttons each
+        if len(current_row) == 5:
+            rows.append(current_row)
+            current_row = []
+    
+    # Add any remaining buttons in the last row
+    if current_row:
+        rows.append(current_row)
+    
+    # Add all rows to the keyboard
+    keyboard.extend(rows)
+    
+    # Add navigation buttons
+    nav_buttons = []
+    
+    # Only show prev button if not on first page
+    if current_page > 0:
+        nav_buttons.append(InlineKeyboardButton(texts.PREVIOUS_BUTTON, callback_data="dtx_prev_page"))
+    
+    # Only show next button if there are more transactions to show
+    if total_count is not None and (current_page + 1) * items_per_page < total_count:
+        nav_buttons.append(InlineKeyboardButton(texts.NEXT_BUTTON, callback_data="dtx_next_page"))
+    
+    if nav_buttons:
+        keyboard.append(nav_buttons)
+    
+    keyboard.append([InlineKeyboardButton(texts.RETURN_BACK_BUTTON, callback_data="back_to_tx_list")])
+
+    # Add back to main menu button
+    keyboard.append([InlineKeyboardButton(texts.BACK_TO_MAIN_MENU_BUTTON, callback_data="back_to_main_menu")])
+    
+    return InlineKeyboardMarkup(keyboard)
+
+def create_numbered_transaction_keyboard(transactions, current_page, total_transactions, texts, items_per_page=15):
+    """Create a keyboard with numbered buttons for transaction selection"""
+    keyboard = []
+    
+    # Create number selection buttons, up to 5 buttons per row
+    rows = []
+    current_row = []
+    
+    # Determine how many transactions are visible on the current page
+    start_idx = current_page * items_per_page
+    end_idx = max(start_idx + items_per_page, len(transactions))
+
+    # Create numbered buttons for transaction selection (1-15 on first page, 1-15 on second page)
+    for i in range(1, end_idx - start_idx + 1):
+        print(f"Debug: Keyboard - i: {i}")
+        # Extract index from transaction for callback data
+        tx = transactions[i-1]
+        parts = tx.split(', ')
+        index_part = parts[0].split(': ')[0]
+        
+        # Create button with sequential number and tx_ index callback
+        current_row.append(InlineKeyboardButton(str(i), callback_data=f"tx_{index_part}"))
+        
+        # Create rows with 5 buttons each
+        if len(current_row) == 5:
+            rows.append(current_row)
+            current_row = []
+    
+    # Add any remaining buttons in the last row
+    if current_row:
+        rows.append(current_row)
+    
+    # Add all rows to the keyboard
+    keyboard.extend(rows)
+    
+    # Add navigation buttons
+    nav_buttons = []
+    
+    # Only show prev button if not on first page
+    if current_page > 0:
+        nav_buttons.append(InlineKeyboardButton(texts.PREVIOUS_BUTTON, callback_data="tx_prev_page"))
+    
+    # Show next button if there are more transactions to show
+    # For 30 total transactions (2 pages of 15 each):
+    # - Show Next on page 0 (first page)
+    # - Don't show Next on page 1 (second page)
+    max_page = (total_transactions - 1) // items_per_page
+     
+    if current_page < max_page:
+        nav_buttons.append(InlineKeyboardButton(texts.NEXT_BUTTON, callback_data="tx_next_page"))
+    
+    if nav_buttons:
+        keyboard.append(nav_buttons)
+    
+    # Add back button
+    keyboard.append([InlineKeyboardButton(texts.BACK_TO_MAIN_MENU_BUTTON, callback_data="back_to_main_menu")])
     
     return InlineKeyboardMarkup(keyboard) 

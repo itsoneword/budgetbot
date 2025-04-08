@@ -4,36 +4,38 @@ from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, ConversationHandler
 from telegram.constants import ParseMode 
-from file_ops import read_dictionary, get_latest_records, delete_record, save_user_transaction
+from file_ops import read_dictionary, get_latest_records, delete_record, save_user_transaction, ensure_transaction_ids
 from language_util import check_language
 from pandas_ops import get_user_currency
-from keyboards import create_transaction_keyboard, create_transaction_edit_keyboard, create_transaction_confirmation_keyboard
+from keyboards import create_transaction_keyboard, create_transaction_edit_keyboard, create_tx_del_confirmation_keyboard, create_numbered_transaction_keyboard
+import asyncio
+# Import states from central file
+from src.states import *
 
-# Define states for the conversation
-(
-    TRANSACTION_LIST, 
-    TRANSACTION_EDIT, 
-    EDIT_DATE, 
-    EDIT_CATEGORY, 
-    EDIT_SUBCATEGORY, 
-    EDIT_AMOUNT, 
-    CONFIRM_DELETE
-) = range(22, 29)
-
-async def show_transactions(update: Update, context: CallbackContext) -> int:
-    """Show list of recent transactions with pagination"""
+async def show_recent_entries(update: Update, context: CallbackContext) -> int:
+    """Show list of recent transactons with pagination"""
     user_id = str(update.effective_user.id)
     texts = check_language(update, context)
+    
+    # Ensure all transactions have IDs
+    ensure_transaction_ids(user_id)
     
     # Set default page to 0 if not set
     if 'tx_page' not in context.user_data:
         context.user_data['tx_page'] = 0
     
-    # Get transactions, request more than 10 to know if we have more
+    # Get transactions, request more than needed to know if there are more
     page = context.user_data['tx_page']
-    print("Debag: page is:", page)
-    records_to_fetch = 8 # Fetch 7 to know if there are more than 7
+    print("Debug: page is:", page)
+    
+    # Always fetch exactly 30 transactions (for 2 pages of 15 each)
+    transactions_per_page = 15  # Show 15 transactions per page
+    records_to_fetch = 30  # Fetch exactly 30 records total
+    print(f"Debug: Fetching {records_to_fetch} records for page {page}")
+    
+    # Get latest 30 transactions
     transactions, total_amount = get_latest_records(user_id, records_to_fetch)
+    print(f"Debug: Got {len(transactions)} transactions in total")
     
     if not transactions:
         if update.callback_query:
@@ -48,34 +50,70 @@ async def show_transactions(update: Update, context: CallbackContext) -> int:
             )
         return ConversationHandler.END
     
+    # Limit page number to only show available pages (0 or 1 for 30 transactions)
+    max_page = (len(transactions) - 1) // transactions_per_page
+    if page > max_page:
+        context.user_data['tx_page'] = max_page
+        page = max_page
+        print(f"Debug: Adjusted page to max_page: {max_page}")
     
-    # If we're on page > 0, get a new set of records for this page
-    if page > 0:
-        print("Debag: page >0:", page)
-        # Calculate the number of records to skip
-        skip_records = page * 8
-        # Get a new batch of records
-        transactions, _ = get_latest_records(user_id, skip_records + records_to_fetch)
-     
-        # Take only the last 11 (or fewer) records
-        if len(transactions) > skip_records:
-            # This line slices the transactions list to get only the records for the current page
-            print("Debag: len(transactions) is:",len(transactions),    "skip_records: start:", skip_records, "end:", skip_records + records_to_fetch)
-            transactions = transactions[:8]
-            print("Debag: transactions:", transactions)
+    # Paginate transactions
+    start_idx = page * transactions_per_page
+    end_idx = min(start_idx + transactions_per_page, len(transactions))
+    
+    print(f"Debug: Showing transactions from index {start_idx} to {end_idx-1}")
+    
+    # Format transactions as text
+    transaction_lines = []
+    display_transactions = transactions[start_idx:end_idx]
+    
+    print(f"Debug: Number of display transactions: {len(display_transactions)}")
+    
+    for i, tx in enumerate(display_transactions):
+        # Parse the transaction string format: "index: timestamp, category, subcategory, amount, currency"
+        parts = tx.split(', ')
+        
+        # Extract the parts we need
+        index_part = parts[0].split(': ')[0]
+        timestamp_part = parts[0].split(': ')[1]
+        category = parts[1]
+        subcategory = parts[2]
+        amount = parts[3]
+        currency = parts[4] if len(parts) > 4 else ""
+        
+        # Format the date for display (DD.MM.YYYY)
+        date_str = ""
+        if "T" in timestamp_part:
+            date_only = timestamp_part.split('T')[0]
+            try:
+                year, month, day = date_only.split('-')
+                date_str = f"{day}.{month}.{year}"
+            except:
+                date_str = timestamp_part
         else:
-            # If we've gone past the available records, go back to the last valid page
-            context.user_data['tx_page'] -= 1
-            return await show_transactions(update, context)
+            date_str = timestamp_part
+        
+        # Create the formatted transaction line with display number (i+1)
+        line = f"{i+1}. {date_str} - {category}: {subcategory} {amount} {currency}"
+        transaction_lines.append(line)
     
-    # Display only 10 records max
-    display_transactions = transactions[:8]
+    # Create message text with transactions list
+    transactions_text = "\n".join(transaction_lines)
     
-    reply_markup = create_transaction_keyboard(display_transactions, page, texts)
-    
-    # Format message text
+    # Format full message
     currency = get_user_currency(user_id)
     message_text = texts.EDIT_TRANSACTIONS_PROMPT.format(total_amount, currency)
+    message_text += f"\n\n{transactions_text}\n\n{texts.SELECT_TRANSACTION_TO_EDIT}"
+    
+    # Create keyboard with numbered buttons
+    # Pass the total number of transactions (30) to limit pagination to 2 pages
+    reply_markup = create_numbered_transaction_keyboard(
+        display_transactions, 
+        page,
+        len(transactions),  # This is the total number of transactions (30)
+        texts,
+        items_per_page=transactions_per_page
+    )
     
     if update.callback_query:
         await update.callback_query.edit_message_text(
@@ -94,6 +132,7 @@ async def show_transactions(update: Update, context: CallbackContext) -> int:
 
 async def handle_transaction_selection(update: Update, context: CallbackContext) -> int:
     """Handle selection of a transaction to edit"""
+   # print("handle_transaction_selection is called with data:", update.callback_query.data)
     user_id = str(update.effective_user.id)
     texts = check_language(update, context)
     query = update.callback_query
@@ -102,80 +141,96 @@ async def handle_transaction_selection(update: Update, context: CallbackContext)
     callback_data = query.data
     
     if callback_data == "tx_next_page":
-        # Go to next page
+        # Go to next page (limited to max 1 for our 2-page setup)
         context.user_data['tx_page'] += 1
-        print("tx_next_page is called:", context.user_data['tx_page'])
-        return await show_transactions(update, context)
+        print(f"Debug: tx_next_page called, new page: {context.user_data['tx_page']}")
+        return await show_recent_entries(update, context)
     
     elif callback_data == "tx_prev_page":
         # Go to previous page
         context.user_data['tx_page'] = max(0, context.user_data['tx_page'] - 1)
-        return await show_transactions(update, context)
+        print(f"Debug: tx_prev_page called, new page: {context.user_data['tx_page']}")
+        return await show_recent_entries(update, context)
     
     elif callback_data == "back_to_main_menu":
         # Go back to main menu
         from core import menu
         return await menu(update, context)
     
-    # Extract transaction ID from callback data (tx_INDEX)
-    tx_id = callback_data.replace("tx_", "")
+    # Check if we have a stored transaction index from detailed transactions view
+    if context.user_data.get('selected_tx_index'):
+        tx_id = context.user_data['selected_tx_index']
+        print(f"DEBUG: Using stored tx_index: {tx_id}")
+        # Clear the stored index after using it
+        del context.user_data['selected_tx_index']
+    else:
+        # Extract transaction ID from callback data (tx_INDEX)
+        tx_id = callback_data.replace("tx_", "")
     
     # Get the transaction details from the CSV file
     records_file = f"user_data/{user_id}/spendings_{user_id}.csv"
     df = pd.read_csv(records_file)
     
-    # Find the transaction matching the ID in the latest transactions
     try:
-        # Get the transaction details by index or search for it in the dataframe
-        matching_row = None
+        # Look for transaction with the matching ID directly in the dataframe
+        tx_id_int = int(tx_id)
+        matching_rows = df[df['id'] == tx_id_int]
         
-        # First try to get transactions using get_latest_records to ensure we get the same data
-        # that was used to create the buttons
-        transactions, _ = get_latest_records(user_id, 100)  # Get a larger batch to ensure we have the transaction
-        
-        # Look for transaction with matching ID in the returned transactions
-        for tx in transactions:
-            tx_parts = tx.split(', ')
-            current_id = tx_parts[0].split(': ')[0]
+        if not matching_rows.empty:
+            # We found the transaction by ID
+            transaction = matching_rows.iloc[0].to_dict()
+            original_index = matching_rows.index[0]
+        else:
+            # Fall back to the original method if ID is not found
+            print(f"Transaction ID {tx_id} not found, falling back to legacy method")
+            # Get all transactions to find the right one
+            transactions, _ = get_latest_records(user_id, 100)
             
-            if current_id == tx_id:
-                # We found the matching transaction
-                timestamp = tx_parts[0].split(': ')[1]
-                category = tx_parts[1]
-                subcategory = tx_parts[2]
-                amount = float(tx_parts[3])
+            # Look for transaction with matching ID in the returned transactions
+            matching_row = None
+            for tx in transactions:
+                tx_parts = tx.split(', ')
+                current_id = tx_parts[0].split(': ')[0]
                 
-                # Find this transaction in the dataframe
-                matching_rows = df[(df['timestamp'].str.contains(timestamp)) & 
-                                  (df['category'] == category) &
-                                  (df['subcategory'] == subcategory) &
-                                  (df['amount'] == amount)]
-                
-                if not matching_rows.empty:
-                    matching_row = matching_rows.iloc[0]
-                    transaction = matching_row.to_dict()
-                    # Store the index of the row in the dataframe for later updates
-                    original_index = matching_rows.index[0]
-                    break
-        
-        # If we couldn't find the transaction by details, try directly by index
-        if matching_row is None:
-            tx_index = int(tx_id)
-            # The CSV is reversed in display (newest first), so we need to adjust
-            # Original data is oldest first, display is newest first
-            reversed_df = df.iloc[::-1].reset_index(drop=True)
-            transaction = reversed_df.iloc[tx_index-1].to_dict()
-            # Find this row in the original dataframe to get the correct index
-            for idx, row in df.iterrows():
-                if (row['timestamp'] == transaction['timestamp'] and 
-                    row['category'] == transaction['category'] and
-                    row['subcategory'] == transaction['subcategory'] and
-                    row['amount'] == transaction['amount']):
-                    original_index = idx
-                    break
-            else:
-                # If we couldn't find it by matching, just use the index
-                original_index = len(df) - tx_index
+                if current_id == tx_id:
+                    # We found the matching transaction
+                    timestamp = tx_parts[0].split(': ')[1]
+                    category = tx_parts[1]
+                    subcategory = tx_parts[2]
+                    amount = float(tx_parts[3])
+                    
+                    # Find this transaction in the dataframe
+                    matching_rows = df[(df['timestamp'].str.contains(timestamp)) & 
+                                      (df['category'] == category) &
+                                      (df['subcategory'] == subcategory) &
+                                      (df['amount'] == amount)]
+                    
+                    if not matching_rows.empty:
+                        matching_row = matching_rows.iloc[0]
+                        transaction = matching_row.to_dict()
+                        original_index = matching_rows.index[0]
+                        break
+            
+            # If still not found, try by index (legacy behavior)
+            if matching_row is None:
+                try:
+                    tx_index = int(tx_id)
+                    reversed_df = df.iloc[::-1].reset_index(drop=True)
+                    transaction = reversed_df.iloc[tx_index-1].to_dict()
+                    
+                    # Find this row in the original dataframe to get the correct index
+                    for idx, row in df.iterrows():
+                        if (row['timestamp'] == transaction['timestamp'] and 
+                            row['category'] == transaction['category'] and
+                            row['subcategory'] == transaction['subcategory'] and
+                            row['amount'] == transaction['amount']):
+                            original_index = idx
+                            break
+                    else:
+                        original_index = len(df) - tx_index
+                except Exception as e:
+                    print(f"Error finding transaction by index: {e}")
+                    raise ValueError(f"Transaction not found with ID or index: {tx_id}")
         
         # Store in context
         context.user_data['current_transaction'] = transaction
@@ -189,7 +244,7 @@ async def handle_transaction_selection(update: Update, context: CallbackContext)
             parse_mode=ParseMode.HTML
         )
         # Return to transaction list
-        return await show_transactions(update, context)
+        return await show_recent_entries(update, context)
     
     # Create keyboard with edit options
     reply_markup = create_transaction_edit_keyboard(transaction, texts)
@@ -208,7 +263,7 @@ async def handle_transaction_selection(update: Update, context: CallbackContext)
         reply_markup=reply_markup,
         parse_mode=ParseMode.HTML
     )
-    
+    print("Debug: returning to TRANSACTION_EDIT")
     return TRANSACTION_EDIT
 
 async def handle_edit_option(update: Update, context: CallbackContext) -> int:
@@ -219,11 +274,22 @@ async def handle_edit_option(update: Update, context: CallbackContext) -> int:
     await query.answer()
     
     callback_data = query.data
-    
-    if callback_data == "back_to_transactions":
+    #print(f"DEBUG: callback_data:",context.user_data)
+    try:
+        filtered_tx = context.user_data['filtered_tx']
+    except Exception as e:
+        print("DEBUG: filtered_tx not found in context.user_data", {e})
+        filtered_tx = 0
+
+    if callback_data == "back_to_transactions" and  filtered_tx == 1:
+        # Return to filtered transaction list after Show filtered transactions
+        print(f"DEBUG: Returning to filtered transaction list, first IF")
+        from detailed_transactions import show_filtered_transactions
+        return await show_filtered_transactions(update, context)
+    elif callback_data == "back_to_transactions":
         # Return to transaction list
-        return await show_transactions(update, context)
-    
+        print(f"DEBUG: Returning to transaction list, second IF")
+        return await show_recent_entries(update, context)
     elif callback_data == "edit_date":
         # Edit date
         await query.edit_message_text(
@@ -271,7 +337,7 @@ async def handle_edit_option(update: Update, context: CallbackContext) -> int:
     elif callback_data == "delete_transaction":
         # Delete transaction
         # Create confirmation keyboard
-        reply_markup = create_transaction_confirmation_keyboard(texts)
+        reply_markup = create_tx_del_confirmation_keyboard(texts)
         
         message_text = texts.CONFIRM_DELETE_TRANSACTION.format(
             timestamp=context.user_data['current_transaction']['timestamp'],
@@ -334,9 +400,15 @@ async def handle_edit_date(update: Update, context: CallbackContext) -> int:
                 parse_mode=ParseMode.HTML
             )
             
-            # Return to transaction list
-            context.user_data['tx_page'] = 0  # Reset to first page
-            return await show_transactions(update, context)
+            # Check if we should return to detailed transactions view
+            if context.user_data.get('return_to_detailed', False):
+                from detailed_transactions import show_filtered_transactions
+                context.user_data['tx_page'] = 0  # Reset to first page of detailed view
+                return await show_filtered_transactions(update, context)
+            else:
+                # Return to transaction list
+                context.user_data['tx_page'] = 0  # Reset to first page
+                return await show_recent_entries(update, context)
         else:
             await update.message.reply_text(
                 texts.ERROR_UPDATING_TRANSACTION,
@@ -384,7 +456,7 @@ async def handle_edit_category(update: Update, context: CallbackContext) -> int:
     
     elif callback_data == "cancel_transaction":
         # Cancel and return to transaction list
-        return await show_transactions(update, context)
+        return await show_recent_entries(update, context)
     
     elif callback_data.startswith("txcat_"):
         # Extract category from callback
@@ -400,9 +472,16 @@ async def handle_edit_category(update: Update, context: CallbackContext) -> int:
                 parse_mode=ParseMode.HTML
             )
             
-            # Return to transaction list
-            context.user_data['tx_page'] = 0  # Reset to first page
-            return await show_transactions(update, context)
+            # Check if we should return to detailed transactions view
+            if context.user_data.get('return_to_detailed', False):
+                print(f"DEBUG: Returning to detailed view after category update: '{category}'")
+                from detailed_transactions import show_filtered_transactions
+                context.user_data['tx_page'] = 0  # Reset to first page of detailed view
+                return await show_filtered_transactions(update, context)
+            else:
+                # Return to transaction list
+                context.user_data['tx_page'] = 0  # Reset to first page
+                return await show_recent_entries(update, context)
         else:
             await query.edit_message_text(
                 texts.ERROR_UPDATING_TRANSACTION,
@@ -446,7 +525,7 @@ async def handle_edit_subcategory(update: Update, context: CallbackContext) -> i
         
         elif callback_data == "cancel_transaction":
             # Cancel and return to transaction list
-            return await show_transactions(update, context)
+            return await show_recent_entries(update, context)
     
     # Handle text input for new subcategory name
     new_subcategory = update.message.text.strip().lower()
@@ -461,9 +540,15 @@ async def handle_edit_subcategory(update: Update, context: CallbackContext) -> i
             parse_mode=ParseMode.HTML
         )
         
-        # Return to transaction list
-        context.user_data['tx_page'] = 0  # Reset to first page
-        return await show_transactions(update, context)
+        # Check if we should return to detailed transactions view
+        if context.user_data.get('return_to_detailed', False):
+            from detailed_transactions import show_filtered_transactions
+            context.user_data['tx_page'] = 0  # Reset to first page of detailed view
+            return await show_filtered_transactions(update, context)
+        else:
+            # Return to transaction list
+            context.user_data['tx_page'] = 0  # Reset to first page
+            return await show_recent_entries(update, context)
     else:
         await update.message.reply_text(
             texts.ERROR_UPDATING_TRANSACTION,
@@ -493,9 +578,15 @@ async def handle_edit_amount(update: Update, context: CallbackContext) -> int:
                 parse_mode=ParseMode.HTML
             )
             
-            # Return to transaction list
-            context.user_data['tx_page'] = 0  # Reset to first page
-            return await show_transactions(update, context)
+            # Check if we should return to detailed transactions view
+            if context.user_data.get('return_to_detailed', False):
+                from detailed_transactions import show_filtered_transactions
+                context.user_data['tx_page'] = 0  # Reset to first page of detailed view
+                return await show_filtered_transactions(update, context)
+            else:
+                # Return to transaction list
+                context.user_data['tx_page'] = 0  # Reset to first page
+                return await show_recent_entries(update, context)
         else:
             await update.message.reply_text(
                 texts.ERROR_UPDATING_TRANSACTION,
@@ -521,15 +612,43 @@ async def handle_delete_tx_confirmation(update: Update, context: CallbackContext
     
     if callback_data == "confirm":
         # Delete the transaction
-        tx_index = context.user_data['current_tx_index'] + 1  # Convert to 1-based index for delete_record
-        success = delete_record(user_id, tx_index, "delete")
-        
-        if success:
-            await query.edit_message_text(
-                texts.TRANSACTION_DELETED_SUCCESS,
-                parse_mode=ParseMode.HTML
-            )
-        else:
+        try:
+            # Get the transaction from context
+            transaction = context.user_data.get('current_transaction')
+            if not transaction:
+                raise ValueError("Transaction not found in context")
+                
+            # Read the CSV file
+            records_file = f"user_data/{user_id}/spendings_{user_id}.csv"
+            df = pd.read_csv(records_file)
+            
+            # Try to delete by ID first if available
+            if 'id' in transaction and pd.notna(transaction['id']):
+                tx_id = transaction['id']
+                # Filter out the row with matching ID
+                df = df[df['id'] != tx_id]
+                df.to_csv(records_file, index=False)
+                success = True
+            else:
+                # Fall back to index-based deletion
+                index = context.user_data['current_tx_index']
+                # Calculate the record position from the end for the delete_record function
+                record_num = len(df) - index
+                success = delete_record(user_id, record_num, "delete")
+            
+            if success:
+                await query.edit_message_text(
+                    texts.TRANSACTION_DELETED_SUCCESS,
+                    parse_mode=ParseMode.HTML
+                )
+                await asyncio.sleep(1)
+            else:
+                await query.edit_message_text(
+                    texts.ERROR_DELETING_TRANSACTION,
+                    parse_mode=ParseMode.HTML
+                )
+        except Exception as e:
+            print(f"Error deleting transaction: {e}")
             await query.edit_message_text(
                 texts.ERROR_DELETING_TRANSACTION,
                 parse_mode=ParseMode.HTML
@@ -540,27 +659,47 @@ async def handle_delete_tx_confirmation(update: Update, context: CallbackContext
             parse_mode=ParseMode.HTML
         )
     
-    # Return to transaction list
-    context.user_data['tx_page'] = 0  # Reset to first page
-    return await show_transactions(update, context)
+    # Check if we should return to detailed transactions view
+    if context.user_data.get('return_to_detailed', False):
+        print(f"DEBUG: Returning to detailed view after delete confirmation")
+        from detailed_transactions import show_filtered_transactions
+        return await show_filtered_transactions(update, context)
+    else:
+        # Return to transaction list
+        context.user_data['tx_page'] = 0  # Reset to first page
+        return await show_recent_entries(update, context)
 
-def update_transaction(user_id, index, field, value):
+def update_transaction(user_id, index_or_id, field, value):
     """Update a transaction field in the CSV file"""
     try:
         # Read the CSV file
         records_file = f"user_data/{user_id}/spendings_{user_id}.csv"
         df = pd.read_csv(records_file)
         
-        # Check if the index exists in the dataframe
-        if 0 <= index < len(df):
+        # First try to use the value as an ID
+        if isinstance(index_or_id, str) and index_or_id.isdigit():
+            index_or_id = int(index_or_id)
+            
+        if isinstance(index_or_id, int):
+            # Check if the ID exists in the dataframe
+            matching_id_rows = df[df['id'] == index_or_id]
+            if not matching_id_rows.empty:
+                # Update the field for the matching ID
+                df.loc[df['id'] == index_or_id, field] = value
+                # Write back to the CSV file
+                df.to_csv(records_file, index=False)
+                return True
+        
+        # Fall back to using index if ID not found or index_or_id is directly an index
+        if 0 <= index_or_id < len(df):
             # Update the field at the specified index
-            df.loc[index, field] = value
+            df.loc[index_or_id, field] = value
             
             # Write back to the CSV file
             df.to_csv(records_file, index=False)
             return True
         else:
-            print(f"Warning: Index {index} out of bounds for dataframe with {len(df)} rows")
+            print(f"Warning: Index/ID {index_or_id} not found")
             return False
     except Exception as e:
         print(f"Error updating transaction: {e}")
