@@ -623,7 +623,7 @@ def create_numbered_transaction_keyboard(transactions, current_page, total_trans
 
     # Create numbered buttons for transaction selection (1-15 on first page, 1-15 on second page)
     for i in range(1, end_idx - start_idx + 1):
-        print(f"Debug: Keyboard - i: {i}")
+        #print(f"Debug: Keyboard - i: {i}")
         # Extract index from transaction for callback data
         tx = transactions[i-1]
         parts = tx.split(', ')

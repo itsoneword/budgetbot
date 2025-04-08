@@ -168,6 +168,7 @@ async def save_transaction(update: Update, context):
             await update.message.reply_text(
                 texts.SUBCAT_FOUND_MULTIPLE.format(subcategory, cat_list),
                 reply_markup=reply_markup,
+                parse_mode=ParseMode.HTML
             )
             print(f"DEBUG: Return TX_CHOOSE_CATEGORY (showing multiple categories)")
             return TX_CHOOSE_CATEGORY

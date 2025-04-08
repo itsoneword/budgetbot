@@ -26,17 +26,18 @@ async def show_recent_entries(update: Update, context: CallbackContext) -> int:
     
     # Get transactions, request more than needed to know if there are more
     page = context.user_data['tx_page']
-    print("Debug: page is:", page)
+    #print("Debug: page is:", page)
     
     # Always fetch exactly 30 transactions (for 2 pages of 15 each)
     transactions_per_page = 15  # Show 15 transactions per page
     records_to_fetch = 30  # Fetch exactly 30 records total
-    print(f"Debug: Fetching {records_to_fetch} records for page {page}")
+   # print(f"Debug: Fetching {records_to_fetch} records for page {page}")
     
     # Get latest 30 transactions
     transactions, total_amount = get_latest_records(user_id, records_to_fetch)
-    print(f"Debug: Got {len(transactions)} transactions in total")
-    
+    #print(f"Debug: Got {len(transactions)} transactions in total")
+    # Invert the transactions list to show newest transactions first
+    transactions.reverse()
     if not transactions:
         if update.callback_query:
             await update.callback_query.edit_message_text(
@@ -55,19 +56,19 @@ async def show_recent_entries(update: Update, context: CallbackContext) -> int:
     if page > max_page:
         context.user_data['tx_page'] = max_page
         page = max_page
-        print(f"Debug: Adjusted page to max_page: {max_page}")
+        #print(f"Debug: Adjusted page to max_page: {max_page}")
     
     # Paginate transactions
     start_idx = page * transactions_per_page
     end_idx = min(start_idx + transactions_per_page, len(transactions))
     
-    print(f"Debug: Showing transactions from index {start_idx} to {end_idx-1}")
+    #print(f"Debug: Showing transactions from index {start_idx} to {end_idx-1}")
     
     # Format transactions as text
     transaction_lines = []
     display_transactions = transactions[start_idx:end_idx]
     
-    print(f"Debug: Number of display transactions: {len(display_transactions)}")
+    #print(f"Debug: Number of display transactions: {len(display_transactions)}")
     
     for i, tx in enumerate(display_transactions):
         # Parse the transaction string format: "index: timestamp, category, subcategory, amount, currency"

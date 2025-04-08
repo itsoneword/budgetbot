@@ -853,36 +853,6 @@ async def process_income(update: Update, context: CallbackContext):
     await update.effective_message.reply_text(texts.TRANSACTION_SAVED_TEXT)
     return ConversationHandler.END
 
-
-# async def settings_callback(update: Update, context: CallbackContext):
-#     query = update.callback_query
-#     user_id = str(update.effective_user.id)
-#     texts = check_language(update, context)
-#     action = query.data
-    
-#     if action == "change_language":
-#         reply_markup = create_settings_language_keyboard()
-#         await query.edit_message_text(
-#             texts.SELECT_LANGUAGE,
-#             reply_markup=reply_markup,
-#             parse_mode=ParseMode.HTML
-#         )
-#         return SETTINGS_LANGUAGE
-        
-#     elif action == "change_currency":
-#         reply_markup = create_settings_currency_keyboard()
-#         await query.edit_message_text(
-#             texts.CHOOSE_CURRENCY_TEXT,
-#             reply_markup=reply_markup,
-#             parse_mode=ParseMode.HTML
-#         )
-#         return SETTINGS_CURRENCY
-        
-#     elif action == "change_limit":
-#         context.user_data['awaiting_limit'] = True
-#         await query.edit_message_text(texts.CHOOSE_LIMIT_TEXT)
-#         return SETTINGS_LIMIT
-
 async def handle_settings_language(update: Update, context: CallbackContext):
     query = update.callback_query
     user_id = str(update.effective_user.id)    
@@ -1215,7 +1185,8 @@ async def menu_call(update: Update, context: CallbackContext):
         reply_markup = create_settings_language_keyboard()
         await query.edit_message_text(
             texts.SELECT_LANGUAGE,
-            reply_markup=reply_markup
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML
         )
         return SETTINGS_LANGUAGE
         
@@ -1223,7 +1194,8 @@ async def menu_call(update: Update, context: CallbackContext):
         reply_markup = create_settings_currency_keyboard()
         await query.edit_message_text(
             texts.CHOOSE_CURRENCY_TEXT,
-            reply_markup=reply_markup
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML
         )
         return SETTINGS_CURRENCY
         
