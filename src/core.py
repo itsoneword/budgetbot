@@ -2,6 +2,49 @@ import os, logging, configparser, inspect, re, asyncio
 from datetime import datetime, timedelta
 from language_util import check_language
 import sys
+from logging.handlers import TimedRotatingFileHandler
+
+# Set up the user interactions logger
+user_logger = logging.getLogger("user_interactions")
+user_logger.setLevel(logging.INFO)
+user_logger.propagate = False  # Don't propagate to root logger
+
+# Create user_data directory if it doesn't exist
+os.makedirs('user_data', exist_ok=True)
+
+# Create file handler for user interactions
+user_handler = logging.FileHandler("./user_data/global_log.txt")
+user_handler.setLevel(logging.INFO)
+user_formatter = logging.Formatter("%(asctime)s - %(message)s")
+user_handler.setFormatter(user_formatter)
+user_logger.addHandler(user_handler)
+
+# Custom logging filter to exclude certain debug messages
+class DebugFilter(logging.Filter):
+    def filter(self, record):
+        # Skip network-related debug messages
+        if record.levelno == logging.DEBUG:
+            msg = record.getMessage()
+            # Filter out common network operation logs
+            skip_patterns = [
+                'connect_tcp', 
+                'start_tls', 
+                'send_request', 
+                'receive_response',
+                'looking for jobs',
+                'Bot API',
+                'getUpdates',
+                'Calling Bot API',
+                'No jobs; waiting',
+                # Matplotlib font-related debug messages
+                'findfont:',
+                'font_manager',
+                'Matching '
+            ]
+            for pattern in skip_patterns:
+                if pattern.lower() in msg.lower():
+                    return False
+        return True
 
 from pandas_ops import (
     show_sum_per_cat,
@@ -32,6 +75,7 @@ from keyboards import (
     create_confirm_transaction_keyboard,
 )
 from file_ops import *
+from src.debug_utils import log_debug as utils_log_debug, set_debug_mode, log_function_call, log_state_transition, timed_function, measure_execution
 
 from change_data import (
     show_categories, handle_category_selection, handle_category_option, 
@@ -89,61 +133,134 @@ from src.detailed_transactions import (
 # Import all states from the central states file
 from src.states import *
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
-    level=logging.INFO,
-    handlers=[
-        TimedRotatingFileHandler(
-            'user_data/app.log',
-            when="m",
-            interval=10,
-            backupCount=5
-        ),
-    ])
-
-# Add console handler for warnings and errors
-console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setLevel(logging.WARNING)  # Only show WARNING and above
-console_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-console_handler.setFormatter(console_formatter)
-logging.getLogger().addHandler(console_handler)
-
-logging.getLogger("httpx").setLevel(logging.INFO)
-
-logger = logging.getLogger(__name__)
-logger = logging.getLogger("user_interactions")
-logger.setLevel(logging.INFO)
-
-# Create file handler
-handler = logging.FileHandler("./user_data/global_log.txt")
-handler.setLevel(logging.INFO)
-# Create formatter and add it to the handler
-formatter = logging.Formatter("%(asctime)s - %(message)s")
-handler.setFormatter(formatter)
-# Add the handler to the logger
-logger.addHandler(handler)
-
+# Configure application logging
+def setup_logging(debug_mode=False):
+    # Use the centralized debug mode setting
+    set_debug_mode(debug_mode)
+    
+    # Define a cleaner log format - timestamp, level, message only
+    std_log_format = "%(asctime)s - %(levelname)s - %(message)s"
+    # For debug logs, use an even simpler format
+    debug_log_format = "%(levelname)s: %(message)s"
+    
+    # Clear any existing handlers from the root logger
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # Set up file handler for logging
+    file_handler = TimedRotatingFileHandler(
+        'user_data/app.log',
+        when="m",
+        interval=10,
+        backupCount=5
+    )
+    file_handler.setLevel(logging.INFO)
+    file_formatter = logging.Formatter(std_log_format)
+    file_handler.setFormatter(file_formatter)
+    root_logger.addHandler(file_handler)
+    
+    # Add console handler with appropriate level based on debug mode
+    console_handler = logging.StreamHandler(sys.stdout)
+    if debug_mode:
+        console_handler.setLevel(logging.DEBUG)  # Show DEBUG and above when debug mode is on
+        root_logger.setLevel(logging.DEBUG)
+        console_formatter = logging.Formatter(debug_log_format)
+        logging.info("Debug mode is ON - verbose logging enabled")
+        
+        # Add filter to console handler to filter out unwanted debug messages
+        console_handler.addFilter(DebugFilter())
+    else:
+        console_handler.setLevel(logging.WARNING)  # Only show WARNING and above when debug mode is off
+        root_logger.setLevel(logging.INFO)
+        console_formatter = logging.Formatter(std_log_format)
+    
+    console_handler.setFormatter(console_formatter)
+    root_logger.addHandler(console_handler)
+    
+    # Configure external loggers - set to higher levels to reduce noise
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("telegram").setLevel(logging.INFO)
+    logging.getLogger("telegram.ext").setLevel(logging.INFO)
+    logging.getLogger("JobQueue").setLevel(logging.INFO)
+    logging.getLogger("asyncio").setLevel(logging.WARNING)
+    
+    # Configure Matplotlib logging to hide font debug messages
+    logging.getLogger("matplotlib.font_manager").setLevel(logging.INFO)
+    logging.getLogger("matplotlib.backends").setLevel(logging.INFO)
+    logging.getLogger("matplotlib").setLevel(logging.INFO)
 
 def log_user_interaction(user_id: str, username: str, tg_username: str, function_name=None):
     calling_function_name = function_name if function_name else inspect.stack()[1].function
-
     log_message = (
         f"UserID: {user_id}, {username}, {tg_username}, {calling_function_name}"
     )
-    logger.info(log_message)
+    # Log user interactions to the global user_logger
+    user_logger.info(log_message)
 
+def log_debug(message, function_name=None, execution_time=None):
+    """Log debug information when debug mode is enabled"""
+    if execution_time is not None:
+        utils_log_debug(message, function_name, execution_time)
+    else:
+        utils_log_debug(message, function_name)
 
+# Read configuration
 config = configparser.ConfigParser()
 config.read("configs/config")
 token = config["TELEGRAM"]["TOKEN"]
 
 if token == "":
-
     config.read("config")
     token = config["TELEGRAM"]["TOKEN"]
 
-#print (config["TELEGRAM"]["TOKEN"])
+# Initialize logging with debug mode off
+setup_logging(False)
 
+# Read debug mode from config if available
+try:
+    if config.has_section("DEBUG") and config.has_option("DEBUG", "ENABLED"):
+        debug_mode = config.getboolean("DEBUG", "ENABLED")
+        setup_logging(debug_mode)
+        log_debug(f"Debug mode set to {debug_mode} from config file")
+except (configparser.Error, ValueError) as e:
+    log_debug(f"Error reading debug configuration: {e}")
+    
+# Command to toggle debug mode
+async def toggle_debug(update: Update, context: CallbackContext):
+    user_id = str(update.effective_user.id)
+    
+    # Only allow admin users to toggle debug mode
+    # You can modify this check based on your needs
+    if user_id != "46304833":  # Replace with your actual admin user ID
+        await update.message.reply_text("Sorry, only admin users can toggle debug mode.")
+        return TRANSACTION
+    # Check if debug mode exists in config file
+    current_debug_mode = False
+    if config.has_section("DEBUG") and config.has_option("DEBUG", "ENABLED"):
+        try:
+            current_debug_mode = config.getboolean("DEBUG", "ENABLED")
+        except ValueError:
+            log_debug("Invalid debug mode value in config, defaulting to False")
+    
+    # Toggle debug mode using the centralized function
+    new_debug_mode = not current_debug_mode
+    set_debug_mode(new_debug_mode)
+    
+    # Save debug mode to config
+    if not config.has_section("DEBUG"):
+        config.add_section("DEBUG")
+    config.set("DEBUG", "ENABLED", str(new_debug_mode))
+    with open("configs/config", "w") as configfile:
+        config.write(configfile)
+    
+    status = "ON" if new_debug_mode else "OFF"
+    await update.message.reply_text(f"Debug mode is now {status}")
+    utils_log_debug(f"Debug mode toggled to {new_debug_mode}")
+    return TRANSACTION
+
+# Now replace all the print statements with log_debug calls throughout the file
 
 async def start(update: Update, context: CallbackContext):
     user_id = str(update.effective_user.id)
@@ -162,32 +279,36 @@ async def start(update: Update, context: CallbackContext):
 
     await update.message.reply_text(texts.SELECT_LANGUAGE, reply_markup=reply_markup)
   
+    log_state_transition(LANGUAGE)
     return LANGUAGE
 
 
 async def save_language(update: Update, context: CallbackContext):
-    #print("language is called! ")
+    log_function_call()
     query = update.callback_query
     user_language = query.data
     user_id = update.effective_user.id
     log_user_interaction(
         user_id, update.effective_user.first_name, update.effective_user.username
     )
+    
     # Save the chosen language into the config file
     save_user_setting(user_id, "LANGUAGE", user_language)
     texts = check_language(update, context)
-    #print("language functoin check_language returned")
+    
     reply_markup = create_settings_currency_keyboard()
-    #print("language functoin create_settings_currency_keyboard returned")
+    
     await query.edit_message_text(texts.LANGUAGE_REPLY.format(user_language))
     await update.effective_message.reply_text(
         texts.CHOOSE_CURRENCY_TEXT, reply_markup=reply_markup
     )
-    #print("language functoin CURRENCY returned")
+    
+    log_state_transition(CURRENCY)
     return CURRENCY
 
 
 async def save_currency(update: Update, context: CallbackContext):
+    log_function_call()
     user_id = str(update.effective_user.id)
     texts = check_language(update, context)
     query = update.callback_query
@@ -195,8 +316,8 @@ async def save_currency(update: Update, context: CallbackContext):
         user_id, update.effective_user.first_name, update.effective_user.username
     )
     user_currency = query.data.split('_')[1]
+    log_debug(f"new_currency is {user_currency}")
 
-    #user_currency = update.callback_query.data
     save_user_setting(user_id, "CURRENCY", user_currency)
 
     reply_markup = create_skip_keyboard(texts)
@@ -206,10 +327,12 @@ async def save_currency(update: Update, context: CallbackContext):
         texts.CHOOSE_LIMIT_TEXT, reply_markup=reply_markup
     )
 
+    log_state_transition(LIMIT)
     return LIMIT
 
 
 async def save_limit(update: Update, context: CallbackContext):
+    log_function_call()
     user_id = str(update.effective_user.id)
     texts = check_language(update, context)
     log_user_interaction(
@@ -223,16 +346,19 @@ async def save_limit(update: Update, context: CallbackContext):
         await update.effective_message.reply_text(
             "Invalid limit. Please enter a number."
         )
+        log_state_transition(LIMIT)
         return LIMIT
 
     # Save the limit to the config file as a string
     save_user_setting(user_id, "MONTHLY_LIMIT", str(limit))
     await update.effective_message.reply_text(texts.LIMIT_SET)
     await update.effective_message.reply_text(texts.TRANSACTION_START_TEXT, parse_mode=ParseMode.HTML)
+    log_state_transition(TRANSACTION)
     return TRANSACTION  # Or whatever state should come next
 
 
 async def skip_limit(update: Update, context: CallbackContext):
+    log_function_call()
     user_id = str(update.effective_user.id)
     texts = check_language(update, context)
     log_user_interaction(
@@ -247,6 +373,7 @@ async def skip_limit(update: Update, context: CallbackContext):
 
     await update.effective_message.reply_text(texts.NO_LIMIT)
     await update.effective_message.reply_text(texts.TRANSACTION_START_TEXT, parse_mode=ParseMode.HTML)
+    log_state_transition(TRANSACTION)
     return TRANSACTION  # Or whatever state should come next
 
 
@@ -324,10 +451,12 @@ async def show_records(update: Update, context):
                     new_daily_limit=new_daily_limit,
                     currency=currency,
                 ),
+                parse_mode=ParseMode.HTML
                 
             )
     except Exception as e:
-        #print(f"Exception in show_records when calculating limit: {e}")       
+        #print(f"Exception in show_records when calculating limit: {e}")  
+        log_debug(f"Exception in show_records when calculating limit: {e}")     
         pass
     return TRANSACTION
 
@@ -350,7 +479,7 @@ async def show_last_month_records(update: Update, context):
     )
 
     # Get last month name for display
-    current_date = datetime.now()
+    current_date = datetime.datetime.now()
     last_month_date = current_date.replace(day=1) - timedelta(days=1)
     last_month_name = last_month_date.strftime("%B %Y")
 
@@ -517,6 +646,7 @@ async def handle_records_count(update: Update, context: CallbackContext):
             parse_mode=ParseMode.HTML
         )
         #print(f" Returning state TRANSACTION after back_to_transactions")
+        log_state_transition(TRANSACTION)
         return TRANSACTION
     
     elif action.startswith("count_"):
@@ -542,6 +672,7 @@ async def handle_records_count(update: Update, context: CallbackContext):
             parse_mode=ParseMode.HTML
         )
         #print(f" Returning state TRANSACTION after showing {count} transactions")
+        log_state_transition(TRANSACTION)
         return TRANSACTION
     
     # Handle unexpected callback data
@@ -869,6 +1000,7 @@ async def handle_settings_language(update: Update, context: CallbackContext):
         reply_markup=reply_markup,
         parse_mode=ParseMode.HTML
     )
+    log_state_transition(TRANSACTION)
     return TRANSACTION
 
 async def handle_settings_currency(update: Update, context: CallbackContext):
@@ -877,7 +1009,7 @@ async def handle_settings_currency(update: Update, context: CallbackContext):
     texts = check_language(update, context)
     
     new_currency = query.data.split('_')[1]
-    print("new_currency is", new_currency)
+    log_debug(f"new_currency is {new_currency}")
     save_user_setting(user_id, "CURRENCY", new_currency)
     await query.edit_message_text(texts.CURRENCY_REPLY.format(new_currency))
     
@@ -888,6 +1020,7 @@ async def handle_settings_currency(update: Update, context: CallbackContext):
         reply_markup=reply_markup,
         parse_mode=ParseMode.HTML
     )
+    log_state_transition(TRANSACTION)
     return TRANSACTION
 
 async def handle_settings_limit(update: Update, context: CallbackContext):
@@ -910,6 +1043,7 @@ async def handle_settings_limit(update: Update, context: CallbackContext):
         await update.message.reply_text("Invalid limit. Please enter a number.")
         return SETTINGS_LIMIT
     
+    log_state_transition(TRANSACTION)
     return TRANSACTION
 
 async def show_menu(update: Update, context: CallbackContext):
@@ -924,7 +1058,7 @@ async def show_menu(update: Update, context: CallbackContext):
     # Keep only essential data like language settings
     language = context.user_data.get('language', None)
     context.user_data.clear()
-    print("context.user_data is", context.user_data)
+    log_debug(f"context.user_data is {context.user_data}")
     if language:
         context.user_data['language'] = language
     
@@ -934,7 +1068,7 @@ async def show_menu(update: Update, context: CallbackContext):
         reply_markup=reply_markup,
         parse_mode=ParseMode.HTML
     )
-    print("menu called, Transaction returned")
+    log_state_transition(TRANSACTION)
     return TRANSACTION
 
 async def handle_text(update: Update, context):
@@ -958,7 +1092,7 @@ async def handle_text(update: Update, context):
         # Pattern matching based on update text format
         if re.match(r".*\s+\d+(\.\d+)?$", text):
             # Return a save transaction
-            print(f" Text message matching spending pattern, calling save_transaction: {text}")
+            log_debug(f"Text message matching spending pattern, calling save_transaction: {text}")
             return await save_transaction(update, context)
         
         # Default message back to the user if no patterns match
@@ -973,7 +1107,7 @@ async def handle_text(update: Update, context):
 async def menu_call(update: Update, context: CallbackContext):
     """Handle menu callbacks"""
     query = update.callback_query
-    print("debug printing: menu_call called")
+    log_function_call()
 
     user_id = str(update.effective_user.id)
     texts = check_language(update, context)
@@ -994,7 +1128,7 @@ async def menu_call(update: Update, context: CallbackContext):
     
     # Show transactions menu options
     elif action == "show_monthly_summary":
-        print(" show_monthly_summary called")
+        log_function_call()
         # Use existing function for monthly stats
         await query.answer()
         await query.edit_message_text("Loading monthly summary...")
@@ -1007,11 +1141,11 @@ async def menu_call(update: Update, context: CallbackContext):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
-        #print(f" Returning state TRANSACTION after show_monthly_summary")
+        log_state_transition(TRANSACTION)
         return TRANSACTION
         
     elif action == "show_last_month_summary":
-        print(" show_last_month_summary called")
+        log_function_call()
         # Use new function for last month stats
         await query.answer()
         await query.edit_message_text("Loading last month summary...")
@@ -1024,6 +1158,7 @@ async def menu_call(update: Update, context: CallbackContext):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
+        log_state_transition(TRANSACTION)
         return TRANSACTION
         
     elif action == "show_last_transactions":
@@ -1046,7 +1181,7 @@ async def menu_call(update: Update, context: CallbackContext):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
-        #print(f" Returning state TRANSACTION after show_monthly_charts")
+        log_state_transition(TRANSACTION)
         return TRANSACTION
         
     elif action == "show_extended_stats":
@@ -1062,7 +1197,7 @@ async def menu_call(update: Update, context: CallbackContext):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
-        #print(f" Returning state TRANSACTION after show_extended_stats")
+        log_state_transition(TRANSACTION)
         return TRANSACTION
         
     elif action == "show_yearly_charts":
@@ -1078,7 +1213,7 @@ async def menu_call(update: Update, context: CallbackContext):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
-        #print(f" Returning state TRANSACTION after show_yearly_charts")
+        log_state_transition(TRANSACTION)
         return TRANSACTION
         
     elif action == "show_income_stats":
@@ -1097,13 +1232,13 @@ async def menu_call(update: Update, context: CallbackContext):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
-        #print(f" Returning state TRANSACTION after show_income_stats")
+        log_state_transition(TRANSACTION)
         return TRANSACTION
     
     # Main menu options
     elif action == "menu_add_transaction" or action == "back_to_categories":
         # Get frequently used categories
-        print("Debug: menu_add_transaction or back_to_categories called")
+        log_function_call()
         categories = get_frequently_used_categories(user_id)
         
         # If no categories found, use the dictionary keys
@@ -1122,7 +1257,7 @@ async def menu_call(update: Update, context: CallbackContext):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
-        #print(f" Returning state SELECT_TRANSACTION_CATEGORY after menu_add_transaction")
+        log_state_transition(SELECT_TRANSACTION_CATEGORY)
         return SELECT_TRANSACTION_CATEGORY
     
     elif action == "menu_show_transactions":
@@ -1132,7 +1267,7 @@ async def menu_call(update: Update, context: CallbackContext):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
-        #print(f" Returning state TRANSACTION after menu_show_transactions")
+        log_state_transition(TRANSACTION)
         return TRANSACTION
         
     elif action == "menu_settings":
@@ -1142,7 +1277,7 @@ async def menu_call(update: Update, context: CallbackContext):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
-        #print(f" Returning state TRANSACTION after menu_settings")
+        log_state_transition(TRANSACTION)
         return TRANSACTION
         
     elif action == "menu_edit_categories":
@@ -1166,7 +1301,7 @@ async def menu_call(update: Update, context: CallbackContext):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
-        #print(f" Returning state TRANSACTION after menu_help")
+        log_state_transition(TRANSACTION)
         return TRANSACTION
         
     # Back to main menu from any submenu
@@ -1177,7 +1312,7 @@ async def menu_call(update: Update, context: CallbackContext):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
-        #print(f" Returning state TRANSACTION after back_to_main_menu")
+        log_state_transition(TRANSACTION)
         return TRANSACTION
     
     # Settings submenu
@@ -1188,6 +1323,7 @@ async def menu_call(update: Update, context: CallbackContext):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
+        log_state_transition(SETTINGS_LANGUAGE)
         return SETTINGS_LANGUAGE
         
     elif action == "settings_change_currency":
@@ -1197,11 +1333,13 @@ async def menu_call(update: Update, context: CallbackContext):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
+        log_state_transition(SETTINGS_CURRENCY)
         return SETTINGS_CURRENCY
         
     elif action == "settings_change_limit":
         context.user_data['awaiting_limit'] = True
         await query.edit_message_text(texts.CHOOSE_LIMIT_TEXT)
+        log_state_transition(SETTINGS_LIMIT)
         return SETTINGS_LIMIT
         
     elif action == "settings_about":
@@ -1219,9 +1357,10 @@ async def menu_call(update: Update, context: CallbackContext):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
+        log_state_transition(TRANSACTION)
         return TRANSACTION
     elif action == "cancel_transaction":
-        print(" cancel_transaction called")
+        log_function_call()
         await query.edit_message_text(
             texts.TRANSACTION_CANCELED,
             parse_mode=ParseMode.HTML
@@ -1233,7 +1372,7 @@ async def menu_call(update: Update, context: CallbackContext):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
-        #print(f" Returning state TRANSACTION after cancel_transaction")
+        log_state_transition(TRANSACTION)
         return TRANSACTION
     # Edit categories submenu
     elif action == "edit_add_remove_category":
@@ -1241,14 +1380,15 @@ async def menu_call(update: Update, context: CallbackContext):
             texts.ADD_CAT_PROMPT,
             parse_mode="MarkdownV2"
         )
+        log_state_transition(ADD_CATEGORY)
         return ADD_CATEGORY
-    print(f" Returning state TRANSACTION after menu_call")
+    log_state_transition(TRANSACTION)
     return TRANSACTION
  
 async def menu_callback(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
     user_id = str(update.effective_user.id)
-    print(f" menu_callback called")
+    log_debug("menu_callback called")
     return await menu_call(update, context)
     
 async def update_file_structure(update: Update, context: CallbackContext) -> None:
@@ -1291,6 +1431,7 @@ def main():
     application.add_handler(CommandHandler("yearly_stat", send_yearly_piechart))
     application.add_handler(CommandHandler("show_log", show_log))
     application.add_handler(CommandHandler("update_files", update_file_structure))
+    application.add_handler(CommandHandler("debug", toggle_debug))
 
     # Handler for the leave command to archive user profile
     leave_handler = ConversationHandler(

@@ -602,7 +602,7 @@ def create_detailed_transactions_keyboard(transactions, selected_categories, cur
     if nav_buttons:
         keyboard.append(nav_buttons)
     
-    keyboard.append([InlineKeyboardButton(texts.RETURN_BACK_BUTTON, callback_data="back_to_tx_list")])
+    keyboard.append([InlineKeyboardButton(texts.BACK_BUTTON, callback_data="back_to_tx_list")])
 
     # Add back to main menu button
     keyboard.append([InlineKeyboardButton(texts.BACK_TO_MAIN_MENU_BUTTON, callback_data="back_to_main_menu")])

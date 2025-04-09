@@ -81,7 +81,7 @@ NO_RECORDS_TO_DELETE = "No records to delete."
 RECORD_DELETED = "Deleted record number {}."
 NOT_ENOUGH_RECORDS = "There are less than {} records."
 HELP_TEXT = """
-About☝🏼 New Major release 0.2.0 from 01.04.25. 👌🏼 
+About☝🏼 New Major release 0.2.1 from 09.04.25. 👌🏼 
 New features were added. 🎉
 Interactive menu system for easier navigation. Try /menu to access it!
 
@@ -134,7 +134,7 @@ ABOUT = 'Hello, {}!\nYour curent Currency is <b>{}</b> Language is <b>{}</b>, an
 
 # Menu text strings
 MAIN_MENU_TEXT = "📱 <b>Main Menu</b>\nWhat would you like to do?"
-SHOW_TRANSACTIONS_MENU_TEXT = "📊 <b>Show Transactions</b>\nSelect what you would like to view:"
+SHOW_TRANSACTIONS_MENU_TEXT = "📊 <b>Show Transactions</b>\nThis is the menu where you can see the analytic charts and statistics. \n Select what you would like to view:"
 SETTINGS_MENU_TEXT = "⚙️ <b>Settings</b>\nSelect what you would like to configure:"
 #EDIT_CATEGORIES_MENU_TEXT = "📝 <b>Edit Categories</b>\nWhat would you like to do?"
 ADD_TRANSACTION_TEXT = "Please enter your transaction in one of the following formats:\n<code>date category subcategory amount</code>\n<code>category subcategory amount</code>\n<code>subcategory amount</code>"
@@ -242,15 +242,14 @@ SETTINGS_BUTTON = "⚙️ Settings"
 EDIT_CATEGORIES_BUTTON = "📝 Edit categories"
 EDIT_TRANSACTIONS_BUTTON = "✏️ Edit Recent Entry"
 HELP_BUTTON = "❓ Help"
-MONTHLY_SUMMARY_BUTTON = "📊 Monthly summary"
-LAST_MONTH_SUMMARY_BUTTON = "📈 Last month"
+MONTHLY_SUMMARY_BUTTON = "📊 This month summary"
+LAST_MONTH_SUMMARY_BUTTON = "📊 Last month summary"
+DETAILED_STAT_BUTTON = "📊 This month detailed summary"
 LAST_TRANSACTIONS_BUTTON = "📋 All transactions"
 MONTHLY_CHARTS_BUTTON = "📈 Monthly charts"
-DETAILED_STAT_BUTTON = "📊 Detailed stat"
-YEARLY_CHARTS_BUTTON = "📊 Yearly charts"
+YEARLY_CHARTS_BUTTON = "📈 Yearly charts"
 INCOME_STATS_BUTTON = "💵 Income stats"
-BACK_TO_MAIN_MENU_BUTTON = "🔙 Back to main menu"
-RETURN_BACK_BUTTON = "👈🏻 Return back"
+BACK_TO_MAIN_MENU_BUTTON = "🏠 Back to main menu"
 CONFIRM_BUTTON = "✅ Confirm"
 CONFIRM_DELETE_BUTTON = "Confirm delete!"
 EDIT_DATE_BUTTON = "📅 Edit date"

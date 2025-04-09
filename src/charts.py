@@ -2,13 +2,19 @@ import pandas as pd, numpy as np, matplotlib.pyplot as plt, seaborn as sns, matp
 from matplotlib.gridspec import GridSpec
 from dateutil.relativedelta import relativedelta
 from datetime import datetime
+import time
+import warnings
+from src.debug_utils import log_debug, timed_function, log_function_call
 from pandas_ops import get_user_currency, get_exchange_rate, recalculate_currency
+
+# Suppress Matplotlib font-related warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="matplotlib")
 plt.style.use('ggplot')
 
 
+@timed_function
 def monthly_pivot_chart(user_id):
-    print('test printing pivot started')
-
+    log_function_call()
     # Load the data
     data = pd.read_csv(f"user_data/{user_id}/spendings_{user_id}.csv")
     # Convert the 'timestamp' column to datetime
@@ -17,7 +23,7 @@ def monthly_pivot_chart(user_id):
     # Calculate the start date (six months ago)
     #start_date = (datetime.now() - relativedelta(months=7)).replace(day=1)
     start_date = (datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0) - relativedelta(months=7))
-    print(start_date)
+    log_debug(f"Filtering data from {start_date}")
     # Filter data to include only the last six months
     data = data[data["timestamp"] >= start_date]
     #call getting exchange rates:
@@ -35,9 +41,7 @@ def monthly_pivot_chart(user_id):
     # Extract the month names from the sorted month-year combinations
 
     sorted_months = [month_year.strftime('%B') for month_year in sorted_month_years]    
-    #print("print4:", sorted_months)
-    # period_to_month_name = {period: period.strftime('%B') for period in sorted_month_years}
-    # data['month_name'] = data['month_year'].map(period_to_month_name)
+    log_debug(f"Creating pivot table for months: {sorted_months}")
     # Create a pivot table
     pivot_table = pd.pivot_table(
         data,
@@ -48,7 +52,6 @@ def monthly_pivot_chart(user_id):
         fill_value=0,
     )[sorted_months]
 
-    #print("print5: ", pivot_table)
     # Add a 'Total' column
     total_name = f"Total {currency}"
     pivot_table[total_name] = pivot_table.sum(axis=1)
@@ -60,16 +63,7 @@ def monthly_pivot_chart(user_id):
     pivot_table_sorted.loc[total_name] = pivot_table_sorted.sum()
 
     # Create a copy of the pivot table without the 'Total' column for the color mapping
-
     pivot_table_color = pivot_table_sorted.drop(columns=[total_name])
-
-    # Apply a square root transformation to the data for the color mapping
-
-    # pivot_table_color_log = np.log1p(pivot_table_color)
-    # pivot_table_color_normalized = (
-    #     pivot_table_color_log - pivot_table_color_log.values.min()
-    # ) / (pivot_table_color_log.values.max() - pivot_table_color_log.values.min())
-    # ax0_pivot_table_color_normalized = pivot_table_color_normalized.drop(total_name)
 
     bins = np.arange(
         0, pivot_table_color.max().max() + 20, 20
@@ -78,10 +72,10 @@ def monthly_pivot_chart(user_id):
         lambda x: np.digitize(x, bins)
     )  # apply binning
 
+    log_debug("Creating heatmap visualization")
     # Create a figure and a set of subplots with specified layout
     fig = plt.figure(figsize=(8, 10))
     gs = GridSpec(3, 2, height_ratios=[8, 1, 1], width_ratios=[9, 1])
-    # Define your colors in RGB
 
     # Create a heatmap with the transformed data for the color mapping and the actual data for the annotations
     ax0 = plt.subplot(gs[0, 0])
@@ -137,12 +131,14 @@ def monthly_pivot_chart(user_id):
 
     # Show the plot
     plt.tight_layout()
-    # plt.show()
+    log_debug("Saving monthly pivot chart")
     fig.savefig(f"user_data/{user_id}/monthly_pivot_{user_id}.jpg")
     plt.close()
 
     
+@timed_function
 def monthly_ext_pivot_chart(user_id):
+    log_function_call()
     # Load and preprocess data
     df = pd.read_csv(f"user_data/{user_id}/spendings_{user_id}.csv")
     df['timestamp'] = pd.to_datetime(df['timestamp'])
@@ -153,12 +149,13 @@ def monthly_ext_pivot_chart(user_id):
     current_year = datetime.now().year
     df = df[df['year'] == current_year]
     
+    log_debug("Calculating category totals")
     # Calculate category totals first
     category_totals = df.groupby('category')['amount'].sum().sort_values(ascending=False)
     
     # Create hierarchical grouping
     grouped = df.groupby(['category', 'subcategory', 'month'])['amount'].sum().reset_index()
-    #print("grouped")
+    log_debug("Creating pivot table")
     # Create pivot table
     pivot_table = grouped.pivot_table(
         index=['category', 'subcategory'],
@@ -172,11 +169,12 @@ def monthly_ext_pivot_chart(user_id):
     pivot_table = pivot_table[pivot_table['Total'] >= 50]
     # Reorder categories based on total amounts
     pivot_table = pivot_table.reindex(category_totals.index, level=0)
-    #print("pivot reindex done")
+    
+    log_debug("Creating heatmap visualization")
     # Plotting with improved formatting
     plt.figure(figsize=(15, len(pivot_table.index) * 0.4))  # Adjust height based on number of rows
     
- # Add logarithmic normalization
+    # Add logarithmic normalization
     log_norm = plt.Normalize(vmin=np.log1p(pivot_table[pivot_table > 0].min().min()), 
                            vmax=np.log1p(pivot_table.max().max()))
     
@@ -191,7 +189,6 @@ def monthly_ext_pivot_chart(user_id):
         square=False,
         annot_kws={'size': 8}  # Smaller font for numbers
     )
-    #print("3rd checkpoint")
 
     # Improve readability
     plt.title('Monthly Expenses Heatmap', pad=12, size=12)
@@ -201,26 +198,17 @@ def monthly_ext_pivot_chart(user_id):
     plt.yticks(rotation=0, ha='right',fontsize=10)
     plt.tight_layout()
     
-    print("4rth checkpoint")
-    # Rotate x-axis labels for better readability
-    plt.xticks(rotation=45, ha='right',fontsize=10)
-    plt.yticks(rotation=0, ha='right',fontsize=10)
-    
-    # Add more space at the bottom for month labels
-    plt.tight_layout()
-   # print("5rth checkpoint")
-
+    log_debug("Saving monthly extended pivot chart")
     # Save with high resolution
     plt.savefig(f"user_data/{user_id}/monthly_pivot_{user_id}.jpg", 
                 bbox_inches='tight', 
-                dpi=200,  # Reduced DPI
-                #quality=70,  # Reduced JPEG quality
-                facecolor='white')  # Enable JPEG optimization
-    print("final checkpoint")
-
+                dpi=200,
+                facecolor='white')
     plt.close()
 
+@timed_function
 def monthly_line_chart(user_id):
+    log_function_call()
     data = pd.read_csv(f"user_data/{user_id}/spendings_{user_id}.csv")
 
     # Convert timestamp column to datetime
@@ -228,19 +216,18 @@ def monthly_line_chart(user_id):
 
     # Filter data for the last 6 months
     twelve_months_ago = (pd.Timestamp.today() - pd.DateOffset(months=12)).replace(day=1)
+    log_debug(f"Filtering data from {twelve_months_ago}")
   
     # Extract month and year from timestamp
     filtered_data = data[data['timestamp'] >= twelve_months_ago].copy()
     filtered_data['month'] = filtered_data['timestamp'].dt.to_period('M')
+    
+    log_debug("Calculating monthly sums by category")
     # Group by category and month, then sum the amount
-    #monthly_sum = filtered_data.groupby(['category', 'month'], as_index=False)['amount'].sum()
     monthly_sum = filtered_data.groupby(['category', 'month']).agg({'amount': 'sum'}).reset_index()
 
     # Ensure 'amount' column is numeric
     monthly_sum['amount'] = pd.to_numeric(monthly_sum['amount'])
-
-    # Check if there are any NaN values in the DataFrame
-    #print(monthly_sum.isnull().sum())
 
     # Remove duplicate entries if present
     monthly_sum = monthly_sum.drop_duplicates()
@@ -248,21 +235,22 @@ def monthly_line_chart(user_id):
     # Compute total sum of amounts for each category
     category_totals = monthly_sum.groupby('category')['amount'].sum()
     # Select top 5 categories
-    #top_categories = category_totals.nlargest(8).index
     top_categories = category_totals.sort_values(ascending=False).head(8).index
 
-            # Combine remaining categories into "Other"
+    log_debug(f"Top categories for visualization: {list(top_categories)}")
+    # Combine remaining categories into "Other"
     monthly_sum['category'] = monthly_sum['category'].apply(lambda x: x if x in top_categories else 'Other')
  
-         # Compute total sum of amounts for each category
-    #monthly_sum = monthly_sum.groupby(['category', 'month'], as_index=False)['amount'].sum()
+    # Compute total sum of amounts for each category
     monthly_sum = monthly_sum.groupby(['category', 'month']).agg({'amount': 'sum'}).reset_index()
+    
+    log_debug("Creating pivot table for stacked area chart")
     # Pivot the data for stacked area chart
     pivot_table = monthly_sum.pivot(index='month', columns='category', values='amount').fillna(0)
 
+    log_debug("Creating stacked area chart visualization")
     # Set up the plot
     plt.figure(figsize=(14, 8))
-    #plt.style.use('seaborn')
     # Plot stacked area chart
     pivot_table.plot(kind='area', ax=plt.gca(), stacked=True)
 
@@ -275,17 +263,17 @@ def monthly_line_chart(user_id):
     plt.ylabel('Total Amount')
     plt.title('Monthly Total Amount by Top 7 Categories (Stacked)')
     plt.legend(title='Category')
+    
     # Add horizontal lines based on the total amount values
     max_total_amount = pivot_table.sum(axis=1).max()  # Maximum total amount across all months
     line_values = np.arange(500, max_total_amount + 500, 500)  # Values for the horizontal lines
     for val in line_values:
         plt.axhline(y=val, color='red', linestyle='--', linewidth=1)
 
-        # Show plot
+    log_debug("Saving monthly line chart")
+    # Show plot
     plt.savefig(f"user_data/{user_id}/monthly_chart_{user_id}.jpg")
     plt.close()
-
-
 
 def monthly_line_chart_old(user_id):
     records_file = f"user_data/{user_id}/spendings_{user_id}.csv"
@@ -348,7 +336,9 @@ def monthly_line_chart_old(user_id):
     plt.savefig(f"user_data/{user_id}/monthly_chart_{user_id}.jpg")
 
 
+@timed_function
 def make_yearly_pie_chart(user_id):
+    log_function_call()
     # Load the data, assuming the first row is a header
     data = pd.read_csv(f"user_data/{user_id}/spendings_{user_id}.csv")
 
@@ -362,9 +352,11 @@ def make_yearly_pie_chart(user_id):
     data = recalculate_currency(data, currency,exchange_rates)
     # Get unique years
     years = data["year"].unique()
+    log_debug(f"Generating pie charts for years: {list(years)}")
 
     # Loop through each year and create a pie chart
     for year in years:
+        log_debug(f"Creating pie chart for year {year}")
         yearly_data = data[data["year"] == year]
         category_sum = yearly_data.groupby("category")["amount_cr_currency"].sum()
 
@@ -392,6 +384,8 @@ def make_yearly_pie_chart(user_id):
             f"Spending Distribution by Category in {year} (Total: {currency}{total_sum:.2f})"
         )
         plt.ylabel("")
-        # plt.show()
+        log_debug(f"Saving pie chart for year {year}")
         plt.savefig(f"user_data/{user_id}/yearly_pie_chart_{year}_{user_id}.jpg")
+        plt.close()
+
     return years

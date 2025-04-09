@@ -474,6 +474,7 @@ async def create_new_category_transaction(update: Update, context: CallbackConte
                     new_daily_limit=new_daily_limit,
                     currency=currency,
                 ),
+                parse_mode=ParseMode.HTML
             )
     except Exception as e:
         print(f"DEBUG: Exception calculating limit: {e}")
@@ -595,6 +596,7 @@ async def select_category_for_transaction(update: Update, context: CallbackConte
                         new_daily_limit=new_daily_limit,
                         currency=currency,
                     ),
+                    parse_mode=ParseMode.HTML
                 )
         except Exception as e:
             print(f"DEBUG: Exception calculating limit: {e}")
@@ -670,6 +672,7 @@ async def select_category_for_transaction(update: Update, context: CallbackConte
                         new_daily_limit=new_daily_limit,
                         currency=currency,
                     ),
+                    parse_mode=ParseMode.HTML
                 )
         except Exception as e:
             print(f"DEBUG: Exception calculating limit: {e}")
@@ -1096,6 +1099,7 @@ async def handle_transaction_confirmation(update: Update, context: CallbackConte
                         new_daily_limit=new_daily_limit,
                         currency=currency,
                     ),
+                    parse_mode=ParseMode.HTML
                 )
         except Exception as e:
             print(f"Exception calculating limit: {e}")

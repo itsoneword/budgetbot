@@ -1,3 +1,7 @@
 [TELEGRAM]
-TOKEN = 
-TEST = path/test
+token = 6126867279:AAGPRKKvSZGgIs_GcR5yDrmE0aQ5eoGKyIQ
+test = path/test
+
+[DEBUG]
+enabled = False
+

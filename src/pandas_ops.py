@@ -1,24 +1,28 @@
 # pandas_ops.py
 import os, calendar, pandas as pd, configparser, json, numpy as np, yfinance as yf
 from datetime import datetime, timedelta
+import time
+from src.debug_utils import log_debug, start_function_log, end_function_log, timed_function
 #from utils import get_exchange_rate, recalculate_currency, get_user_currency
 
 def get_user_path(user_id):
-
     file_path = f"user_data/{user_id}/spendings_{user_id}.csv"
     return file_path
 
-
+@timed_function
 def get_top_categories(file_path, n=5):
     if not os.path.exists(file_path):
+        log_debug("File does not exist, returning empty list")
         return []
+        
     df = pd.read_csv(file_path)
     top_categories = (
         df[df["category"] != "Other"]["category"].value_counts().head(n).index.tolist()
     )
+    
     return top_categories
 
-
+@timed_function
 def get_current_month_data(user_id, file_path):
     data = pd.read_csv(file_path)
 
@@ -29,21 +33,21 @@ def get_current_month_data(user_id, file_path):
     current_month = datetime.now().month
     current_year = datetime.now().year
 
+    log_debug(f"Filtering data for {current_month}/{current_year}")
     # Filter the DataFrame to include only records from the current month
-
     current_month_data = data[
         (data["timestamp"].dt.month == current_month)
         & (data["timestamp"].dt.year == current_year)
     ].copy()
-    #current_month_data_copy = current_month_data.copy()
-        #recalc total in current currency
+
+    #recalc total in current currency
     exchange_rates = get_exchange_rate()
     currency = get_user_currency(user_id)
-    current_month_data = recalculate_currency(current_month_data, currency,exchange_rates)
+    current_month_data = recalculate_currency(current_month_data, currency, exchange_rates)
 
     return current_month_data
 
-
+@timed_function
 def get_last_month_data(user_id, file_path):
     data = pd.read_csv(file_path)
 
@@ -56,6 +60,7 @@ def get_last_month_data(user_id, file_path):
     last_month = last_month_date.month
     last_month_year = last_month_date.year
 
+    log_debug(f"Filtering data for {last_month}/{last_month_year}")
     # Filter the DataFrame to include only records from last month
     last_month_data = data[
         (data["timestamp"].dt.month == last_month)
@@ -69,7 +74,7 @@ def get_last_month_data(user_id, file_path):
 
     return last_month_data
 
-
+@timed_function
 def show_sum_per_cat(user_id, file_path):
     file_path = get_user_path(user_id)
     current_month_data = get_current_month_data(user_id, file_path)
@@ -78,12 +83,12 @@ def show_sum_per_cat(user_id, file_path):
         .sum()
         .sort_values(ascending=False)
     )
+
     return sum_per_cat
 
-
+@timed_function
 def show_top_subcategories(user_id):
     file_path = get_user_path(user_id)
-
     current_month_data = get_current_month_data(user_id, file_path)
 
     # Calculate the total sum per subcategory within each category
@@ -101,18 +106,8 @@ def show_top_subcategories(user_id):
 
     return top_subcats
 
-
-# def top_5_cat(user_id):
-
-#     df = pd.read_csv(f"user_data/{user_id}/spendings_{user_id}.csv")
-#     # Assuming df is your DataFrame and 'category' is the column with categories
-#     top5cat = df["category"].value_counts().nlargest(5).index.tolist()
-
-#     return top5cat
-
-
+@timed_function
 def show_av_per_day(user_id, file_path):
-
     current_month_data = get_current_month_data(user_id, file_path)
     selected_categories = get_top_categories(file_path)
     # Filter the data to only include the selected categories
@@ -134,11 +129,8 @@ def show_av_per_day(user_id, file_path):
     total_av_per_day = round((current_month_data["amount_cr_currency"].sum() - excluding_amount) / day_number, 1)
 
     # Calculate the prediction for the end of the month
-    current_month_days = calendar.monthrange(datetime.now().year, datetime.now().month)[
-        1
-    ]
+    current_month_days = calendar.monthrange(datetime.now().year, datetime.now().month)[1]
     prediction = total + round(av_per_day.sum()) * (current_month_days - day_number)
-    # Store the total average spending for today
 
     # Calculate the total average spending until yesterday
     yesterday_data = filtered_data[filtered_data["timestamp"].dt.day < day_number]
@@ -156,13 +148,15 @@ def show_av_per_day(user_id, file_path):
 
     return av_per_day, total_av_per_day, prediction, comparison
 
-
+@timed_function
 def show_total(user_id, file_path):
     current_month_data = get_current_month_data(user_id, file_path)
     total_spendings = current_month_data["amount_cr_currency"].sum()
+
+    log_debug(f"Total spendings calculated: {total_spendings}")
     return total_spendings
 
-
+@timed_function
 def show_last_month_sum_per_cat(user_id, file_path):
     file_path = get_user_path(user_id)
     last_month_data = get_last_month_data(user_id, file_path)
@@ -171,15 +165,18 @@ def show_last_month_sum_per_cat(user_id, file_path):
         .sum()
         .sort_values(ascending=False)
     )
+
     return sum_per_cat
 
-
+@timed_function
 def show_last_month_total(user_id, file_path):
     last_month_data = get_last_month_data(user_id, file_path)
     total_spendings = last_month_data["amount_cr_currency"].sum()
+
+    log_debug(f"Last month total calculated: {total_spendings}")
     return total_spendings
 
-
+@timed_function
 def show_last_month_av_per_day(user_id, file_path):
     last_month_data = get_last_month_data(user_id, file_path)
     selected_categories = get_top_categories(file_path)
@@ -211,9 +208,8 @@ def show_last_month_av_per_day(user_id, file_path):
 
     return av_per_day, total_av_per_day, prediction, comparison
 
-
+@timed_function
 def calculate_limit(user_id):
-
     config = configparser.ConfigParser()
     config.read(f"user_data/{user_id}/config.ini")
     file_path = f"user_data/{user_id}/spendings_{user_id}.csv"
@@ -227,16 +223,13 @@ def calculate_limit(user_id):
     investing_sum = exclude_df.loc[exclude_df['category'] == 'investing', 'amount_cr_currency'].sum()
     excluding_amount = rent_sum + investing_sum
  
-    #print ("this is the print statement 23222222!!!",excluding_amount)
     # Calculate daily and weekly limits
     current_date = datetime.now()
     days_in_month = calendar.monthrange(current_date.year, current_date.month)[1]
     daily_limit = (monthly_limit - excluding_amount) / days_in_month
-    #weekly_limit = daily_limit * 7
 
     # Calculate current daily average
     current_day = current_date.day
-    #not_spendings = 
     current_daily_average = (total_spendings - excluding_amount) / current_day
 
     # Calculate percentage difference
@@ -268,17 +261,19 @@ def calculate_limit(user_id):
         days_zero_spending,
         new_daily_limit,
     ]
-import pandas as pd
 
+@timed_function
 def calculate_new_value(data, user_currency, exchange_rates):
     current_currency = user_currency.upper()
     
     if isinstance(data, pd.DataFrame):
         # If data is a DataFrame, apply the function to each row
-        return data.apply(lambda row: calculate_new_value_single(row, current_currency, exchange_rates), axis=1)
+        result = data.apply(lambda row: calculate_new_value_single(row, current_currency, exchange_rates), axis=1)
     else:
         # If data is a single row (Series or dict), process it directly
-        return calculate_new_value_single(data, current_currency, exchange_rates)
+        result = calculate_new_value_single(data, current_currency, exchange_rates)
+
+    return result
 
 def calculate_new_value_single(row, current_currency, exchange_rates):
     tx_currency = row["currency"]
@@ -298,19 +293,21 @@ def calculate_new_value_single(row, current_currency, exchange_rates):
             rate2 = exchange_rates[f"USD{current_currency}"]
             return ((amount / rate1) * rate2)
         else:
-            print(f"Unsupported original currency: {tx_currency}")
+            log_debug(f"Unsupported original currency: {tx_currency}")
             return amount
     except Exception as e:
-        print(f"Error processing row: {row}")
-        print(f"Exception: {str(e)}")
+        log_debug(f"Error processing row: {row}")
+        log_debug(f"Exception: {str(e)}")
         return amount
 
+@timed_function
 def recalculate_currency(data, user_currency, exchange_rates):
     data = data.copy()
     data.loc[:,'amount_cr_currency'] = calculate_new_value(data, user_currency, exchange_rates)
 
     return data
 
+@timed_function
 def get_user_currency(user_id):
     user_dir = f"user_data/{user_id}"
     try:
@@ -323,15 +320,13 @@ def get_user_currency(user_id):
     except (configparser.Error, FileNotFoundError, KeyError):
         # Handle errors by setting a default value (USD)
         currency = "USD"
-   #print("getUserCurrency exceuted")
+        log_debug("Using default currency (USD) due to configuration error")
+
+    log_debug(f"User currency retrieved: {currency}")
     return currency
 
+@timed_function(log_args=True)
 def get_exchange_rate():
-    """
-    Fetches current exchange rates for USD to other currencies (USDEUR, USDRUB, USDAMD, USDUSD, USDTHB).
-    Returns rates in format where USDAMD = ~400 (number of AMD per 1 USD).
-    Caches results for 12 hours to avoid excessive API calls.
-    """
     # Define currency pairs
     currency_pairs = ['USDEUR', 'USDRUB', 'USDAMD', 'USDUSD', 'USDTHB']
     # Initialize exchange rates dictionary
@@ -354,16 +349,18 @@ def get_exchange_rate():
             if not all_rates_exist:
                 # Force update if any rate is missing
                 existing_time = current_time - timedelta(days=1)
+                log_debug("Some exchange rates missing, forcing update")
     except (FileNotFoundError, json.JSONDecodeError):
         # Handle file not found or invalid JSON data
         existing_time = current_time - timedelta(days=1)  # Set a default time to force an update
         # Initialize with empty exchange rates
         exchange_rates = {}
+        log_debug("No cached exchange rates found, will fetch new rates")
     
     # Check if more than 12 hours have passed since the last update
     time_difference = current_time - existing_time
     if time_difference > timedelta(hours=12) or not exchange_rates:
-        print("Fetching fresh exchange rates")
+        log_debug("Fetching fresh exchange rates")
         try:
             # Use Exchange Rates API (free and reliable)
             api_url = "https://open.er-api.com/v6/latest/USD"
@@ -383,7 +380,7 @@ def get_exchange_rate():
                 exchange_rates['USDUSD'] = 1.0  # Always 1.0
                 exchange_rates['USDTHB'] = rates.get('THB', 35.0)
                 
-                print("Successfully fetched exchange rates:", exchange_rates)
+                log_debug(f"Successfully fetched exchange rates: {exchange_rates}")
                 
                 # Update the last update time
                 last_update_time = current_time.isoformat()
@@ -392,7 +389,7 @@ def get_exchange_rate():
                 with open('configs/exchangerates.json', 'w') as file:
                     json.dump({'exchange_rates': exchange_rates, 'last_update': last_update_time}, file)
             else:
-                print("API error, falling back to default rates")
+                log_debug("API error, falling back to default rates")
                 # If API fails and no cached rates, set defaults
                 if not exchange_rates:
                     exchange_rates = {
@@ -403,7 +400,7 @@ def get_exchange_rate():
                         'USDTHB': 35.0
                     }
         except Exception as e:
-            print(f"Error fetching exchange rates: {str(e)}")
+            log_debug(f"Error fetching exchange rates: {str(e)}")
             # If API fails and no cached rates, set defaults
             if not exchange_rates:
                 exchange_rates = {

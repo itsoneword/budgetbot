@@ -240,7 +240,7 @@ async def handle_time_period_selection(update: Update, context: CallbackContext)
         # Add buttons to show transactions or go back to main menu
         keyboard = [
             [InlineKeyboardButton(texts.VIEW_TRANSACTIONS_BUTTON, callback_data="view_transactions")],
-            [InlineKeyboardButton(texts.RETURN_BACK_BUTTON, callback_data="back_to_time_period")],
+            [InlineKeyboardButton(texts.BACK_BUTTON, callback_data="back_to_time_period")],
             [InlineKeyboardButton(texts.BACK_TO_MAIN_MENU_BUTTON, callback_data="back_to_main_menu")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
