@@ -2,7 +2,7 @@
 import os, calendar, pandas as pd, configparser, json, numpy as np, yfinance as yf
 from datetime import datetime, timedelta
 import time
-from src.debug_utils import log_debug, start_function_log, end_function_log, timed_function
+from src.logger import log_debug, start_function_log, end_function_log, timed_function
 #from utils import get_exchange_rate, recalculate_currency, get_user_currency
 
 def get_user_path(user_id):

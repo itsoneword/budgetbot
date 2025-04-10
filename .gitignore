@@ -17,3 +17,5 @@ user_list.csv
 .env
 config
 todos.txt
+deploy.sh
+docker-compose.yml

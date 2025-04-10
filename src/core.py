@@ -4,47 +4,18 @@ from language_util import check_language
 import sys
 from logging.handlers import TimedRotatingFileHandler
 
-# Set up the user interactions logger
-user_logger = logging.getLogger("user_interactions")
-user_logger.setLevel(logging.INFO)
-user_logger.propagate = False  # Don't propagate to root logger
-
-# Create user_data directory if it doesn't exist
-os.makedirs('user_data', exist_ok=True)
-
-# Create file handler for user interactions
-user_handler = logging.FileHandler("./user_data/global_log.txt")
-user_handler.setLevel(logging.INFO)
-user_formatter = logging.Formatter("%(asctime)s - %(message)s")
-user_handler.setFormatter(user_formatter)
-user_logger.addHandler(user_handler)
-
-# Custom logging filter to exclude certain debug messages
-class DebugFilter(logging.Filter):
-    def filter(self, record):
-        # Skip network-related debug messages
-        if record.levelno == logging.DEBUG:
-            msg = record.getMessage()
-            # Filter out common network operation logs
-            skip_patterns = [
-                'connect_tcp', 
-                'start_tls', 
-                'send_request', 
-                'receive_response',
-                'looking for jobs',
-                'Bot API',
-                'getUpdates',
-                'Calling Bot API',
-                'No jobs; waiting',
-                # Matplotlib font-related debug messages
-                'findfont:',
-                'font_manager',
-                'Matching '
-            ]
-            for pattern in skip_patterns:
-                if pattern.lower() in msg.lower():
-                    return False
-        return True
+# Replace debug_utils import with logger import
+from src.logger import (
+    setup_logging, 
+    log_debug, 
+    log_function_call, 
+    log_state_transition, 
+    timed_function, 
+    measure_execution,
+    log_user_interaction,
+    load_debug_setting_from_config,
+    save_debug_setting_to_config
+)
 
 from pandas_ops import (
     show_sum_per_cat,
@@ -75,7 +46,6 @@ from keyboards import (
     create_confirm_transaction_keyboard,
 )
 from file_ops import *
-from src.debug_utils import log_debug as utils_log_debug, set_debug_mode, log_function_call, log_state_transition, timed_function, measure_execution
 
 from change_data import (
     show_categories, handle_category_selection, handle_category_option, 
@@ -133,79 +103,6 @@ from src.detailed_transactions import (
 # Import all states from the central states file
 from src.states import *
 
-# Configure application logging
-def setup_logging(debug_mode=False):
-    # Use the centralized debug mode setting
-    set_debug_mode(debug_mode)
-    
-    # Define a cleaner log format - timestamp, level, message only
-    std_log_format = "%(asctime)s - %(levelname)s - %(message)s"
-    # For debug logs, use an even simpler format
-    debug_log_format = "%(levelname)s: %(message)s"
-    
-    # Clear any existing handlers from the root logger
-    root_logger = logging.getLogger()
-    for handler in root_logger.handlers[:]:
-        root_logger.removeHandler(handler)
-    
-    # Set up file handler for logging
-    file_handler = TimedRotatingFileHandler(
-        'user_data/app.log',
-        when="m",
-        interval=10,
-        backupCount=5
-    )
-    file_handler.setLevel(logging.INFO)
-    file_formatter = logging.Formatter(std_log_format)
-    file_handler.setFormatter(file_formatter)
-    root_logger.addHandler(file_handler)
-    
-    # Add console handler with appropriate level based on debug mode
-    console_handler = logging.StreamHandler(sys.stdout)
-    if debug_mode:
-        console_handler.setLevel(logging.DEBUG)  # Show DEBUG and above when debug mode is on
-        root_logger.setLevel(logging.DEBUG)
-        console_formatter = logging.Formatter(debug_log_format)
-        logging.info("Debug mode is ON - verbose logging enabled")
-        
-        # Add filter to console handler to filter out unwanted debug messages
-        console_handler.addFilter(DebugFilter())
-    else:
-        console_handler.setLevel(logging.WARNING)  # Only show WARNING and above when debug mode is off
-        root_logger.setLevel(logging.INFO)
-        console_formatter = logging.Formatter(std_log_format)
-    
-    console_handler.setFormatter(console_formatter)
-    root_logger.addHandler(console_handler)
-    
-    # Configure external loggers - set to higher levels to reduce noise
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("httpcore").setLevel(logging.WARNING)
-    logging.getLogger("telegram").setLevel(logging.INFO)
-    logging.getLogger("telegram.ext").setLevel(logging.INFO)
-    logging.getLogger("JobQueue").setLevel(logging.INFO)
-    logging.getLogger("asyncio").setLevel(logging.WARNING)
-    
-    # Configure Matplotlib logging to hide font debug messages
-    logging.getLogger("matplotlib.font_manager").setLevel(logging.INFO)
-    logging.getLogger("matplotlib.backends").setLevel(logging.INFO)
-    logging.getLogger("matplotlib").setLevel(logging.INFO)
-
-def log_user_interaction(user_id: str, username: str, tg_username: str, function_name=None):
-    calling_function_name = function_name if function_name else inspect.stack()[1].function
-    log_message = (
-        f"UserID: {user_id}, {username}, {tg_username}, {calling_function_name}"
-    )
-    # Log user interactions to the global user_logger
-    user_logger.info(log_message)
-
-def log_debug(message, function_name=None, execution_time=None):
-    """Log debug information when debug mode is enabled"""
-    if execution_time is not None:
-        utils_log_debug(message, function_name, execution_time)
-    else:
-        utils_log_debug(message, function_name)
-
 # Read configuration
 config = configparser.ConfigParser()
 config.read("configs/config")
@@ -216,15 +113,14 @@ if token == "":
     token = config["TELEGRAM"]["TOKEN"]
 
 # Initialize logging with debug mode off
-setup_logging(False)
+setup_logging("INFO")
 
 # Read debug mode from config if available
 try:
-    if config.has_section("DEBUG") and config.has_option("DEBUG", "ENABLED"):
-        debug_mode = config.getboolean("DEBUG", "ENABLED")
-        setup_logging(debug_mode)
-        log_debug(f"Debug mode set to {debug_mode} from config file")
-except (configparser.Error, ValueError) as e:
+    debug_mode = load_debug_setting_from_config(config)
+    setup_logging(debug_mode)
+    log_debug(f"Debug mode set to {debug_mode} from config file")
+except Exception as e:
     log_debug(f"Error reading debug configuration: {e}")
     
 # Command to toggle debug mode
@@ -236,31 +132,23 @@ async def toggle_debug(update: Update, context: CallbackContext):
     if user_id != "46304833":  # Replace with your actual admin user ID
         await update.message.reply_text("Sorry, only admin users can toggle debug mode.")
         return TRANSACTION
-    # Check if debug mode exists in config file
-    current_debug_mode = False
-    if config.has_section("DEBUG") and config.has_option("DEBUG", "ENABLED"):
-        try:
-            current_debug_mode = config.getboolean("DEBUG", "ENABLED")
-        except ValueError:
-            log_debug("Invalid debug mode value in config, defaulting to False")
     
-    # Toggle debug mode using the centralized function
+    # Get current debug mode from config
+    current_debug_mode = load_debug_setting_from_config(config)
+    
+    # Toggle debug mode
     new_debug_mode = not current_debug_mode
-    set_debug_mode(new_debug_mode)
     
-    # Save debug mode to config
-    if not config.has_section("DEBUG"):
-        config.add_section("DEBUG")
-    config.set("DEBUG", "ENABLED", str(new_debug_mode))
-    with open("configs/config", "w") as configfile:
-        config.write(configfile)
+    # Update the logger configuration
+    setup_logging(new_debug_mode)
+    
+    # Save to config file
+    save_debug_setting_to_config(config, new_debug_mode)
     
     status = "ON" if new_debug_mode else "OFF"
     await update.message.reply_text(f"Debug mode is now {status}")
-    utils_log_debug(f"Debug mode toggled to {new_debug_mode}")
+    log_debug(f"Debug mode toggled to {new_debug_mode}")
     return TRANSACTION
-
-# Now replace all the print statements with log_debug calls throughout the file
 
 async def start(update: Update, context: CallbackContext):
     user_id = str(update.effective_user.id)
@@ -891,7 +779,7 @@ async def send_chart(update: Update, context: CallbackContext) -> None:
         with open(os.path.join(directory, image), "rb") as file:
             media.append(InputMediaPhoto(file))
 
-    backup_charts(user_id, monthly_images)
+    #backup_charts(user_id, monthly_images)
     await context.bot.send_media_group(chat_id=update.effective_chat.id, media=media)
 
 
@@ -918,7 +806,7 @@ async def send_ext_chart(update: Update, context: CallbackContext) -> None:
         with open(os.path.join(directory, image), "rb") as file:
             media.append(InputMediaPhoto(file))
 
-    backup_charts(user_id, monthly_images)
+    #backup_charts(user_id, monthly_images)
     await context.bot.send_media_group(chat_id=update.effective_chat.id, media=media)
 
 
@@ -937,7 +825,7 @@ async def send_yearly_piechart(update: Update, context: CallbackContext) -> None
         images.append(image_path)
         with open(image_path, "rb") as file:
             media.append(InputMediaPhoto(file))
-    backup_charts(user_id, images)
+    #backup_charts(user_id, images)
 
     await context.bot.send_media_group(chat_id=update.effective_chat.id, media=media)
 

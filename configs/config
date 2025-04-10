@@ -1,6 +1,6 @@
 [TELEGRAM]
 TOKEN = 
-TEST = path/test
+test = path/test
 
 [DEBUG]
 enabled = False

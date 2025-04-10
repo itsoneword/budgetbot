@@ -4,7 +4,7 @@ from dateutil.relativedelta import relativedelta
 from datetime import datetime
 import time
 import warnings
-from src.debug_utils import log_debug, timed_function, log_function_call
+from src.logger import log_debug, timed_function, log_function_call
 from pandas_ops import get_user_currency, get_exchange_rate, recalculate_currency
 
 # Suppress Matplotlib font-related warnings
