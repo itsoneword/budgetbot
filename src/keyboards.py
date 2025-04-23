@@ -375,7 +375,7 @@ def create_category_options_keyboard(category: str, texts):
         [InlineKeyboardButton(texts.CHANGE_NAME_BUTTON, callback_data=f"change_name_{category}")],
         [InlineKeyboardButton(texts.DELETE_CATEGORY_BUTTON, callback_data=f"delete_category_{category}")],
         [InlineKeyboardButton(texts.EDIT_TASKS_BUTTON, callback_data=f"edit_tasks_{category}")],
-        [InlineKeyboardButton(texts.BACK_TO_CATEGORIES_BUTTON, callback_data="back_to_categories")]
+        [InlineKeyboardButton(texts.BACK_TO_CATEGORY_BUTTON, callback_data="back_to_categories")]
     ]
     return InlineKeyboardMarkup(keyboard)
 

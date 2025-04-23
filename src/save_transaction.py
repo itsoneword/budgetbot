@@ -97,13 +97,13 @@ async def save_transaction(update: Update, context):
         # For single transactions that successfully save, show menu at the end
         await update.message.reply_text(texts.TRANSACTION_SAVED_TEXT)
         
-        # Show a menu after saving the transaction
-        reply_markup = create_main_menu_keyboard(texts)
-        await update.message.reply_text(
-            texts.BACK_TO_MAIN_MENU,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
+        # # Show a menu after saving the transaction
+        # reply_markup = create_main_menu_keyboard(texts)
+        # await update.message.reply_text(
+        #     texts.BACK_TO_MAIN_MENU,
+        #     reply_markup=reply_markup,
+        #     parse_mode=ParseMode.HTML
+        # )
         
         print(f"DEBUG: Return TRANSACTION (single transaction saved directly)")
         return TRANSACTION
@@ -567,12 +567,12 @@ async def select_category_for_transaction(update: Update, context: CallbackConte
         
         # For single transactions, show main menu
         await asyncio.sleep(1)
-        reply_markup = create_main_menu_keyboard(texts)
-        await query.message.reply_text(
-            texts.MAIN_MENU_TEXT,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
+        # reply_markup = create_main_menu_keyboard(texts)
+        # await query.message.reply_text(
+        #     texts.MAIN_MENU_TEXT,
+        #     reply_markup=reply_markup,
+        #     parse_mode=ParseMode.HTML
+        # )
         
         # Check if we need to show limit warnings
         currency = get_user_currency(user_id)
@@ -980,7 +980,7 @@ async def handle_transaction_amount(update: Update, context: CallbackContext):
                 texts.TRANSACTION_CANCELED,
                 parse_mode=ParseMode.HTML
             )
-            # Show main menu
+            #Show main menu
             reply_markup = create_main_menu_keyboard(texts)
             await query.message.reply_text(
                 texts.MAIN_MENU_TEXT,
@@ -1072,12 +1072,12 @@ async def handle_transaction_confirmation(update: Update, context: CallbackConte
         )
         
         # Show main menu
-        reply_markup = create_main_menu_keyboard(texts)
-        await query.message.reply_text(
-            texts.MAIN_MENU_TEXT,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
+        # reply_markup = create_main_menu_keyboard(texts)
+        # await query.message.reply_text(
+        #     texts.MAIN_MENU_TEXT,
+        #     reply_markup=reply_markup,
+        #     parse_mode=ParseMode.HTML
+        # )
         
         # Check if we need to show limit warnings
         try:
@@ -1112,12 +1112,12 @@ async def handle_transaction_confirmation(update: Update, context: CallbackConte
             parse_mode=ParseMode.HTML
         )
         # Show main menu
-        reply_markup = create_main_menu_keyboard(texts)
-        await query.message.reply_text(
-            texts.MAIN_MENU_TEXT,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
+        # reply_markup = create_main_menu_keyboard(texts)
+        # await query.message.reply_text(
+        #     texts.MAIN_MENU_TEXT,
+        #     reply_markup=reply_markup,
+        #     parse_mode=ParseMode.HTML
+        # )
         return TRANSACTION
     
     # Handle unexpected callback data
