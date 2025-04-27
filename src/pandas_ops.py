@@ -107,6 +107,26 @@ def show_top_subcategories(user_id):
     return top_subcats
 
 @timed_function
+def show_last_month_top_subcategories(user_id):
+    file_path = get_user_path(user_id)
+    last_month_data = get_last_month_data(user_id, file_path)
+
+    # Calculate the total sum per subcategory within each category
+    sum_per_subcat = (
+        last_month_data.groupby(["category", "subcategory"])["amount_cr_currency"]
+        .sum()
+        .reset_index()
+    )
+
+    # Sort by amount within each category and take the top 3
+    top_subcats = sum_per_subcat.sort_values(
+        ["category", "amount_cr_currency"], ascending=[True, False]
+    )
+    top_subcats = top_subcats.groupby("category").head(5)
+
+    return top_subcats
+
+@timed_function
 def show_av_per_day(user_id, file_path):
     current_month_data = get_current_month_data(user_id, file_path)
     selected_categories = get_top_categories(file_path)

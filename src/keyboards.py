@@ -161,6 +161,7 @@ def create_show_transactions_keyboard(texts):
         ],
         [
             InlineKeyboardButton(texts.DETAILED_STAT_BUTTON, callback_data="show_extended_stats"),
+            InlineKeyboardButton(texts.LAST_MONTH_DETAILED_STAT_BUTTON, callback_data="show_last_month_extended_stats"),
         ],
         [
             InlineKeyboardButton(texts.YEARLY_CHARTS_BUTTON, callback_data="show_yearly_charts"),

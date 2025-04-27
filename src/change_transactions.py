@@ -144,13 +144,13 @@ async def handle_transaction_selection(update: Update, context: CallbackContext)
     if callback_data == "tx_next_page":
         # Go to next page (limited to max 1 for our 2-page setup)
         context.user_data['tx_page'] += 1
-        print(f"Debug: tx_next_page called, new page: {context.user_data['tx_page']}")
+        #print(f"Debug: tx_next_page called, new page: {context.user_data['tx_page']}")
         return await show_recent_entries(update, context)
     
     elif callback_data == "tx_prev_page":
         # Go to previous page
         context.user_data['tx_page'] = max(0, context.user_data['tx_page'] - 1)
-        print(f"Debug: tx_prev_page called, new page: {context.user_data['tx_page']}")
+        #print(f"Debug: tx_prev_page called, new page: {context.user_data['tx_page']}")
         return await show_recent_entries(update, context)
     
     elif callback_data == "back_to_main_menu":
@@ -161,7 +161,7 @@ async def handle_transaction_selection(update: Update, context: CallbackContext)
     # Check if we have a stored transaction index from detailed transactions view
     if context.user_data.get('selected_tx_index'):
         tx_id = context.user_data['selected_tx_index']
-        print(f"DEBUG: Using stored tx_index: {tx_id}")
+        #print(f"DEBUG: Using stored tx_index: {tx_id}")
         # Clear the stored index after using it
         del context.user_data['selected_tx_index']
     else:

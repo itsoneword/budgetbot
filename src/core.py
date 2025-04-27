@@ -24,6 +24,8 @@ from pandas_ops import (
     get_user_path,
     get_exchange_rate,
     get_user_currency,
+    show_last_month_sum_per_cat,
+    show_last_month_top_subcategories
 )
 from charts import monthly_line_chart, monthly_pivot_chart, make_yearly_pie_chart,monthly_ext_pivot_chart
 from src.show_transactions import process_transaction_input, process_income_input
@@ -427,7 +429,7 @@ async def show_detailed(update: Update, context):
     sum_per_cat = show_sum_per_cat(user_id, file_path)
     top_subcats = show_top_subcategories(user_id)
 
-    output = "Detailed report:\n\n"
+    output = texts.DETAILED_REPORT_TEXT + "\n\n"
     for category, total in sum_per_cat.items():
         output += f"{category}: {total}\n"
 
@@ -444,6 +446,32 @@ async def show_detailed(update: Update, context):
 
     return TRANSACTION
 
+async def show_last_month_detailed(update: Update, context):
+    user_id = str(update.effective_user.id)
+    texts = check_language(update, context)
+    log_user_interaction(
+        user_id, update.effective_user.first_name, update.effective_user.username
+    )
+    file_path = get_user_path(user_id)
+    sum_per_cat = show_last_month_sum_per_cat(user_id, file_path)
+    top_subcats = show_last_month_top_subcategories(user_id)
+
+    output = texts.DETAILED_REPORT_LAST_MONTH_TEXT + "\n\n"
+    for category, total in sum_per_cat.items():
+        output += f"{category}: {total}\n"
+
+        # Get the top subcategories for this category
+        category_subcats = top_subcats[top_subcats["category"] == category]
+        for _, row in category_subcats.iterrows():
+            output += f"   {row['subcategory']}: {row['amount_cr_currency']}\n"
+
+        output += "\n"
+    if update.callback_query:
+        await update.callback_query.message.reply_text(output)
+    else:
+        await update.message.reply_text(output)
+
+    return TRANSACTION
 
 async def show_cat(update: Update, context: CallbackContext):
     user_id = str(update.effective_user.id)
@@ -817,17 +845,53 @@ async def send_yearly_piechart(update: Update, context: CallbackContext) -> None
         update.effective_user.first_name,
         update.effective_user.username,
     )
-    years = make_yearly_pie_chart(user_id)
-    media, images = [], []
-    for year in years:
-        # Define the paths to your images
-        image_path = f"user_data/{user_id}/yearly_pie_chart_{year}_{user_id}.jpg"
-        images.append(image_path)
-        with open(image_path, "rb") as file:
-            media.append(InputMediaPhoto(file))
-    #backup_charts(user_id, images)
+    log_debug(f"Starting send_yearly_piechart for user {user_id}")
+    # This function now returns a list of ALL chart paths (pies and comparison bars)
+    all_chart_paths = make_yearly_pie_chart(user_id) 
+    log_debug(f"Received {len(all_chart_paths)} chart paths from make_yearly_pie_chart")
+    media = []
+    
+    if not all_chart_paths:
+        texts = check_language(update, context)
+        log_debug("No chart paths returned, sending NO_YEARLY_DATA message")
+        await update.message.reply_text(texts.NO_YEARLY_DATA)
+        return
+    
+    # Count chart types to verify all expected charts are included
+    pie_charts = [p for p in all_chart_paths if "yearly_pie_chart" in p]
+    absolute_charts = [p for p in all_chart_paths if "yearly_comparison_absolute" in p]
+    percentage_charts = [p for p in all_chart_paths if "yearly_comparison_percentage" in p]
+    log_debug(f"Chart breakdown: {len(pie_charts)} pie charts, {len(absolute_charts)} absolute charts, {len(percentage_charts)} percentage charts")
+    
+    # Iterate through all returned chart paths and add them to the media group
+    for i, chart_path in enumerate(all_chart_paths):
+        log_debug(f"Processing chart path {i+1}/{len(all_chart_paths)}: {chart_path}")
+        if os.path.exists(chart_path):
+            try:
+                with open(chart_path, "rb") as file:
+                    media.append(InputMediaPhoto(file))
+                    log_debug(f"Successfully added {chart_path} to media group")
+            except Exception as e:
+                log_debug(f"Error opening or adding chart {chart_path}: {e}")
+        else:
+             log_debug(f"Chart file not found: {chart_path}")
 
-    await context.bot.send_media_group(chat_id=update.effective_chat.id, media=media)
+    log_debug(f"Created media group with {len(media)} photos")
+    # Send the media group if it contains any photos
+    if media:
+        try:
+            log_debug(f"Sending media group with {len(media)} photos")
+            #backup_charts(user_id, all_chart_paths) # Consider if backup is still needed and how
+            await context.bot.send_media_group(chat_id=update.effective_chat.id, media=media)
+            log_debug(f"Successfully sent media group to chat {update.effective_chat.id}")
+        except Exception as e:
+             log_debug(f"Error sending media group for user {user_id}: {e}")
+             texts = check_language(update, context)
+             await update.message.reply_text(texts.ERROR_SENDING_CHARTS)
+    else:
+        log_debug("No media to send, sending ERROR_GENERATING_CHARTS message")
+        texts = check_language(update, context)
+        await update.message.reply_text(texts.ERROR_GENERATING_CHARTS)
 
 
 async def start_income(update: Update, context: CallbackContext) -> None:
@@ -1087,6 +1151,12 @@ async def menu_call(update: Update, context: CallbackContext):
         )
         log_state_transition(TRANSACTION)
         return TRANSACTION
+        
+    elif action == "show_last_month_extended_stats":
+        # Use existing function for last month extended stats
+        await query.answer()
+        await query.edit_message_text("Loading last month extended statistics...")
+        await show_last_month_detailed(update, context)
         
     elif action == "show_yearly_charts":
         # Use existing function for yearly charts
@@ -1383,7 +1453,7 @@ def main():
                 CallbackQueryHandler(menu_call, pattern="^(cancel_transaction|back_to_main_menu)"),
                 CallbackQueryHandler(menu_call, pattern="^menu_"),
                 # For showing various reports
-                CallbackQueryHandler(menu_call, pattern="^(show_monthly_summary|show_last_month_summary|show_last_transactions|show_monthly_charts|show_extended_stats|show_yearly_charts|show_income_stats)"),
+                CallbackQueryHandler(menu_call, pattern="^(show_monthly_summary|show_last_month_summary|show_last_transactions|show_monthly_charts|show_extended_stats|show_last_month_extended_stats|show_yearly_charts|show_income_stats)"),
                 # For text input of transaction amount
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_transaction_amount),
             ],

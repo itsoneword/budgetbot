@@ -61,7 +61,7 @@ async def start_detailed_transactions(update: Update, context: CallbackContext):
 
 async def handle_category_selection(update: Update, context: CallbackContext):
     """Handle selection of categories"""
-    print(f"DEBUG: Fn handle_category_selection")
+    #print(f"DEBUG: Fn handle_category_selection")
     user_id = str(update.effective_user.id)
     texts = check_language(update, context)
     query = update.callback_query
@@ -192,13 +192,13 @@ async def handle_time_period_selection(update: Update, context: CallbackContext)
         return SELECT_CATEGORIES
     
     elif action.startswith("period_") or context.user_data.get('selected_period'):
-        print(f"DEBUG: Returning state SHOW_SUMMARY after handle_time_period_selection")
+       # print(f"DEBUG: Returning state SHOW_SUMMARY after handle_time_period_selection")
         # Extract period from callback data
         try:
             period = context.user_data['selected_period']
-            print(f"DEBUG: period from context.user_data['selected_period'] = {period}")
+            #print(f"DEBUG: period from context.user_data['selected_period'] = {period}")
         except Exception as e:
-            print(f"DEBUG: Exception inside handle_time_period_selection", {e})
+            #print(f"DEBUG: Exception inside handle_time_period_selection", {e})
             period = action[7:]  # Remove "period_" prefix
             context.user_data['selected_period'] = period
         

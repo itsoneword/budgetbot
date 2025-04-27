@@ -81,7 +81,7 @@ NO_RECORDS_TO_DELETE = "No records to delete."
 RECORD_DELETED = "Deleted record number {}."
 NOT_ENOUGH_RECORDS = "There are less than {} records."
 HELP_TEXT = """
-About☝🏼 New Major release 0.2.1 from 09.04.25. 👌🏼 
+About☝🏼 New Major release 0.2.2 from 27.04.25. 👌🏼 
 New features were added. 🎉
 Interactive menu system for easier navigation. Try /menu to access it!
 
@@ -130,7 +130,7 @@ TRANSACTION_CANCELED = """Transaction has been canceled."""
 NOTIFY_OTHER_CAT = """Your transactions for '<code>{}</code>'  were saved under category 'other', because we could not find any match in the dictionary.
 If you know which Category to use, please, add it into the dictionary via /change_cat , or add another transaction in <code>category subcategory amount</code> format, and it will be automatically updated in the database."""
 LAST_RECORDS = "List of transactions with index number.\nThe sum is: <b>{}</b> \n\n{} \n\nTo delete type /delete followed by the transaction index."
-ABOUT = 'Hello, {}!\nYour curent Currency is <b>{}</b> Language is <b>{}</b>, and \nMonthly limit is <b>{}</b> \nCurrent version is 0.2.2 from 23.4.25'
+ABOUT = 'Hello, {}!\nYour curent Currency is <b>{}</b> Language is <b>{}</b>, and \nMonthly limit is <b>{}</b> \nCurrent version is 0.2.2 from 27.4.25'
 
 # Menu text strings
 MAIN_MENU_TEXT = "📱 <b>Main Menu</b>\nWhat would you like to do?"
@@ -245,6 +245,7 @@ HELP_BUTTON = "❓ Help"
 MONTHLY_SUMMARY_BUTTON = "📊 This month summary"
 LAST_MONTH_SUMMARY_BUTTON = "📊 Last month summary"
 DETAILED_STAT_BUTTON = "📊 This month detailed summary"
+LAST_MONTH_DETAILED_STAT_BUTTON = "📊 Last month detailed summary"
 LAST_TRANSACTIONS_BUTTON = "📋 All transactions"
 MONTHLY_CHARTS_BUTTON = "📈 Monthly charts"
 YEARLY_CHARTS_BUTTON = "📈 Yearly charts"
@@ -286,6 +287,8 @@ Select a transaction to view details:"""
 NO_CATEGORIES_FOUND = "❌ No categories found in your spending history."
 NO_TRANSACTIONS_FOUND = "❌ No transactions found for the selected categories and time period."
 
+DETAILED_REPORT_LAST_MONTH_TEXT = "Detailed report last month:"
+DETAILED_REPORT_TEXT = "Detailed report:"
 # Button text for detailed transactions
 THREE_MONTH_BUTTON = "3 months"
 SIX_MONTH_BUTTON = "6 months"

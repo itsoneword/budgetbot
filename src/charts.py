@@ -6,6 +6,8 @@ import time
 import warnings
 from src.logger import log_debug, timed_function, log_function_call
 from pandas_ops import get_user_currency, get_exchange_rate, recalculate_currency
+import re
+import os
 
 # Suppress Matplotlib font-related warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="matplotlib")
@@ -351,14 +353,26 @@ def make_yearly_pie_chart(user_id):
     currency = get_user_currency(user_id)
     data = recalculate_currency(data, currency,exchange_rates)
     # Get unique years
-    years = data["year"].unique()
+    years = sorted(data["year"].unique()) # Sort years for consistent order
     log_debug(f"Generating pie charts for years: {list(years)}")
+
+    all_chart_paths = [] # Initialize list to store all chart paths
 
     # Loop through each year and create a pie chart
     for year in years:
         log_debug(f"Creating pie chart for year {year}")
         yearly_data = data[data["year"] == year]
+        # Skip year if no data
+        if yearly_data.empty:
+            log_debug(f"Skipping year {year} due to no data.")
+            continue
+            
         category_sum = yearly_data.groupby("category")["amount_cr_currency"].sum()
+
+        # Skip year if no spending sum
+        if category_sum.sum() == 0:
+             log_debug(f"Skipping year {year} due to zero spending.")
+             continue
 
         # Calculate total sum
         total_sum = category_sum.sum()
@@ -366,26 +380,123 @@ def make_yearly_pie_chart(user_id):
         category_sum.sort_values(ascending=False, inplace=True)
         # Create labels with category name and total amount
         labels = [
-            f"{category}: {total:.2f}" for category, total in category_sum.items()
+            f"{category}:{total:.2f}" for category, total in category_sum.items()
         ]
         plt.figure(figsize=(10, 6))
         pie_chart = category_sum.plot(
             kind="pie",
-            labels=labels,
-            autopct=lambda p: "{:.1f}%".format(p) if p > 0 else "",
-            startangle=0,
+            labels=labels, # Show labels with category name and amount
+            autopct=lambda p: "{:.1f}%".format(p) if p > 1 else "", # Show percentage > 1%
+            startangle=30, # Rotate  degrees right from the default 90
+            pctdistance=0.85, # Move percentages inside
         )
-
-        # Rotate category names
-        for text in pie_chart.texts:
-            text.set_rotation(0)
-
+        
         plt.title(
-            f"Spending Distribution by Category in {year} (Total: {currency}{total_sum:.2f})"
-        )
+            f"Spending Distribution by Category in {year} (Total: {currency}{total_sum:.2f})",
+         )
         plt.ylabel("")
-        log_debug(f"Saving pie chart for year {year}")
-        plt.savefig(f"user_data/{user_id}/yearly_pie_chart_{year}_{user_id}.jpg")
+        pie_chart_path = f"user_data/{user_id}/yearly_pie_chart_{year}_{user_id}.jpg"
+        log_debug(f"Saving pie chart for year {year} to {pie_chart_path}")
+        plt.tight_layout(rect=[0, 0, 0.75, 1]) # Adjust layout for legend
+        plt.savefig(pie_chart_path)
         plt.close()
+        all_chart_paths.append(pie_chart_path) # Add pie chart path
 
-    return years
+    # Generate comparison charts if there's more than one year with data
+    if len(all_chart_paths) > 0: # Check if any pie charts were generated
+       valid_years = [int(re.search(r'_(\d{4})_', path).group(1)) for path in all_chart_paths]
+       log_debug(f"Valid years extracted from pie chart paths: {valid_years}")
+       if len(valid_years) > 1:
+           log_debug(f"Calling make_yearly_comparison_chart for years: {valid_years}")
+           filtered_data = data[data['year'].isin(valid_years)]
+           log_debug(f"Filtered data shape for comparison charts: {filtered_data.shape}")
+           comparison_chart_paths = make_yearly_comparison_chart(user_id, filtered_data)
+           log_debug(f"Received comparison chart paths: {comparison_chart_paths}")
+           
+           # Verify that the percentage chart path exists
+           if len(comparison_chart_paths) == 2:
+               pct_chart_path = comparison_chart_paths[1]
+               if pct_chart_path and os.path.exists(pct_chart_path):
+                   log_debug(f"Percentage chart file exists at {pct_chart_path}")
+               else:
+                   log_debug(f"Percentage chart file does not exist: {pct_chart_path}")
+           else:
+               log_debug(f"Expected 2 comparison chart paths but received {len(comparison_chart_paths)}")
+           
+           all_chart_paths.extend(comparison_chart_paths) # Add comparison chart paths
+           log_debug(f"Total chart paths after adding comparison charts: {len(all_chart_paths)}")
+       else:
+           log_debug("Skipping comparison charts as there is data for only one year.")
+    else:
+        log_debug("Skipping comparison charts as no pie charts were generated (no valid yearly data).")
+
+    log_debug(f"Final list of chart paths to return: {all_chart_paths}")
+    return all_chart_paths # Return all generated chart paths
+
+@timed_function
+def make_yearly_comparison_chart(user_id, data):
+    """Generates yearly comparison bar charts (absolute and percentage)."""
+    log_function_call()
+    log_debug(f"Generating yearly comparison charts for user {user_id}")
+    currency = get_user_currency(user_id)
+    # Pivot data for comparison
+    yearly_category_sum = data.groupby(["year", "category"])["amount_cr_currency"].sum().unstack(fill_value=0)
+
+    # Ensure categories are sorted by total amount across all years for better visualization
+    total_category_sum = yearly_category_sum.sum(axis=0).sort_values(ascending=False)
+    yearly_category_sum_sorted = yearly_category_sum[total_category_sum.index]
+
+    # Transpose the data for plotting: Categories on X-axis, Years as bars
+    comparison_data = yearly_category_sum_sorted.T 
+    
+    # --- Absolute Values Bar Chart (Categories on X-axis) ---
+    log_debug("Creating absolute values yearly comparison chart (Categories on X)")
+    fig_abs, ax_abs = plt.subplots(figsize=(max(12, len(comparison_data.index) * 0.8), 8)) # Dynamic width
+    comparison_data.plot(kind='bar', ax=ax_abs, width=0.8)
+    ax_abs.set_title('Yearly Spending Comparison by Category')
+    ax_abs.set_ylabel(f'Total Amount ({currency})')
+    ax_abs.set_xlabel('Category')
+    ax_abs.tick_params(axis='x', rotation=45) # Rotate labels
+    ax_abs.legend(title='Year', bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.tight_layout(rect=[0, 0, 0.85, 1]) # Adjust layout for legend
+    abs_chart_path = f"user_data/{user_id}/yearly_comparison_absolute_{user_id}.jpg"
+    log_debug(f"Saving absolute comparison chart to {abs_chart_path}")
+    plt.savefig(abs_chart_path)
+    plt.close(fig_abs)
+
+    # --- Percentage Values Bar Chart (Categories on X-axis, Grouped by Year) ---
+    log_debug("Creating percentage values yearly comparison chart (Categories on X, Grouped)")
+    # Calculate total spending per year first
+    yearly_totals = yearly_category_sum_sorted.sum(axis=1)
+    log_debug(f"Yearly totals: {yearly_totals}")
+    
+    # Calculate percentage of each category relative to its year's total spending
+    # Avoid division by zero for years with no spending
+    yearly_percentage_of_total = yearly_category_sum_sorted.divide(yearly_totals, axis=0).fillna(0) * 100
+    log_debug(f"Created yearly percentage table with shape {yearly_percentage_of_total.shape}")
+
+    # Transpose for plotting (Categories on X-axis)
+    comparison_data_pct = yearly_percentage_of_total.T
+    log_debug(f"Transposed percentage data with shape {comparison_data_pct.shape}")
+    
+    try:
+        fig_pct, ax_pct = plt.subplots(figsize=(max(12, len(comparison_data_pct.index) * 0.8), 8)) # Dynamic width
+        # Plot grouped bars, not stacked
+        comparison_data_pct.plot(kind='bar', stacked=False, ax=ax_pct, width=0.8) 
+        ax_pct.set_title('Category Spending as Percentage of Yearly Total')
+        ax_pct.set_ylabel('Percentage of Yearly Total (%)')
+        ax_pct.set_xlabel('Category')
+        ax_pct.tick_params(axis='x', rotation=45) # Rotate labels
+        ax_pct.legend(title='Year', bbox_to_anchor=(1.05, 1), loc='upper left')
+        ax_pct.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.0f}%')) # Format y-axis as percentage
+        plt.tight_layout(rect=[0, 0, 0.85, 1]) # Adjust layout for legend
+        pct_chart_path = f"user_data/{user_id}/yearly_comparison_percentage_{user_id}.jpg"
+        log_debug(f"Saving percentage comparison chart to {pct_chart_path}")
+        plt.savefig(pct_chart_path)
+        plt.close(fig_pct)
+        log_debug(f"Successfully saved percentage chart to {pct_chart_path}")
+    except Exception as e:
+        log_debug(f"Error creating percentage chart: {e}")
+        pct_chart_path = None
+
+    return [abs_chart_path, pct_chart_path]
