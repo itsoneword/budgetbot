@@ -2,6 +2,7 @@ import pandas as pd, numpy as np, matplotlib.pyplot as plt, seaborn as sns, matp
 from matplotlib.gridspec import GridSpec
 from dateutil.relativedelta import relativedelta
 from datetime import datetime, timedelta
+from typing import Optional
 import time
 import warnings
 from src.logger import log_debug, timed_function, log_function_call, LogConfig
@@ -281,8 +282,8 @@ def monthly_line_chart(user_id):
 def generate_usage_summary_chart(
     days: int = 30,
     top_commands: int = 20,
-    output_path: str | None = None,
-    label: str | None = None,
+    output_path: Optional[str] = None,
+    label: Optional[str] = None,
 ) -> str:
     log_path = os.path.join(LogConfig.LOG_DIR, LogConfig.USER_LOG_FILE)
     if label is None:
