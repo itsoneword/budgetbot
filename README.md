@@ -2,6 +2,10 @@
 
 BudgetBot is a powerful and user-friendly Telegram bot designed to help you manage your personal finances. With BudgetBot, you can easily track your daily expenses, incomes, and gain insights into your spending habits.
 
+## update 0.2.3 from 18.10.25
+Fixed Upload command
+added logging and analytic
+
 ## fix patch 0.2.2 from 23.4.25
 Minor changes in Ru version (saving message was changed)
 Behevior for Single car transaction was changed (no more Permanent Menu return)

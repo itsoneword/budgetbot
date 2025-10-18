@@ -27,7 +27,13 @@ from pandas_ops import (
     show_last_month_sum_per_cat,
     show_last_month_top_subcategories
 )
-from charts import monthly_line_chart, monthly_pivot_chart, make_yearly_pie_chart,monthly_ext_pivot_chart
+from charts import (
+    monthly_line_chart,
+    monthly_pivot_chart,
+    make_yearly_pie_chart,
+    monthly_ext_pivot_chart,
+    generate_usage_summary_chart,
+)
 from src.show_transactions import process_transaction_input, process_income_input
 from keyboards import (
     create_language_keyboard,
@@ -678,6 +684,45 @@ async def about(update: Update, context):
     )
     return TRANSACTION
 
+
+async def show_log_chart(update: Update, context: CallbackContext) -> int:
+    user_id = str(update.effective_user.id)
+    if user_id != "46304833":
+        await update.message.reply_text("This command is restricted to the bot owner.")
+        return TRANSACTION
+
+    log_user_interaction(
+        update.effective_user.id,
+        update.effective_user.first_name,
+        update.effective_user.username,
+    )
+
+    try:
+        chart_paths = [
+            generate_usage_summary_chart(),
+            generate_usage_summary_chart(days=365, label="1y"),
+        ]
+    except FileNotFoundError:
+        await update.message.reply_text("Log file not found.")
+        return TRANSACTION
+    except ValueError as exc:
+        await update.message.reply_text(str(exc))
+        return TRANSACTION
+    except Exception as exc:
+        await update.message.reply_text(f"Failed to build usage chart: {exc}")
+        return TRANSACTION
+
+    captions = ["Usage summary (last 30 days)", "Usage summary (last year)"]
+    for path, caption in zip(chart_paths, captions):
+        with open(path, "rb") as chart_file:
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=chart_file,
+                caption=caption,
+            )
+
+    return TRANSACTION
+
 async def show_log(update: Update, context: CallbackContext):
     texts = check_language(update, context)
     #command = update.effective_message.text.split()[0][1:]
@@ -726,7 +771,8 @@ async def start_upload(update: Update, context: CallbackContext) -> int:
         update.effective_user.first_name,
         update.effective_user.username,
     )
-    await update.message.reply_text(UPLOAD_FILE_TEXT)
+    texts = check_language(update, context)
+    await update.message.reply_text(texts.UPLOAD_FILE_TEXT)
     return WAITING_FOR_DOCUMENT
 
 
@@ -1388,6 +1434,7 @@ def main():
     application.add_handler(CommandHandler("monthly_ext_stat", send_ext_chart))
     application.add_handler(CommandHandler("yearly_stat", send_yearly_piechart))
     application.add_handler(CommandHandler("show_log", show_log))
+    application.add_handler(CommandHandler("show_log_chart", show_log_chart))
     application.add_handler(CommandHandler("update_files", update_file_structure))
     application.add_handler(CommandHandler("debug", toggle_debug))
 

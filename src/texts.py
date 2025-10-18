@@ -38,6 +38,7 @@ Current daily average is <b>{current_daily_average}{currency}</b> and higher tha
 Please, <b>avoid spending for the next {days_zero_spending} days</b>✋🏼 or decrease daily limit to <b>{new_daily_limit}</b> till the end of the month.🙄"
 """
 TRANSACTION_ERROR_TEXT = "You need to enter an amount. e.g. 'category amount' or 'date category amount'. Please try again."
+UNKNOWN_TEXT_FORMAT = "I couldn't recognize that format. Please use /help to review supported commands."
 
 INCOME_HELP = """This module allows to add income and track it. Expected formats:\n
 <code>date category amount</code>
@@ -81,7 +82,7 @@ NO_RECORDS_TO_DELETE = "No records to delete."
 RECORD_DELETED = "Deleted record number {}."
 NOT_ENOUGH_RECORDS = "There are less than {} records."
 HELP_TEXT = """
-About☝🏼 New Major release 0.2.2 from 27.04.25. 👌🏼 
+About☝🏼 New Major release 0.2.3 from 18.10.25. 👌🏼 
 New features were added. 🎉
 Interactive menu system for easier navigation. Try /menu to access it!
 
@@ -130,7 +131,7 @@ TRANSACTION_CANCELED = """Transaction has been canceled."""
 NOTIFY_OTHER_CAT = """Your transactions for '<code>{}</code>'  were saved under category 'other', because we could not find any match in the dictionary.
 If you know which Category to use, please, add it into the dictionary via /change_cat , or add another transaction in <code>category subcategory amount</code> format, and it will be automatically updated in the database."""
 LAST_RECORDS = "List of transactions with index number.\nThe sum is: <b>{}</b> \n\n{} \n\nTo delete type /delete followed by the transaction index."
-ABOUT = 'Hello, {}!\nYour curent Currency is <b>{}</b> Language is <b>{}</b>, and \nMonthly limit is <b>{}</b> \nCurrent version is 0.2.2 from 27.4.25'
+ABOUT = 'Hello, {}!\nYour curent Currency is <b>{}</b> Language is <b>{}</b>, and \nMonthly limit is <b>{}</b> \nCurrent version is 0.2.3 from 18.10.25'
 
 # Menu text strings
 MAIN_MENU_TEXT = "📱 <b>Main Menu</b>\nWhat would you like to do?"

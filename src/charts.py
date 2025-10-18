@@ -1,10 +1,10 @@
 import pandas as pd, numpy as np, matplotlib.pyplot as plt, seaborn as sns, matplotlib.dates as mdates, calendar
 from matplotlib.gridspec import GridSpec
 from dateutil.relativedelta import relativedelta
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import warnings
-from src.logger import log_debug, timed_function, log_function_call
+from src.logger import log_debug, timed_function, log_function_call, LogConfig
 from pandas_ops import get_user_currency, get_exchange_rate, recalculate_currency
 import re
 import os
@@ -276,6 +276,151 @@ def monthly_line_chart(user_id):
     # Show plot
     plt.savefig(f"user_data/{user_id}/monthly_chart_{user_id}.jpg")
     plt.close()
+
+
+def generate_usage_summary_chart(
+    days: int = 30,
+    top_commands: int = 20,
+    output_path: str | None = None,
+    label: str | None = None,
+) -> str:
+    log_path = os.path.join(LogConfig.LOG_DIR, LogConfig.USER_LOG_FILE)
+    if label is None:
+        label = "1y" if days >= 365 else f"{days}d"
+    if output_path is None:
+        output_path = os.path.join(LogConfig.LOG_DIR, f"admin_usage_summary_{label}.jpg")
+
+    if not os.path.exists(log_path):
+        raise FileNotFoundError("Log file not found.")
+
+    records = []
+    with open(log_path, "r") as log_file:
+        for line in log_file:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                timestamp_str, remainder = line.split(" - ", 1)
+                timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S,%f")
+            except ValueError:
+                continue
+
+            if "UserID:" not in remainder:
+                continue
+            details = remainder.split("UserID:", 1)[1].strip()
+            parts = [part.strip() for part in details.split(",")]
+            if len(parts) < 4:
+                continue
+
+            user_id, name, username, handler = parts[:4]
+            records.append(
+                {
+                    "timestamp": timestamp,
+                    "user_id": user_id,
+                    "name": name,
+                    "username": username,
+                    "handler": handler,
+                }
+            )
+
+    if not records:
+        raise ValueError("No log entries found.")
+
+    df = pd.DataFrame(records)
+    cutoff = datetime.now() - timedelta(days=days)
+    df_recent = df[df["timestamp"] >= cutoff].copy()
+    if df_recent.empty:
+        raise ValueError("No log entries found for the selected period.")
+
+    df_recent["date"] = df_recent["timestamp"].dt.date
+
+    # Prepare user activity heatmap data
+    user_counts = df_recent.groupby(["user_id", "name", "username", "date"]).size().reset_index(name="count")
+    user_totals = (
+        user_counts.groupby(["user_id", "name", "username"])["count"].sum().sort_values(ascending=False).head(10)
+    )
+
+    top_user_keys = list(user_totals.index)
+    if top_user_keys:
+        user_counts["user_key"] = list(zip(user_counts["user_id"], user_counts["name"], user_counts["username"]))
+        user_counts = user_counts[user_counts["user_key"].isin(top_user_keys)]
+
+        def format_user_label(key):
+            _, name, username = key
+            display_username = username if username else "(no username)"
+            display_name = name if name else "Unknown"
+            return f"{display_username} - {display_name}"
+
+        label_order = [format_user_label(key) for key in top_user_keys]
+        user_counts["label"] = user_counts["user_key"].apply(format_user_label)
+        activity_matrix = (
+            user_counts
+            .pivot(index="label", columns="date", values="count")
+            .reindex(label_order)
+            .fillna(0)
+        )
+    else:
+        activity_matrix = pd.DataFrame()
+
+    # Prepare command distribution data
+    command_counts_full = df_recent.groupby("handler").size().sort_values(ascending=False)
+    command_limit = min(top_commands, 20)
+    command_counts = command_counts_full.head(command_limit)
+
+    num_users = len(activity_matrix)
+    num_commands = len(command_counts)
+
+    heatmap_height = max(3.5, 2.5 + num_users * 0.4)
+    commands_height = max(3.0, 2.0 + num_commands * 0.3)
+    fig_height = heatmap_height + commands_height
+
+    fig, (ax1, ax2) = plt.subplots(
+        2,
+        1,
+        figsize=(16, fig_height),
+        gridspec_kw={"height_ratios": [heatmap_height, commands_height]},
+    )
+
+    if not activity_matrix.empty:
+        heatmap_data = np.log1p(activity_matrix)
+        sns.heatmap(
+            heatmap_data,
+            ax=ax1,
+            cmap="Blues",
+            linewidths=0.3,
+            linecolor="white",
+            cbar_kws={"label": "log(1 + daily interactions)"},
+        )
+        ax1.set_xlabel("")
+        ax1.set_ylabel("User")
+        ax1.set_title(f"User activity (last {days} days)")
+        ax1.set_xticklabels(ax1.get_xticklabels(), rotation=45, ha="right")
+        ax1.set_yticklabels(ax1.get_yticklabels(), rotation=0)
+    else:
+        ax1.text(0.5, 0.5, "No user activity", ha="center", va="center")
+        ax1.axis("off")
+
+    if not command_counts.empty:
+        ax2.barh(command_counts.index[::-1], command_counts.values[::-1], color="teal")
+        ax2.set_xscale("log")
+        ax2.set_xlabel("Command calls (log scale)")
+        ax2.set_ylabel("Command")
+        ax2.set_title("Top commands")
+        ax2.grid(axis="x", linestyle="--", alpha=0.4)
+        for idx, (label, value) in enumerate(zip(command_counts.index[::-1], command_counts.values[::-1])):
+            ax2.text(value * 1.05, idx, str(value), va="center")
+    else:
+        ax2.text(0.5, 0.5, "No command usage", ha="center", va="center")
+        ax2.axis("off")
+
+    fig.suptitle(f"Bot usage summary ({label})", fontsize=14)
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    fig.savefig(output_path, dpi=200)
+    plt.close(fig)
+
+    return output_path
 
 def monthly_line_chart_old(user_id):
     records_file = f"user_data/{user_id}/spendings_{user_id}.csv"
