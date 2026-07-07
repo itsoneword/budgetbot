@@ -1,0 +1,12 @@
+{
+    "description": "Fallback exchange rates (USD base) used when API and DB are unavailable",
+    "last_manual_update": "2025-01-26",
+    "rates": {
+        "USDEUR": 0.85,
+        "USDRUB": 75.0,
+        "USDAMD": 385.0,
+        "USDUSD": 1.0,
+        "USDTHB": 31.0
+    },
+    "supported_currencies": ["EUR", "RUB", "AMD", "USD", "THB"]
+}

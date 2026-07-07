@@ -1,12 +1,39 @@
-version: '3'
+version: '3.8'
 
 services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: budgetbot-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: budgetbot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-budgetbot_dev_pass}
+      POSTGRES_DB: budgetbot
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/database/migrations:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"  # Expose for local development; remove in production
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U budgetbot -d budgetbot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   budgetbot:
     build: .
     container_name: budgetbot-container
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     env_file:
       - .env
+    environment:
+      DATABASE_URL: postgresql://budgetbot:${POSTGRES_PASSWORD:-budgetbot_dev_pass}@postgres:5432/budgetbot
     volumes:
-      # Persist user data
-      - ./user_data:/app/user_data 
+      # Persist user data (read-only during migration, then can remove)
+      - ./user_data:/app/user_data
+
+volumes:
+  postgres_data:

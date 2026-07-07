@@ -1,7 +1,22 @@
+# Core bot dependencies
+python-telegram-bot==22
+python-dateutil==2.9.0
+
+# Data processing & visualization
 pandas==2.2.3
 numpy==2.0.2
 matplotlib==3.9.4
 seaborn==0.13.2
-python-telegram-bot==22
+
+# External APIs
 yfinance==0.2.55
-python-dateutil==2.9.0
+
+# Database (Phase 1 - PostgreSQL migration)
+asyncpg==0.29.0
+
+# Configuration & utilities (Phase 2+)
+pydantic-settings==2.4.0
+aiofiles==23.2.1
+
+# Logging (Phase 2+)
+structlog==24.1.0
