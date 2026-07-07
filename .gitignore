@@ -20,5 +20,6 @@ todos.txt
 deploy.sh
 docker-compose.yml
 .opencode/
-.claude/
+.claude/settings.local.json
+.claude/hooks-state/
 .serena/

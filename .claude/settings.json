@@ -1,0 +1,41 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/tasks.py\" hook-session-start",
+            "timeout": 5,
+            "statusMessage": "Loading task board"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/tasks.py\" hook-post-tool-use",
+            "timeout": 10,
+            "statusMessage": "Validating task board"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/tasks.py\" hook-stop",
+            "timeout": 10,
+            "statusMessage": "Checking task log"
+          }
+        ]
+      }
+    ]
+  }
+}
