@@ -1,18 +1,22 @@
 from typing import Any, Dict, Optional
+from decimal import Decimal
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, ConversationHandler
 from telegram.constants import ParseMode
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 import re
 
-from file_ops import (
-    read_dictionary, add_category, save_user_transaction,
-    get_frequently_used_categories, get_frequently_used_subcategories,
-    get_recent_amounts
-)
-from language_util import check_language
+# Database integration
+from shared.di import get_repos
+
+# Domain layer for limit calculation
+from domain.session_loader import load_user_session
+from domain.filters import calculate_limit_usage
+
+# file_ops imports removed - using PostgreSQL repositories instead
+from language_util import check_language, get_cached_currency, ensure_user_config_cached
 from keyboards import (
     create_main_menu_keyboard, create_category_keyboard, 
     create_found_category_keyboard,
@@ -20,17 +24,227 @@ from keyboards import (
     create_amounts_keyboard, create_confirm_transaction_keyboard,
     create_tx_categories_keyboard
 )
-from src.show_transactions import (
-    process_transaction_input
-)
-from pandas_ops import get_user_currency, calculate_limit
+# Removed: process_transaction_input moved here as async version using PostgreSQL
+# pandas_ops imports removed - using language_util and domain.filters instead
 # Import states from central states file
 from src.states import *
+
+
+async def _save_transaction_to_db(context: CallbackContext, user_id: int, transaction_data: dict) -> int:
+    """
+    Helper function to save a transaction to PostgreSQL.
+    Returns the transaction ID.
+    """
+    repos = get_repos(context)
+    config = await repos.users.get_config(user_id)
+    
+    tx_id = await repos.transactions.save_spending(
+        user_id=user_id,
+        category=transaction_data.get("category", ""),
+        subcategory=transaction_data.get("subcategory", ""),
+        amount=float(transaction_data.get("amount", 0)),
+        currency=transaction_data.get("currency", config.currency if config else "EUR"),
+        timestamp=datetime.now(timezone.utc),
+    )
+    
+    # Also update category dictionary if needed
+    category = transaction_data.get("category", "")
+    subcategory = transaction_data.get("subcategory", "")
+    if category and subcategory:
+        language = config.language if config else 'en'
+        await repos.categories.add_category(user_id, category, subcategory, language)
+    
+    return tx_id
+
+
+def process_income_input(user_id, parts: list) -> tuple:
+    """
+    Process income input text and extract timestamp and category.
+    Pure parsing function - no file I/O.
+    
+    Args:
+        user_id: User ID (not used, kept for API compatibility)
+        parts: List of input text parts (split by space)
+    
+    Returns:
+        tuple: (timestamp, category)
+    """
+    # user_id not used in this function, but kept for API compatibility
+    from dateutil.parser import parse, ParserError
+    
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    category = "salary"  # Default category for income
+    
+    if len(parts) == 3:
+        # Format: date category amount OR category something amount
+        try:
+            timestamp = parse(parts[0], dayfirst=True)
+            category = parts[1]
+        except (ValueError, ParserError):
+            category = parts[0]
+    elif len(parts) == 2:
+        # Format: date amount OR category amount
+        try:
+            timestamp = parse(parts[0], dayfirst=True)
+        except (ValueError, ParserError):
+            category = parts[0]
+    
+    return timestamp, category
+
+
+def _parse_date_to_utc(mdate: str) -> str:
+    """
+    Parse a date string in 'dd.mm' format and convert to UTC ISO format.
+    Assumes the current year.
+    """
+    current_year = datetime.now().year
+    date_obj = datetime.strptime(f"{current_year}-{mdate}", "%Y-%d.%m")
+    return date_obj.replace(tzinfo=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+
+
+async def process_transaction_input_async(
+    user_id,  # int or str - will be converted
+    parts: list,
+    repos,
+    language: str = 'en'
+) -> tuple:
+    """
+    Process transaction input text and extract structured data.
+    Uses PostgreSQL repositories for category lookup.
+    
+    Args:
+        user_id: User ID (int or str - will be converted to int)
+        parts: List of input text parts (split by space)
+        repos: Repository container with categories access
+        language: User's language for category lookup
+    
+    Returns:
+        tuple: (timestamp, category, subcategory, unknown_cat)
+    """
+    # Ensure user_id is int for PostgreSQL
+    user_id = int(user_id)
+    
+    subcategory = " ".join(parts[:-1])  # Everything except the amount
+    category = None
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    
+    if len(parts) > 2:
+        # Check if first part looks like a date (starts and ends with digit)
+        if parts[0][0].isdigit() and parts[0][-1].isdigit():
+            try:
+                timestamp = _parse_date_to_utc(parts[0])
+            except Exception:
+                pass
+            
+            if len(parts) > 3:
+                # Format: date category subcategory amount
+                category = parts[1]
+                subcategory = parts[2]
+            else:
+                # Format: date subcategory amount
+                subcategory = parts[1]
+                # Look up category from PostgreSQL
+                categories = await repos.categories.find_category_by_subcategory(
+                    user_id, subcategory, language
+                )
+                category = categories[0] if categories else None
+        else:
+            # Format: category subcategory amount
+            category = parts[0]
+            subcategory = parts[1]
+            # Add the category:subcategory mapping to PostgreSQL
+            await repos.categories.add_subcategory(user_id, category, subcategory, language)
+    else:
+        # Format: subcategory amount (short format)
+        category = None
+        subcategory = parts[0]
+    
+    # If category still not found, look it up from PostgreSQL
+    if category is None:
+        categories = await repos.categories.find_category_by_subcategory(
+            user_id, subcategory, language
+        )
+        category = categories[0] if categories else None
+    
+    # Default to "other" if no category found
+    if category is None:
+        category = "other"
+        unknown_cat = True
+    else:
+        unknown_cat = False
+    
+    return timestamp, category, subcategory, unknown_cat
+
+
+async def _check_and_show_limit_warning(update_or_query, context: CallbackContext, user_id: int, texts) -> None:
+    """
+    Check if spending limit is exceeded and show warning if necessary.
+    Uses domain.filters.calculate_limit_usage() with data from PostgreSQL.
+    
+    Args:
+        update_or_query: Either Update object (has message) or CallbackQuery (use message attribute)
+        context: CallbackContext to access repos and cached config
+        user_id: User ID to check limits for
+        texts: Texts module for localized messages
+    """
+    from domain.session_loader import load_user_session
+    from domain.filters import calculate_limit_usage
+    from decimal import Decimal
+    from language_util import get_cached_currency, get_cached_monthly_limit
+    
+    try:
+        repos = get_repos(context)
+        
+        # Get cached monthly limit, or fetch if not cached
+        monthly_limit = get_cached_monthly_limit(context)
+        if monthly_limit is None:
+            config = await repos.users.get_config(user_id)
+            monthly_limit = config.monthly_limit if config else Decimal('99999999.00')
+        
+        # Load current month transactions
+        session = await load_user_session(
+            user_id, repos,
+            load_transactions=True,
+            transactions_months=1,
+            transaction_type='spending'
+        )
+        
+        # Calculate limit usage
+        limit_info = calculate_limit_usage(
+            transactions=session.transactions,
+            monthly_limit=monthly_limit
+        )
+        
+        if limit_info['exceeded']:
+            currency = get_cached_currency(context)
+            
+            # Determine how to send message
+            if hasattr(update_or_query, 'message') and update_or_query.message:
+                reply_func = update_or_query.message.reply_text
+            elif hasattr(update_or_query, 'effective_message') and update_or_query.effective_message:
+                reply_func = update_or_query.effective_message.reply_text
+            else:
+                return  # Can't send message
+            
+            await reply_func(
+                texts.LIMIT_EXCEEDED.format(
+                    percent_difference=limit_info['percent_difference'],
+                    current_daily_average=limit_info['current_daily_average'],
+                    daily_limit=limit_info['daily_limit'],
+                    days_zero_spending=limit_info['days_zero_spending'],
+                    new_daily_limit=limit_info['new_daily_limit'],
+                    currency=currency,
+                ),
+                parse_mode=ParseMode.HTML
+            )
+    except Exception as e:
+        print(f"DEBUG: Exception calculating limit: {e}")
+
 
 async def save_transaction(update: Update, context):
     """Process a transaction from a user's text input"""
     print(f"DEBUG: Fn save_transaction")
-    user_id = str(update.effective_user.id)
+    user_id =update.effective_user.id
     texts = check_language(update, context)
     
     # Extract the text from the update
@@ -57,9 +271,11 @@ async def save_transaction(update: Update, context):
     # Single transaction processing
     parts = text.lower().split()
     
-    # Process the input to get structured data
-    timestamp, category, subcategory, unknown_cat = process_transaction_input(
-        user_id, parts
+    # Process the input to get structured data (async with PostgreSQL lookup)
+    repos = get_repos(context)
+    language = context.user_data.get('cached_language', 'en')
+    timestamp, category, subcategory, unknown_cat = await process_transaction_input_async(
+        user_id, parts, repos, language
     )
     
     # Extract the amount, assuming it's the last part
@@ -78,7 +294,7 @@ async def save_transaction(update: Update, context):
     transaction_data = {
         "id": user_id,
         "amount": amount,
-        "currency": get_user_currency(user_id),
+        "currency": get_cached_currency(context),
         "subcategory": subcategory,
         "timestamp": timestamp,
     }
@@ -92,7 +308,7 @@ async def save_transaction(update: Update, context):
     if not unknown_cat and not is_short_format:
         print(f"DEBUG: Condition category known and not short format")
         transaction_data["category"] = category
-        save_user_transaction(user_id, transaction_data)
+        await _save_transaction_to_db(context, int(user_id), transaction_data)
         
         # For single transactions that successfully save, show menu at the end
         await update.message.reply_text(texts.TRANSACTION_SAVED_TEXT)
@@ -111,8 +327,10 @@ async def save_transaction(update: Update, context):
     # Handle short format inputs with different behavior based on category matches
     if is_short_format:
         print(f"DEBUG: Condition short format input")
-        # Get all categories where this subcategory exists
-        cat_dict = read_dictionary(user_id)
+        # Get all categories where this subcategory exists from PostgreSQL
+        repos = get_repos(context)
+        language = context.user_data.get('language', 'en')
+        cat_dict = await repos.categories.get_dictionary(int(user_id), language)
         matching_categories = []
         
         for cat, subcats in cat_dict.items():
@@ -189,7 +407,7 @@ async def save_transaction(update: Update, context):
 async def process_next_transaction(update: Update, context: CallbackContext) -> int:
     """Process the next transaction in a multi-transaction sequence or show main menu"""
     print(f"DEBUG: Fn process_next_transaction")
-    user_id = str(update.effective_user.id)
+    user_id =update.effective_user.id
     texts = check_language(update, context)
     
     # Get stored transactions and current index
@@ -246,9 +464,11 @@ async def process_next_transaction(update: Update, context: CallbackContext) -> 
         print(f"DEBUG: Return process_next_transaction (skipping invalid transaction)")
         return await process_next_transaction(update, context)
     
-    # Process the current transaction
-    timestamp, category, subcategory, unknown_cat = process_transaction_input(
-        user_id, parts
+    # Process the current transaction (async with PostgreSQL lookup)
+    repos = get_repos(context)
+    language = context.user_data.get('cached_language', 'en')
+    timestamp, category, subcategory, unknown_cat = await process_transaction_input_async(
+        user_id, parts, repos, language
     )
     
     # Check if this is a short format input (only subcategory and amount)
@@ -257,7 +477,7 @@ async def process_next_transaction(update: Update, context: CallbackContext) -> 
     transaction_data = {
         "id": user_id,
         "amount": amount,
-        "currency": get_user_currency(user_id),
+        "currency": get_cached_currency(context),
         "subcategory": subcategory,
         "timestamp": timestamp,
     }
@@ -274,7 +494,7 @@ async def process_next_transaction(update: Update, context: CallbackContext) -> 
     if not unknown_cat and not is_short_format:
         print(f"DEBUG: Condition category known and not short format in multi-transaction")
         transaction_data["category"] = category
-        save_user_transaction(user_id, transaction_data)
+        await _save_transaction_to_db(context, int(user_id), transaction_data)
         
         # Increment the index for the next transaction
         context.user_data["current_transaction_index"] = current_index + 1
@@ -293,8 +513,10 @@ async def process_next_transaction(update: Update, context: CallbackContext) -> 
     # Handle short format inputs with different behavior based on category matches
     if is_short_format:
         print(f"DEBUG: Condition short format input in multi-transaction")
-        # Get all categories where this subcategory exists
-        cat_dict = read_dictionary(user_id)
+        # Get all categories where this subcategory exists from PostgreSQL
+        repos = get_repos(context)
+        language = context.user_data.get('language', 'en')
+        cat_dict = await repos.categories.get_dictionary(int(user_id), language)
         matching_categories = []
         
         for cat, subcats in cat_dict.items():
@@ -405,7 +627,7 @@ async def process_next_transaction(update: Update, context: CallbackContext) -> 
 async def create_new_category_transaction(update: Update, context: CallbackContext) -> int:
     """Handle creating a new category during transaction input flow"""
     print(f"DEBUG: Fn create_new_category_transaction")
-    user_id = str(update.effective_user.id)
+    user_id =update.effective_user.id
     texts = check_language(update, context)
     
     # Get the new category name from the user's message
@@ -419,14 +641,11 @@ async def create_new_category_transaction(update: Update, context: CallbackConte
         print(f"DEBUG: Return TRANSACTION (missing transaction data)")
         return TRANSACTION
     
-    # Add the new category and subcategory to the dictionary
-    add_category(user_id, new_category, subcategory)
-    
     # Update the transaction data with the new category
     transaction_data["category"] = new_category
     
     # Save the transaction
-    save_user_transaction(user_id, transaction_data)
+    await _save_transaction_to_db(context, int(user_id), transaction_data)
     
     # Inform the user
     await update.message.reply_text(
@@ -453,38 +672,14 @@ async def create_new_category_transaction(update: Update, context: CallbackConte
     )
     
     # Check if we need to show limit warnings
-    currency = get_user_currency(user_id)
-    try:
-        (
-            current_daily_average,
-            percent_difference,
-            daily_limit,
-            days_zero_spending,
-            new_daily_limit,
-        ) = calculate_limit(user_id)
-        
-        if current_daily_average > daily_limit:
-            print(f"DEBUG: Condition limit exceeded")
-            await update.message.reply_text(
-                texts.LIMIT_EXCEEDED.format(
-                    percent_difference=percent_difference,
-                    current_daily_average=current_daily_average,
-                    daily_limit=daily_limit,
-                    days_zero_spending=days_zero_spending,
-                    new_daily_limit=new_daily_limit,
-                    currency=currency,
-                ),
-                parse_mode=ParseMode.HTML
-            )
-    except Exception as e:
-        print(f"DEBUG: Exception calculating limit: {e}")
+    await _check_and_show_limit_warning(update, context, int(user_id), texts)
     
     print(f"DEBUG: Return TRANSACTION (single transaction completed)")
     return TRANSACTION
 
 async def select_category_for_transaction(update: Update, context: CallbackContext) -> int:
     """Handle category selection for a transaction"""
-    user_id = str(update.effective_user.id)
+    user_id =update.effective_user.id
     texts = check_language(update, context)
     query = update.callback_query
     await query.answer()
@@ -548,7 +743,7 @@ async def select_category_for_transaction(update: Update, context: CallbackConte
         transaction_data["category"] = category
         
         # Save the transaction with the selected category
-        save_user_transaction(user_id, transaction_data)
+        await _save_transaction_to_db(context, int(user_id), transaction_data)
         
         # Inform the user with an edit first
         await query.edit_message_text(
@@ -575,31 +770,7 @@ async def select_category_for_transaction(update: Update, context: CallbackConte
         # )
         
         # Check if we need to show limit warnings
-        currency = get_user_currency(user_id)
-        try:
-            (
-                current_daily_average,
-                percent_difference,
-                daily_limit,
-                days_zero_spending,
-                new_daily_limit,
-            ) = calculate_limit(user_id)
-            
-            if current_daily_average > daily_limit:
-                print(f"DEBUG: Condition limit exceeded")
-                await query.message.reply_text(
-                    texts.LIMIT_EXCEEDED.format(
-                        percent_difference=percent_difference,
-                        current_daily_average=current_daily_average,
-                        daily_limit=daily_limit,
-                        days_zero_spending=days_zero_spending,
-                        new_daily_limit=new_daily_limit,
-                        currency=currency,
-                    ),
-                    parse_mode=ParseMode.HTML
-                )
-        except Exception as e:
-            print(f"DEBUG: Exception calculating limit: {e}")
+        await _check_and_show_limit_warning(query, context, int(user_id), texts)
         
         print(f"DEBUG: Return TRANSACTION (single transaction completed)")
         return TRANSACTION
@@ -620,11 +791,8 @@ async def select_category_for_transaction(update: Update, context: CallbackConte
         # Update the transaction data with the selected category
         transaction_data["category"] = category
         
-        # Save the subcategory to the category in the dictionary
-        add_category(user_id, category, subcategory)
-        
         # Save the transaction with the selected category
-        save_user_transaction(user_id, transaction_data)
+        await _save_transaction_to_db(context, int(user_id), transaction_data)
         
         # Inform the user with an edit first
         await query.edit_message_text(
@@ -651,31 +819,7 @@ async def select_category_for_transaction(update: Update, context: CallbackConte
         )
         
         # Check if we need to show limit warnings
-        currency = get_user_currency(user_id)
-        try:
-            (
-                current_daily_average,
-                percent_difference,
-                daily_limit,
-                days_zero_spending,
-                new_daily_limit,
-            ) = calculate_limit(user_id)
-            
-            if current_daily_average > daily_limit:
-                print(f"DEBUG: Condition limit exceeded")
-                await query.message.reply_text(
-                    texts.LIMIT_EXCEEDED.format(
-                        percent_difference=percent_difference,
-                        current_daily_average=current_daily_average,
-                        daily_limit=daily_limit,
-                        days_zero_spending=days_zero_spending,
-                        new_daily_limit=new_daily_limit,
-                        currency=currency,
-                    ),
-                    parse_mode=ParseMode.HTML
-                )
-        except Exception as e:
-            print(f"DEBUG: Exception calculating limit: {e}")
+        await _check_and_show_limit_warning(query, context, int(user_id), texts)
         
         print(f"DEBUG: Return TRANSACTION (single transaction completed)")
         return TRANSACTION
@@ -694,17 +838,20 @@ async def select_category_for_transaction(update: Update, context: CallbackConte
 async def handle_transaction_category(update: Update, context: CallbackContext):
     """Handle category selection for transaction entry"""
     print(f"DEBUG: Fn handle_transaction_category")
-    user_id = str(update.effective_user.id)
+    user_id = update.effective_user.id
     texts = check_language(update, context)
     query = update.callback_query
     await query.answer()
     action = query.data
     
     # Handle page navigation
+    repos = get_repos(context)
+    language = context.user_data.get('language', 'en')
+
     if action == "txpage_prev":
         print(f"DEBUG: Condition txpage_prev")
         context.user_data["tx_page"] -= 1
-        categories = get_frequently_used_categories(user_id)
+        categories = await repos.categories.get_all_categories(user_id, language)
         reply_markup = create_tx_categories_keyboard(categories, texts, context.user_data["tx_page"])
         await query.edit_message_text(
             texts.SELECT_TRANSACTION_CATEGORY,
@@ -712,10 +859,10 @@ async def handle_transaction_category(update: Update, context: CallbackContext):
             parse_mode=ParseMode.HTML
         )
         return SELECT_TRANSACTION_CATEGORY
-        
+
     elif action == "txpage_next":
         context.user_data["tx_page"] += 1
-        categories = get_frequently_used_categories(user_id)
+        categories = await repos.categories.get_all_categories(user_id, language)
         reply_markup = create_tx_categories_keyboard(categories, texts, context.user_data["tx_page"])
         await query.edit_message_text(
             texts.SELECT_TRANSACTION_CATEGORY,
@@ -746,15 +893,9 @@ async def handle_transaction_category(update: Update, context: CallbackContext):
         # Store selected category in context
         context.user_data["tx_category"] = category
         context.user_data["tx_subpage"] = 0
-        
-        # Get frequently used subcategories for this category
-        subcategories = get_frequently_used_subcategories(user_id, category)
-        
-        # If no subcategories found, check dictionary
-        if not subcategories:
-            cat_dict = read_dictionary(user_id)
-            if category in cat_dict and cat_dict[category]:
-                subcategories = cat_dict[category]
+
+        # Get subcategories for this category from PostgreSQL
+        subcategories = await repos.categories.get_subcategories(user_id, category, language)
         
         # Store subcategories in context
         context.user_data["tx_subcategories"] = subcategories
@@ -782,8 +923,10 @@ async def handle_transaction_category(update: Update, context: CallbackContext):
 
 async def handle_transaction_subcategory(update: Update, context: CallbackContext):
     """Handle subcategory selection or manual entry for transaction"""
-    user_id = str(update.effective_user.id)
+    user_id = update.effective_user.id
     texts = check_language(update, context)
+    repos = get_repos(context)
+    language = context.user_data.get('cached_language', 'en')
     
     # Check if this is a callback query (inline button click)
     if update.callback_query:
@@ -819,7 +962,7 @@ async def handle_transaction_subcategory(update: Update, context: CallbackContex
         # Handle back to categories
         elif action == "back_to_categories":
             context.user_data["tx_page"] = 0
-            categories = get_frequently_used_categories(user_id)
+            categories = await repos.categories.get_all_categories(user_id, language)
             reply_markup = create_tx_categories_keyboard(categories, texts, context.user_data["tx_page"])
             await query.edit_message_text(
                 texts.SELECT_TRANSACTION_CATEGORY,
@@ -832,13 +975,14 @@ async def handle_transaction_subcategory(update: Update, context: CallbackContex
         elif action.startswith("txsubcat_"):
             # Extract subcategory name from callback data
             subcategory = action[9:]  # Remove "txsubcat_" prefix
-            
+            category = context.user_data.get("tx_category", "")
+
             # Store selected subcategory in context
             context.user_data["tx_subcategory"] = subcategory
-            
-            # Get recent amounts for this subcategory
-            amounts = get_recent_amounts(user_id, subcategory)
-            
+
+            # Get recent amounts for this category/subcategory from PostgreSQL
+            amounts = await repos.transactions.get_recent_amounts(user_id, category, subcategory, limit=5)
+
             if amounts:
                 # Show recent amounts keyboard
                 reply_markup = create_amounts_keyboard(amounts, texts)
@@ -893,7 +1037,7 @@ async def handle_transaction_subcategory(update: Update, context: CallbackContex
             
             # Move to confirmation step
             category = context.user_data.get("tx_category", "")
-            currency = get_user_currency(user_id)
+            currency = get_cached_currency(context)
             current_date = datetime.now().strftime("%Y-%m-%d")
             
             reply_markup = create_confirm_transaction_keyboard(texts)
@@ -925,9 +1069,9 @@ async def handle_transaction_subcategory(update: Update, context: CallbackContex
 
 async def handle_transaction_amount(update: Update, context: CallbackContext):
     """Handle amount entry or selection for transaction"""
-    user_id = str(update.effective_user.id)
+    user_id =update.effective_user.id
     texts = check_language(update, context)
-    
+    repos = get_repos(context)
     # Check if this is a callback query (amount selected from keyboard)
     if update.callback_query:
         query = update.callback_query
@@ -956,7 +1100,7 @@ async def handle_transaction_amount(update: Update, context: CallbackContext):
             # Move to confirmation step
             category = context.user_data.get("tx_category", "")
             subcategory = context.user_data.get("tx_subcategory", "")
-            currency = get_user_currency(user_id)
+            currency = get_cached_currency(context)
             current_date = datetime.now().strftime("%Y-%m-%d")
             
             reply_markup = create_confirm_transaction_keyboard(texts)
@@ -1001,7 +1145,7 @@ async def handle_transaction_amount(update: Update, context: CallbackContext):
             # Move to confirmation step
             category = context.user_data.get("tx_category", "")
             subcategory = context.user_data.get("tx_subcategory", "")
-            currency = get_user_currency(user_id)
+            currency = get_cached_currency(context)
             current_date = datetime.now().strftime("%Y-%m-%d")
             
             reply_markup = create_confirm_transaction_keyboard(texts)
@@ -1035,7 +1179,7 @@ async def handle_transaction_amount(update: Update, context: CallbackContext):
 async def handle_transaction_confirmation(update: Update, context: CallbackContext):
     """Handle transaction confirmation"""
     query = update.callback_query
-    user_id = str(update.effective_user.id)
+    user_id = update.effective_user.id  # Use int, not str
     texts = check_language(update, context)
     action = query.data
     
@@ -1044,26 +1188,22 @@ async def handle_transaction_confirmation(update: Update, context: CallbackConte
         category = context.user_data.get("tx_category", "")
         subcategory = context.user_data.get("tx_subcategory", "")
         amount = context.user_data.get("tx_amount", 0)
-        currency = get_user_currency(user_id)
-        timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
         
-        # Create transaction data
+        # Get user config for currency
+        repos = get_repos(context)
+        config = await repos.users.get_config(user_id)
+        currency = config.currency if config else "EUR"
+        
+        # Prepare transaction data
         transaction_data = {
-            "id": user_id,
-            "amount": amount,
-            "currency": currency,
             "category": category,
             "subcategory": subcategory,
-            "timestamp": timestamp,
+            "amount": amount,
+            "currency": currency,
         }
         
-        # Save the transaction
-        save_user_transaction(user_id, transaction_data)
-        
-        # Add subcategory to category dictionary if it's not there already
-        cat_dict = read_dictionary(user_id)
-        if category in cat_dict and subcategory not in cat_dict[category]:
-            add_category(user_id, category, subcategory)
+        # Save transaction to database using helper
+        await _save_transaction_to_db(context, user_id, transaction_data)
         
         # Inform user about successful save
         await query.edit_message_text(
@@ -1071,38 +1211,29 @@ async def handle_transaction_confirmation(update: Update, context: CallbackConte
             parse_mode=ParseMode.HTML
         )
         
-        # Show main menu
-        # reply_markup = create_main_menu_keyboard(texts)
-        # await query.message.reply_text(
-        #     texts.MAIN_MENU_TEXT,
-        #     reply_markup=reply_markup,
-        #     parse_mode=ParseMode.HTML
-        # )
-        
-        # Check if we need to show limit warnings
-        try:
-            (
-                current_daily_average,
-                percent_difference,
-                daily_limit,
-                days_zero_spending,
-                new_daily_limit,
-            ) = calculate_limit(user_id)
-            
-            if current_daily_average > daily_limit:
-                await query.message.reply_text(
-                    texts.LIMIT_EXCEEDED.format(
-                        percent_difference=percent_difference,
-                        current_daily_average=current_daily_average,
-                        daily_limit=daily_limit,
-                        days_zero_spending=days_zero_spending,
-                        new_daily_limit=new_daily_limit,
-                        currency=currency,
-                    ),
-                    parse_mode=ParseMode.HTML
+        # Check if we need to show limit warnings (using domain layer)
+        if config and config.monthly_limit:
+            try:
+                # Load fresh session to include the just-saved transaction
+                session = await load_user_session(user_id, repos, transactions_months=1)
+                limit_data = calculate_limit_usage(
+                    session.transactions, session.monthly_limit
                 )
-        except Exception as e:
-            print(f"Exception calculating limit: {e}")
+
+                if limit_data['exceeded']:
+                    await query.message.reply_text(
+                        texts.LIMIT_EXCEEDED.format(
+                            percent_difference=limit_data['percent_difference'],
+                            current_daily_average=limit_data['current_daily_average'],
+                            daily_limit=limit_data['daily_limit'],
+                            days_zero_spending=limit_data['days_zero_spending'],
+                            new_daily_limit=limit_data['new_daily_limit'],
+                            currency=currency,
+                        ),
+                        parse_mode=ParseMode.HTML
+                    )
+            except Exception as e:
+                print(f"Exception calculating limit: {e}")
         
         return TRANSACTION
     
@@ -1111,13 +1242,6 @@ async def handle_transaction_confirmation(update: Update, context: CallbackConte
             texts.TRANSACTION_CANCELED,
             parse_mode=ParseMode.HTML
         )
-        # Show main menu
-        # reply_markup = create_main_menu_keyboard(texts)
-        # await query.message.reply_text(
-        #     texts.MAIN_MENU_TEXT,
-        #     reply_markup=reply_markup,
-        #     parse_mode=ParseMode.HTML
-        # )
         return TRANSACTION
     
     # Handle unexpected callback data

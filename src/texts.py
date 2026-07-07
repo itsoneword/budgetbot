@@ -169,6 +169,13 @@ CATEGORY_ADDED = "Category '<code>{}</code>' has been added successfully."
 
 SELECT_RECORDS_COUNT = "Select the number of records to display:"
 LOADING_TRANSACTIONS = "Loading {count} last transactions..."
+LOADING_MONTHLY_SUMMARY = "Loading monthly summary..."
+LOADING_LAST_MONTH_SUMMARY = "Loading last month summary..."
+LOADING_EXTENDED_STATS = "Loading extended statistics..."
+LOADING_LAST_MONTH_EXTENDED_STATS = "Loading last month extended statistics..."
+LOADING_INCOME_STATS = "Loading income statistics..."
+GENERATING_MONTHLY_CHARTS = "Generating monthly charts..."
+GENERATING_YEARLY_CHARTS = "Generating yearly charts..."
 
 # Transaction entry texts
 SELECT_TRANSACTION_CATEGORY = """Please select a category where you would like to save your expense.

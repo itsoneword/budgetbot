@@ -1,6 +1,21 @@
 import os, logging, configparser, inspect, re, asyncio
 from datetime import datetime, timedelta
-from language_util import check_language
+from language_util import check_language, cache_user_language, get_cached_currency, ensure_user_config_cached
+
+# Database integration
+from shared.di import setup_container, cleanup_container, get_repos
+
+# Domain layer - batch fetch + filter
+from domain.session_loader import load_user_session
+from domain.filters import (
+    filter_by_type,
+    filter_current_month,
+    filter_by_period,
+    get_sum_per_category,
+    get_sum_per_subcategory,
+    get_records_summary,
+    calculate_limit_usage,
+)
 import sys
 from logging.handlers import TimedRotatingFileHandler
 
@@ -17,16 +32,7 @@ from src.logger import (
     save_debug_setting_to_config
 )
 
-from pandas_ops import (
-    show_sum_per_cat,
-    show_top_subcategories,
-    calculate_limit,
-    get_user_path,
-    get_exchange_rate,
-    get_user_currency,
-    show_last_month_sum_per_cat,
-    show_last_month_top_subcategories
-)
+# pandas_ops imports removed - all functions migrated to domain/filters.py and repos
 from charts import (
     monthly_line_chart,
     monthly_pivot_chart,
@@ -34,7 +40,40 @@ from charts import (
     monthly_ext_pivot_chart,
     generate_usage_summary_chart,
 )
-from src.show_transactions import process_transaction_input, process_income_input
+# process_income_input moved to save_transaction.py (pure parsing, no file I/O)
+from src.save_transaction import process_income_input
+
+# Extracted handlers from core.py for better organization
+from src.handlers import (
+    # Onboarding
+    start,
+    save_language,
+    save_currency,
+    save_limit,
+    skip_limit,
+    # Settings
+    handle_settings_language,
+    handle_settings_currency,
+    handle_settings_limit,
+    # Admin
+    help,
+    about,
+    archive_profile,
+    show_log_chart,
+    # Charts
+    send_chart,
+    send_ext_chart,
+    send_yearly_piechart,
+    # Records
+    show_records,
+    show_last_month_records,
+    start_income,
+    process_income,
+    # Menu
+    show_menu,
+    menu_call,
+    menu_callback,
+)
 from keyboards import (
     create_language_keyboard,
     create_skip_keyboard,
@@ -47,25 +86,28 @@ from keyboards import (
     create_main_menu_keyboard,
     create_show_transactions_keyboard,
     create_settings_keyboard_menu,
-    create_records_count_keyboard,
     create_tx_categories_keyboard,
     create_subcategories_keyboard,
     create_amounts_keyboard,
     create_confirm_transaction_keyboard,
 )
-from file_ops import *
 
-from change_data import (
-    show_categories, handle_category_selection, handle_category_option, 
-    handle_change_name, handle_add_new_category, handle_rename_confirmation, 
-    handle_delete_cat_confirmation, handle_tasks_action, handle_task_option,
-    handle_add_task, handle_edit_task, handle_task_edit_confirmation,
-    handle_task_delete_confirmation
+
+from src.handlers.categories import (
+    show_categories, handle_category_selection, handle_category_option,
+    handle_change_name, handle_add_new_category, handle_rename_confirmation,
+    handle_delete_cat_confirmation,
 )
 
-from change_transactions import (
-    show_recent_entries, handle_transaction_selection, handle_edit_option, handle_edit_date,
-    handle_edit_category, handle_edit_subcategory, handle_edit_amount, handle_delete_tx_confirmation
+from src.handlers.tasks import (
+    handle_tasks_action, handle_task_option, handle_add_task, handle_edit_task,
+    handle_task_edit_confirmation, handle_task_delete_confirmation,
+)
+
+from src.handlers.transactions import (
+    show_recent_entries, handle_transaction_selection, handle_edit_option,
+    handle_edit_date, handle_edit_category, handle_edit_subcategory,
+    handle_edit_amount, handle_delete_tx_confirmation,
 )
 
 from telegram import (
@@ -130,10 +172,11 @@ try:
     log_debug(f"Debug mode set to {debug_mode} from config file")
 except Exception as e:
     log_debug(f"Error reading debug configuration: {e}")
-    
+
+
 # Command to toggle debug mode
 async def toggle_debug(update: Update, context: CallbackContext):
-    user_id = str(update.effective_user.id)
+    user_id =update.effective_user.id
     
     # Only allow admin users to toggle debug mode
     # You can modify this check based on your needs
@@ -158,320 +201,52 @@ async def toggle_debug(update: Update, context: CallbackContext):
     log_debug(f"Debug mode toggled to {new_debug_mode}")
     return TRANSACTION
 
-async def start(update: Update, context: CallbackContext):
-    user_id = str(update.effective_user.id)
-    texts = check_language(update, context)
 
-    create_user_dir_and_copy_dict(user_id)
 
-    log_user_interaction(
-        user_id, update.effective_user.first_name, update.effective_user.username
-    )
-    update_user_list(
-        user_id, update.effective_user.first_name, update.effective_user.username
-    )
+
+
+
+
+
+async def show_detailed(update: Update, context, period: str = 'current_month'):
+    """Show detailed spending report for specified period (from PostgreSQL).
     
-    reply_markup = create_language_keyboard()
-
-    await update.message.reply_text(texts.SELECT_LANGUAGE, reply_markup=reply_markup)
-  
-    log_state_transition(LANGUAGE)
-    return LANGUAGE
-
-
-async def save_language(update: Update, context: CallbackContext):
-    log_function_call()
-    query = update.callback_query
-    user_language = query.data
+    Args:
+        period: 'current_month' or 'last_month'
+    """
     user_id = update.effective_user.id
-    log_user_interaction(
-        user_id, update.effective_user.first_name, update.effective_user.username
-    )
-    
-    # Save the chosen language into the config file
-    save_user_setting(user_id, "LANGUAGE", user_language)
-    texts = check_language(update, context)
-    
-    reply_markup = create_settings_currency_keyboard()
-    
-    await query.edit_message_text(texts.LANGUAGE_REPLY.format(user_language))
-    await update.effective_message.reply_text(
-        texts.CHOOSE_CURRENCY_TEXT, reply_markup=reply_markup
-    )
-    
-    log_state_transition(CURRENCY)
-    return CURRENCY
-
-
-async def save_currency(update: Update, context: CallbackContext):
-    log_function_call()
-    user_id = str(update.effective_user.id)
-    texts = check_language(update, context)
-    query = update.callback_query
-    log_user_interaction(
-        user_id, update.effective_user.first_name, update.effective_user.username
-    )
-    user_currency = query.data.split('_')[1]
-    log_debug(f"new_currency is {user_currency}")
-
-    save_user_setting(user_id, "CURRENCY", user_currency)
-
-    reply_markup = create_skip_keyboard(texts)
-
-    await query.edit_message_text(texts.CURRENCY_REPLY.format(user_currency))
-    await update.effective_message.reply_text(
-        texts.CHOOSE_LIMIT_TEXT, reply_markup=reply_markup
-    )
-
-    log_state_transition(LIMIT)
-    return LIMIT
-
-
-async def save_limit(update: Update, context: CallbackContext):
-    log_function_call()
-    user_id = str(update.effective_user.id)
     texts = check_language(update, context)
     log_user_interaction(
-        user_id, update.effective_user.first_name, update.effective_user.username
-    )
-    try:
-        # Try to convert the entered data to a float
-        limit = float(update.effective_message.text)
-    except ValueError:
-        # If the conversion fails, send an error message and skip the step
-        await update.effective_message.reply_text(
-            "Invalid limit. Please enter a number."
-        )
-        log_state_transition(LIMIT)
-        return LIMIT
-
-    # Save the limit to the config file as a string
-    save_user_setting(user_id, "MONTHLY_LIMIT", str(limit))
-    await update.effective_message.reply_text(texts.LIMIT_SET)
-    await update.effective_message.reply_text(texts.TRANSACTION_START_TEXT, parse_mode=ParseMode.HTML)
-    log_state_transition(TRANSACTION)
-    return TRANSACTION  # Or whatever state should come next
-
-
-async def skip_limit(update: Update, context: CallbackContext):
-    log_function_call()
-    user_id = str(update.effective_user.id)
-    texts = check_language(update, context)
-    log_user_interaction(
-        user_id, update.effective_user.first_name, update.effective_user.username
-    )
-    await context.bot.edit_message_reply_markup(
-        chat_id=update.effective_chat.id,
-        message_id=update.effective_message.message_id,
-        reply_markup=None,
-    )
-    save_user_setting(user_id, "MONTHLY_LIMIT", str(99999999))
-
-    await update.effective_message.reply_text(texts.NO_LIMIT)
-    await update.effective_message.reply_text(texts.TRANSACTION_START_TEXT, parse_mode=ParseMode.HTML)
-    log_state_transition(TRANSACTION)
-    return TRANSACTION  # Or whatever state should come next
-
-
-async def show_records(update: Update, context):
-    user_id = str(update.effective_user.id)
-    texts = check_language(update, context)
-    log_user_interaction(
-        user_id, update.effective_user.first_name, update.effective_user.username
-    )
-    
-    command = update.effective_message.text.split()[0][1:]
-    record_type, record_type2 = (
-        (texts.INCOME_TYPE1, texts.INCOME_TYPE2)
-        if "income" in command
-        else (texts.SPENDINGS_TYPE1, texts.SPENDINGS_TYPE2)
+        str(user_id), update.effective_user.first_name, update.effective_user.username
     )
 
-    currency = get_user_currency(user_id)
-    records = get_records(user_id, command)
-    if records is None:
-        await update.message.reply_text(texts.RECORDS_NOT_FOUND_TEXT)
-        return
-    (
-        sum_per_cat,
-        av_per_day,
-        total_spendings,
-        total_av_per_day,
-        prediction,
-        comparison,
-    ) = records
-    
-    sum_per_cat_text = "\n".join(
-        f"{cat}: {amount}" for cat, amount in sum_per_cat.items()
-    )
-    
-    av_per_day_text = "\n".join(
-        f"{cat}: {amount}" for cat, amount in av_per_day.items()
-    )
-    av_per_day_sum = round(av_per_day.sum())
+    # Load session from DB (batch fetch)
+    repos = get_repos(context)
+    session = await load_user_session(user_id, repos, transactions_months=2)
 
-    output_text = texts.RECORDS_TEMPLATE.format(
-        total=total_spendings,
-        sum_per_cat=sum_per_cat_text,
-        av_per_day_sum=av_per_day_sum,
-        av_per_day=av_per_day_text,
-        total_av_per_day=total_av_per_day,
-        predicted_total=prediction,
-        comparison=comparison,
-        currency=currency,
-        record_type=record_type,
-        record_type2=record_type2,
-    )
-    
-    if  update.callback_query:
-        await update.callback_query.message.reply_text(output_text, parse_mode=ParseMode.HTML)
+    # Filter to specified period
+    spending_tx = filter_by_type(session.transactions, 'spending')
+    if period == 'last_month':
+        filtered_tx = filter_by_period(spending_tx, 'last_month')
+        header = texts.DETAILED_REPORT_LAST_MONTH_TEXT
     else:
-        await update.message.reply_text(output_text, parse_mode=ParseMode.HTML)
-    
-    try:
-        (
-            current_daily_average,
-            percent_difference,
-            daily_limit,
-            days_zero_spending,
-            new_daily_limit,
-        ) = calculate_limit(user_id)
-        
-        if current_daily_average > daily_limit:
-            await update.message.reply_text(
-                texts.LIMIT_EXCEEDED.format(
-                    percent_difference=percent_difference,
-                    current_daily_average=current_daily_average,
-                    daily_limit=daily_limit,
-                    days_zero_spending=days_zero_spending,
-                    new_daily_limit=new_daily_limit,
-                    currency=currency,
-                ),
-                parse_mode=ParseMode.HTML
-                
-            )
-    except Exception as e:
-        #print(f"Exception in show_records when calculating limit: {e}")  
-        log_debug(f"Exception in show_records when calculating limit: {e}")     
-        pass
-    return TRANSACTION
+        filtered_tx = filter_current_month(spending_tx)
+        header = texts.DETAILED_REPORT_TEXT
 
+    # Calculate sum per category
+    sum_per_cat = get_sum_per_category(filtered_tx)
 
-async def show_last_month_records(update: Update, context):
-    user_id = str(update.effective_user.id)
-    texts = check_language(update, context)
-    log_user_interaction(
-        user_id, update.effective_user.first_name, update.effective_user.username
-    )
-    
-    command = "show" # Default to showing spendings for last month
-    if hasattr(update.effective_message, 'text') and update.effective_message.text:
-        command = update.effective_message.text.split()[0][1:]
-    
-    record_type, record_type2 = (
-        (texts.INCOME_TYPE1, texts.INCOME_TYPE2)
-        if "income" in command
-        else (texts.SPENDINGS_TYPE1, texts.SPENDINGS_TYPE2)
-    )
-
-    # Get last month name for display
-    current_date = datetime.datetime.now()
-    last_month_date = current_date.replace(day=1) - timedelta(days=1)
-    last_month_name = last_month_date.strftime("%B %Y")
-
-    currency = get_user_currency(user_id)
-    records = get_last_month_records(user_id, command)
-    if records is None:
-        await update.message.reply_text(texts.RECORDS_NOT_FOUND_TEXT)
-        return
-    (
-        sum_per_cat,
-        av_per_day,
-        total_spendings,
-        total_av_per_day,
-        prediction,
-        comparison,
-    ) = records
-    
-    sum_per_cat_text = "\n".join(
-        f"{cat}: {amount}" for cat, amount in sum_per_cat.items()
-    )
-    
-    av_per_day_text = "\n".join(
-        f"{cat}: {amount}" for cat, amount in av_per_day.items()
-    )
-    av_per_day_sum = round(av_per_day.sum())
-
-    # Add last month name to the output
-    output_text = f"<b>{last_month_name} {record_type}</b>\n\n"
-    output_text += texts.RECORDS_TEMPLATE.format(
-        total=total_spendings,
-        sum_per_cat=sum_per_cat_text,
-        av_per_day_sum=av_per_day_sum,
-        av_per_day=av_per_day_text,
-        total_av_per_day=total_av_per_day,
-        predicted_total=prediction,
-        comparison=comparison,
-        currency=currency,
-        record_type=record_type,
-        record_type2=record_type2,
-    )
-    
-    if update.callback_query:
-        await update.callback_query.message.reply_text(output_text, parse_mode=ParseMode.HTML)
-    else:
-        await update.message.reply_text(output_text, parse_mode=ParseMode.HTML)
-    
-    return TRANSACTION
-
-
-async def show_detailed(update: Update, context):
-    user_id = str(update.effective_user.id)
-    texts = check_language(update, context)
-    log_user_interaction(
-        user_id, update.effective_user.first_name, update.effective_user.username
-    )
-    file_path = get_user_path(user_id)
-    sum_per_cat = show_sum_per_cat(user_id, file_path)
-    top_subcats = show_top_subcategories(user_id)
-
-    output = texts.DETAILED_REPORT_TEXT + "\n\n"
+    output = header + "\n\n"
     for category, total in sum_per_cat.items():
-        output += f"{category}: {total}\n"
+        output += f"{category}: {total} {session.currency}\n"
 
-        # Get the top subcategories for this category
-        category_subcats = top_subcats[top_subcats["category"] == category]
-        for _, row in category_subcats.iterrows():
-            output += f"   {row['subcategory']}: {row['amount_cr_currency']}\n"
+        # Get top subcategories for this category
+        top_subcats = get_sum_per_subcategory(filtered_tx, category=category, limit=5)
+        for subcat, amount in top_subcats.items():
+            output += f"   {subcat}: {amount} {session.currency}\n"
 
         output += "\n"
-    if update.callback_query:
-        await update.callback_query.message.reply_text(output)
-    else:
-        await update.message.reply_text(output)
 
-    return TRANSACTION
-
-async def show_last_month_detailed(update: Update, context):
-    user_id = str(update.effective_user.id)
-    texts = check_language(update, context)
-    log_user_interaction(
-        user_id, update.effective_user.first_name, update.effective_user.username
-    )
-    file_path = get_user_path(user_id)
-    sum_per_cat = show_last_month_sum_per_cat(user_id, file_path)
-    top_subcats = show_last_month_top_subcategories(user_id)
-
-    output = texts.DETAILED_REPORT_LAST_MONTH_TEXT + "\n\n"
-    for category, total in sum_per_cat.items():
-        output += f"{category}: {total}\n"
-
-        # Get the top subcategories for this category
-        category_subcats = top_subcats[top_subcats["category"] == category]
-        for _, row in category_subcats.iterrows():
-            output += f"   {row['subcategory']}: {row['amount_cr_currency']}\n"
-
-        output += "\n"
     if update.callback_query:
         await update.callback_query.message.reply_text(output)
     else:
@@ -480,13 +255,15 @@ async def show_last_month_detailed(update: Update, context):
     return TRANSACTION
 
 async def show_cat(update: Update, context: CallbackContext):
-    user_id = str(update.effective_user.id)
+    user_id = update.effective_user.id
     texts = check_language(update, context)
     log_user_interaction(
         user_id, update.effective_user.first_name, update.effective_user.username
     )
-    check_dictionary_format(user_id)
-    cat_dict = read_dictionary(user_id)
+    # Get categories from PostgreSQL
+    repos = get_repos(context)
+    language = context.user_data.get('language', 'en')
+    cat_dict = await repos.categories.get_dictionary(user_id, language)
 
     output = texts.CAT_DICT_MESSAGE.format(
         "\n".join(
@@ -501,7 +278,7 @@ async def show_cat(update: Update, context: CallbackContext):
 
 
 async def add_cat(update: Update, context: CallbackContext):
-    user_id = str(update.effective_user.id)
+    user_id =update.effective_user.id
     texts = check_language(update, context)
     log_user_interaction(
         user_id, update.effective_user.first_name, update.effective_user.username
@@ -514,10 +291,10 @@ async def add_cat(update: Update, context: CallbackContext):
 
 
 async def save_category(update: Update, context: CallbackContext):
-    user_id = str(update.effective_user.id)
+    user_id = update.effective_user.id  # Use int, not str
     texts = check_language(update, context)
     log_user_interaction(
-        user_id, update.effective_user.first_name, update.effective_user.username
+        str(user_id), update.effective_user.first_name, update.effective_user.username
     )
     text = update.message.text.lower()
     if ":" not in text or text.count(":") > 1:
@@ -525,17 +302,21 @@ async def save_category(update: Update, context: CallbackContext):
         return ADD_CATEGORY
 
     category, subcategory = text.split(":", 1)
+    
+    # Get repos and language
+    repos = get_repos(context)
+    language = context.user_data.get('cached_language', 'en')
 
     if text.startswith("-"):
-        # Remove category:subcategory
+        # Remove category:subcategory from PostgreSQL
         category = category.lstrip("-")
-        remove_category(user_id, category, subcategory)
+        await repos.categories.delete_subcategory(user_id, category.strip(), subcategory.strip(), language)
         await update.message.reply_text(
             texts.DEL_CAT_SUCCESS.format(category, subcategory)
         )
     else:
-        # Add category:subcategory
-        add_category(user_id, category, subcategory)
+        # Add category:subcategory to PostgreSQL
+        await repos.categories.add_subcategory(user_id, category.strip(), subcategory.strip(), language)
         await update.message.reply_text(
             texts.ADD_CAT_SUCCESS.format(category, subcategory)
         )
@@ -555,7 +336,7 @@ async def save_category(update: Update, context: CallbackContext):
 async def handle_records_count(update: Update, context: CallbackContext):
     """Handle selection of how many records to display"""
     query = update.callback_query
-    user_id = str(update.effective_user.id)
+    user_id =update.effective_user.id
     texts = check_language(update, context)
     action = query.data
     
@@ -602,24 +383,47 @@ async def handle_records_count(update: Update, context: CallbackContext):
     return TRANSACTION
 
 async def latest_records(update: Update, context):
+    """Show latest transactions (from PostgreSQL)."""
     user_id = update.effective_user.id
     texts = check_language(update, context)
     log_user_interaction(
         user_id, update.effective_user.first_name, update.effective_user.username
     )
+    
+    repos = get_repos(context)
+    await ensure_user_config_cached(context, repos, user_id)
+    currency = get_cached_currency(context)
+    
     record_num_or_category = "5"  # Default value
-
     if context.args:
         record_num_or_category = context.args[0]
 
-    records, total_amount = get_latest_records(user_id, record_num_or_category)
+    # Determine if argument is a number or category name
+    try:
+        limit = int(record_num_or_category)
+        # Get latest N transactions
+        transactions = await repos.transactions.get_latest(user_id, limit=limit, transaction_type='spending')
+    except ValueError:
+        # It's a category name - load more and filter
+        from domain.session_loader import load_user_session
+        from domain.filters import filter_by_categories
+        
+        session = await load_user_session(user_id, repos, load_transactions=True, transactions_months=12)
+        transactions = filter_by_categories(session.transactions, [record_num_or_category])
 
-    if not records:
+    if not transactions:
         if update.callback_query:
             await update.callback_query.message.reply_text(texts.NO_RECORDS)
         else:
             await update.message.reply_text(texts.NO_RECORDS)
     else:
+        # Format records and calculate total
+        total_amount = sum(tx.amount for tx in transactions)
+        records = [
+            f"{tx.id}: {tx.timestamp.strftime('%Y-%m-%d')}, {tx.category}, {tx.subcategory}, {tx.amount}, {currency}"
+            for tx in transactions
+        ]
+        
         records_message = texts.LAST_RECORDS.format(total_amount, "\n".join(records))
         if update.callback_query:
             await update.callback_query.message.reply_text(records_message, parse_mode=ParseMode.HTML)
@@ -631,65 +435,34 @@ async def delete_records(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     texts = check_language(update, context)
     log_user_interaction(
-        user_id, update.effective_user.first_name, update.effective_user.username
+        str(user_id), update.effective_user.first_name, update.effective_user.username
     )
     # Remove the leading '/' from the command
     command = update.effective_message.text.split()[0][1:]
-    record_num = 1  # Default value
+    record_id = 1  # Default value (transaction ID)
 
     if context.args:
         try:
-            record_num = int(context.args[0])
+            record_id = int(context.args[0])
         except ValueError:
             await update.message.reply_text(texts.INVALID_RECORD_NUM)
             return
 
-    if not record_exists(user_id):
+    # Use PostgreSQL repository
+    repos = get_repos(context)
+    count = await repos.transactions.count_for_user(user_id)
+    
+    if count == 0:
         await update.message.reply_text(texts.NO_RECORDS_TO_DELETE)
     else:
-        deleted = delete_record(user_id, record_num, command)
+        # Delete by transaction ID (not position)
+        deleted = await repos.transactions.delete(record_id, user_id)
         if deleted:
-            await update.message.reply_text(texts.RECORD_DELETED.format(record_num))
+            await update.message.reply_text(texts.RECORD_DELETED.format(record_id))
         else:
-
-            await update.message.reply_text(texts.NOT_ENOUGH_RECORDS.format(record_num))
-
-
-async def help(update: Update, context):
-    log_user_interaction(
-        update.effective_user.id,
-        update.effective_user.first_name,
-        update.effective_user.username,
-    )
-    texts = check_language(update, context)
-    await update.message.reply_text(texts.HELP_TEXT, parse_mode=ParseMode.HTML)
-    return TRANSACTION
-
-async def about(update: Update, context):
-    log_user_interaction(
-        update.effective_user.id,
-        update.effective_user.first_name,
-        update.effective_user.username,
-    )
-    user_id = update.effective_user.id
-    texts = check_language(update, context)
-    name, currency, language, limit = read_config(user_id)
-    
-    reply_markup = create_settings_keyboard(texts)
-    
-    await update.message.reply_text(
-        texts.ABOUT.format(name, currency, language, limit), 
-        reply_markup=reply_markup,
-        parse_mode=ParseMode.HTML
-    )
-    return TRANSACTION
+            await update.message.reply_text(texts.NOT_ENOUGH_RECORDS.format(record_id))
 
 
-async def show_log_chart(update: Update, context: CallbackContext) -> int:
-    user_id = str(update.effective_user.id)
-    if user_id != "46304833":
-        await update.message.reply_text("This command is restricted to the bot owner.")
-        return TRANSACTION
 
     log_user_interaction(
         update.effective_user.id,
@@ -723,26 +496,6 @@ async def show_log_chart(update: Update, context: CallbackContext) -> int:
 
     return TRANSACTION
 
-async def show_log(update: Update, context: CallbackContext):
-    texts = check_language(update, context)
-    #command = update.effective_message.text.split()[0][1:]
-    record_num = 10  # Default value
-
-    if context.args:
-        try:
-            record_num = int(context.args[0])
-        except ValueError:
-            await update.message.reply_text(texts.INVALID_RECORD_NUM)
-            return
-        
-    log_info = check_log(record_num)
-    await update.message.reply_text(
-        log_info,
-        reply_markup=ReplyKeyboardRemove(),
-
-    )
-    return TRANSACTION
-
 async def cancel(update: Update, context):
     texts = check_language(update, context)
     await update.message.reply_text(
@@ -753,7 +506,7 @@ async def cancel(update: Update, context):
 
 
 async def download_spendings(update: Update, context: CallbackContext) -> None:
-    user_id = str(update.effective_user.id)
+    user_id =update.effective_user.id
     log_user_interaction(
         update.effective_user.id,
         update.effective_user.first_name,
@@ -777,7 +530,7 @@ async def start_upload(update: Update, context: CallbackContext) -> int:
 
 
 async def receive_document(update: Update, context: CallbackContext) -> int:
-    user_id = str(update.effective_user.id)
+    user_id =update.effective_user.id
     texts = check_language(update, context)
     log_user_interaction(
         update.effective_user.id,
@@ -796,7 +549,7 @@ async def receive_document(update: Update, context: CallbackContext) -> int:
 
     # Create the backup and get the path to the current spendings file
     spendings_file_path = f"user_data/{user_id}/spendings_{user_id}.csv"
-    backup_spendings(user_id, spendings_file_path)
+    #backup_spendings(user_id, spendings_file_path)
 
     # Download the new file directly to the spendings file path
     await new_spendings_file.download_to_drive(custom_path=spendings_file_path)
@@ -811,267 +564,14 @@ async def cancel_upload(update: Update, context: CallbackContext) -> int:
     return ConversationHandler.END
 
 
-async def archive_profile(update: Update, context: CallbackContext):
-    user_id = update.effective_user.id
-    texts = check_language(update, context)
-    # Check if this is a confirmation or initial request
-    if update.message and update.message.text == "Delete profile" or update.message.text == "Удалить профиль":
-        # User confirmed deletion
-        result = await archive_user_data(user_id)
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=result)
-        return ConversationHandler.END
-    else:
-        # Initial request - ask for confirmation
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id, 
-            text=texts.DELETE_PROFILE_CONFIRMATION,
-            parse_mode=ParseMode.HTML
-        )
-        return DELETE_PROFILE  # Return to a state where we can catch the confirmation
 
 
-async def send_chart(update: Update, context: CallbackContext) -> None:
-    user_id = str(update.effective_user.id)
-    log_user_interaction(
-        update.effective_user.id,
-        update.effective_user.first_name,
-        update.effective_user.username,
-    )
-    monthly_pivot_chart(user_id)
-    monthly_line_chart(user_id)
-    directory = f"user_data/{user_id}"
-
-    # List all files in the directory and filter for those containing 'Monthly'
-    monthly_images = [
-        file
-        for file in os.listdir(directory)
-        if "monthly" in file and file.endswith(".jpg")
-    ]
-    # Create a list of InputMediaPhoto objects
-    media = []
-    for image in monthly_images:
-        with open(os.path.join(directory, image), "rb") as file:
-            media.append(InputMediaPhoto(file))
-
-    #backup_charts(user_id, monthly_images)
-    await context.bot.send_media_group(chat_id=update.effective_chat.id, media=media)
 
 
-async def send_ext_chart(update: Update, context: CallbackContext) -> None:
-    user_id = str(update.effective_user.id)
-    log_user_interaction(
-        update.effective_user.id,
-        update.effective_user.first_name,
-        update.effective_user.username,
-    )
-    monthly_ext_pivot_chart(user_id)
-    #monthly_line_chart(user_id)
-    directory = f"user_data/{user_id}"
-
-    # List all files in the directory and filter for those containing 'Monthly'
-    monthly_images = [
-        file
-        for file in os.listdir(directory)
-        if "monthly_pivot" in file and file.endswith(".jpg")
-    ]
-    # Create a list of InputMediaPhoto objects
-    media = []
-    for image in monthly_images:
-        with open(os.path.join(directory, image), "rb") as file:
-            media.append(InputMediaPhoto(file))
-
-    #backup_charts(user_id, monthly_images)
-    await context.bot.send_media_group(chat_id=update.effective_chat.id, media=media)
-
-
-async def send_yearly_piechart(update: Update, context: CallbackContext) -> None:
-    user_id = str(update.effective_user.id)
-    log_user_interaction(
-        update.effective_user.id,
-        update.effective_user.first_name,
-        update.effective_user.username,
-    )
-    log_debug(f"Starting send_yearly_piechart for user {user_id}")
-    # This function now returns a list of ALL chart paths (pies and comparison bars)
-    all_chart_paths = make_yearly_pie_chart(user_id) 
-    log_debug(f"Received {len(all_chart_paths)} chart paths from make_yearly_pie_chart")
-    media = []
-    
-    if not all_chart_paths:
-        texts = check_language(update, context)
-        log_debug("No chart paths returned, sending NO_YEARLY_DATA message")
-        await update.message.reply_text(texts.NO_YEARLY_DATA)
-        return
-    
-    # Count chart types to verify all expected charts are included
-    pie_charts = [p for p in all_chart_paths if "yearly_pie_chart" in p]
-    absolute_charts = [p for p in all_chart_paths if "yearly_comparison_absolute" in p]
-    percentage_charts = [p for p in all_chart_paths if "yearly_comparison_percentage" in p]
-    log_debug(f"Chart breakdown: {len(pie_charts)} pie charts, {len(absolute_charts)} absolute charts, {len(percentage_charts)} percentage charts")
-    
-    # Iterate through all returned chart paths and add them to the media group
-    for i, chart_path in enumerate(all_chart_paths):
-        log_debug(f"Processing chart path {i+1}/{len(all_chart_paths)}: {chart_path}")
-        if os.path.exists(chart_path):
-            try:
-                with open(chart_path, "rb") as file:
-                    media.append(InputMediaPhoto(file))
-                    log_debug(f"Successfully added {chart_path} to media group")
-            except Exception as e:
-                log_debug(f"Error opening or adding chart {chart_path}: {e}")
-        else:
-             log_debug(f"Chart file not found: {chart_path}")
-
-    log_debug(f"Created media group with {len(media)} photos")
-    # Send the media group if it contains any photos
-    if media:
-        try:
-            log_debug(f"Sending media group with {len(media)} photos")
-            #backup_charts(user_id, all_chart_paths) # Consider if backup is still needed and how
-            await context.bot.send_media_group(chat_id=update.effective_chat.id, media=media)
-            log_debug(f"Successfully sent media group to chat {update.effective_chat.id}")
-        except Exception as e:
-             log_debug(f"Error sending media group for user {user_id}: {e}")
-             texts = check_language(update, context)
-             await update.message.reply_text(texts.ERROR_SENDING_CHARTS)
-    else:
-        log_debug("No media to send, sending ERROR_GENERATING_CHARTS message")
-        texts = check_language(update, context)
-        await update.message.reply_text(texts.ERROR_GENERATING_CHARTS)
-
-
-async def start_income(update: Update, context: CallbackContext) -> None:
-    log_user_interaction(
-        update.effective_user.id,
-        update.effective_user.first_name,
-        update.effective_user.username,
-    )
-    texts = check_language(update, context)
-    await update.effective_message.reply_text(
-        texts.INCOME_HELP, parse_mode=ParseMode.HTML
-    )
-    return PROCESS_INCOME
-
-
-async def process_income(update: Update, context: CallbackContext):
-    log_user_interaction(
-        update.effective_user.id,
-        update.effective_user.first_name,
-        update.effective_user.username,
-    )
-    user_id = str(update.effective_user.id)
-    texts = check_language(update, context)
-    income_info = update.effective_message.text  # Get the income info from the message
-    currency = get_user_currency(user_id)
-    parts = income_info.lower().split()
-    try:
-        amount = float(parts[-1])
-    except ValueError:
-        await update.message.reply_text(texts.TRANSACTION_ERROR_TEXT)
-        return PROCESS_INCOME
-
-    timestamp, category = process_income_input(user_id, parts)
-    transaction_data = {
-        "amount": amount,
-        "currency": currency,
-        "category": category,
-        "timestamp": timestamp,
-    }
-    save_user_income(user_id, transaction_data)
-
-    await update.effective_message.reply_text(texts.TRANSACTION_SAVED_TEXT)
-    return ConversationHandler.END
-
-async def handle_settings_language(update: Update, context: CallbackContext):
-    query = update.callback_query
-    user_id = str(update.effective_user.id)    
-    new_lang = query.data.split('_')[1]
-    save_user_setting(user_id, "LANGUAGE", new_lang)
-    texts = check_language(update, context)
-
-    await query.edit_message_text(texts.LANGUAGE_REPLY.format(new_lang))
-    
-    # Send a new message with the main menu keyboard to continue interaction
-    reply_markup = create_main_menu_keyboard(texts)
-    await query.message.reply_text(
-        texts.MAIN_MENU_TEXT,
-        reply_markup=reply_markup,
-        parse_mode=ParseMode.HTML
-    )
-    log_state_transition(TRANSACTION)
-    return TRANSACTION
-
-async def handle_settings_currency(update: Update, context: CallbackContext):
-    query = update.callback_query
-    user_id = str(update.effective_user.id)
-    texts = check_language(update, context)
-    
-    new_currency = query.data.split('_')[1]
-    log_debug(f"new_currency is {new_currency}")
-    save_user_setting(user_id, "CURRENCY", new_currency)
-    await query.edit_message_text(texts.CURRENCY_REPLY.format(new_currency))
-    
-    # Send a new message with the main menu keyboard to continue interaction
-    reply_markup = create_main_menu_keyboard(texts)
-    await query.message.reply_text(
-        texts.MAIN_MENU_TEXT,
-        reply_markup=reply_markup,
-        parse_mode=ParseMode.HTML
-    )
-    log_state_transition(TRANSACTION)
-    return TRANSACTION
-
-async def handle_settings_limit(update: Update, context: CallbackContext):
-    user_id = str(update.effective_user.id)
-    texts = check_language(update, context)
-    
-    try:
-        new_limit = float(update.message.text)
-        save_user_setting(user_id, "MONTHLY_LIMIT", str(new_limit))
-        await update.message.reply_text(texts.LIMIT_SET)
-        
-        # Show main menu after setting the limit
-        reply_markup = create_main_menu_keyboard(texts)
-        await update.message.reply_text(
-            texts.BACK_TO_MAIN_MENU,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-    except ValueError:
-        await update.message.reply_text("Invalid limit. Please enter a number.")
-        return SETTINGS_LIMIT
-    
-    log_state_transition(TRANSACTION)
-    return TRANSACTION
-
-async def show_menu(update: Update, context: CallbackContext):
-    """Display the main menu"""
-    user_id = str(update.effective_user.id)
-    texts = check_language(update, context)
-    log_user_interaction(
-        user_id, update.effective_user.first_name, update.effective_user.username
-    )
-    
-    # Clear user_data cache when returning to main menu
-    # Keep only essential data like language settings
-    language = context.user_data.get('language', None)
-    context.user_data.clear()
-    log_debug(f"context.user_data is {context.user_data}")
-    if language:
-        context.user_data['language'] = language
-    
-    reply_markup = create_main_menu_keyboard(texts)
-    await update.message.reply_text(
-        texts.MAIN_MENU_TEXT,
-        reply_markup=reply_markup,
-        parse_mode=ParseMode.HTML
-    )
-    log_state_transition(TRANSACTION)
-    return TRANSACTION
 
 async def handle_text(update: Update, context):
     """Handle messages that aren't commands."""
-    user_id = str(update.effective_user.id)
+    user_id =update.effective_user.id
     texts = check_language(update, context)
 
     log_user_interaction(user_id, update.effective_user.first_name, update.effective_user.username)
@@ -1080,11 +580,15 @@ async def handle_text(update: Update, context):
         # Handle text messages outside of commands
         text = update.message.text
 
-        # Check if user directory exists
-        user_dir = f"user_data/{user_id}"
-        if not os.path.exists(user_dir):
-            # If not, create the initial config for the user
-            create_user_dir_and_copy_dict(user_id)
+        # Check if user exists in database, create if needed
+        repos = get_repos(context)
+        if not await repos.users.user_exists(int(user_id)):
+            # Create user and default config in PostgreSQL
+            await repos.users.setup_new_user(
+                int(user_id),
+                username=update.effective_user.first_name,
+                telegram_username=update.effective_user.username,
+            )
             await update.message.reply_text(texts.USER_CONFIG_CREATED)
 
         # Pattern matching based on update text format
@@ -1102,134 +606,21 @@ async def handle_text(update: Update, context):
     return TRANSACTION
 
 
-async def menu_call(update: Update, context: CallbackContext):
-    """Handle menu callbacks"""
-    query = update.callback_query
-    log_function_call()
+    # =========================================================================
+    # Special show actions (need custom handling)
+    # =========================================================================
+    if action == "show_last_month_extended_stats":
+        await query.answer()
+        await query.edit_message_text(texts.LOADING_LAST_MONTH_EXTENDED_STATS)
+        await show_detailed(update, context, period='last_month')
+        return TRANSACTION
 
-    user_id = str(update.effective_user.id)
-    texts = check_language(update, context)
-
-    action = query.data
-    
-    # Menu option for edit_show_categories - this is what we need to modify
-    if action == "edit_show_categories":
+    if action == "show_income_stats":
         await query.answer()
-        # Call our show_categories function
-        return await show_categories(update, context)
-    
-    # Add handler for edit_transactions menu option
-    elif action == "menu_edit_transactions":
-        await query.answer()
-        # Use our dedicated wrapper function
-        return await show_recent_entries(update, context)
-    
-    # Show transactions menu options
-    elif action == "show_monthly_summary":
-        log_function_call()
-        # Use existing function for monthly stats
-        await query.answer()
-        await query.edit_message_text("Loading monthly summary...")
-        await show_records(update, context)
-        
-        # Return to main menu after showing stats
-        reply_markup = create_main_menu_keyboard(texts)
-        await query.message.reply_text(
-            texts.BACK_TO_MAIN_MENU,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        log_state_transition(TRANSACTION)
-        return TRANSACTION
-        
-    elif action == "show_last_month_summary":
-        log_function_call()
-        # Use new function for last month stats
-        await query.answer()
-        await query.edit_message_text("Loading last month summary...")
-        await show_last_month_records(update, context)
-        
-        # Return to main menu after showing stats
-        reply_markup = create_main_menu_keyboard(texts)
-        await query.message.reply_text(
-            texts.BACK_TO_MAIN_MENU,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        log_state_transition(TRANSACTION)
-        return TRANSACTION
-        
-    elif action == "show_last_transactions":
-        # UPDATED: Start the detailed transactions flow instead of showing record count keyboard
-        await query.answer()
-        # Call our new function to show category selection
-        return await start_detailed_transactions(update, context)
-        
-        
-    elif action == "show_monthly_charts":
-        # Use existing function for monthly charts
-        await query.answer()
-        await query.edit_message_text("Generating monthly charts...")
-        await send_chart(update, context)
-        
-        # Return to main menu after showing charts
-        reply_markup = create_main_menu_keyboard(texts)
-        await query.message.reply_text(
-            texts.BACK_TO_MAIN_MENU,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        log_state_transition(TRANSACTION)
-        return TRANSACTION
-        
-    elif action == "show_extended_stats":
-        # Use existing function for extended stats
-        await query.answer()
-        await query.edit_message_text("Loading extended statistics...")
-        await show_detailed(update, context)
-        
-        # Return to main menu after showing extended stats
-        reply_markup = create_main_menu_keyboard(texts)
-        await query.message.reply_text(
-            texts.BACK_TO_MAIN_MENU,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        log_state_transition(TRANSACTION)
-        return TRANSACTION
-        
-    elif action == "show_last_month_extended_stats":
-        # Use existing function for last month extended stats
-        await query.answer()
-        await query.edit_message_text("Loading last month extended statistics...")
-        await show_last_month_detailed(update, context)
-        
-    elif action == "show_yearly_charts":
-        # Use existing function for yearly charts
-        await query.answer()
-        await query.edit_message_text("Generating yearly charts...")
-        await send_yearly_piechart(update, context)
-        
-        # Return to main menu after showing yearly charts
-        reply_markup = create_main_menu_keyboard(texts)
-        await query.message.reply_text(
-            texts.BACK_TO_MAIN_MENU,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        log_state_transition(TRANSACTION)
-        return TRANSACTION
-        
-    elif action == "show_income_stats":
-        # Use existing function for income stats
-        await query.answer()
-        await query.edit_message_text("Loading income statistics...")
-        
-        # Adjust context to simulate the command
+        await query.edit_message_text(texts.LOADING_INCOME_STATS)
         update.effective_message.text = "/show_income"
         await show_records(update, context)
         
-        # Return to main menu after showing income stats
         reply_markup = create_main_menu_keyboard(texts)
         await query.message.reply_text(
             texts.BACK_TO_MAIN_MENU,
@@ -1238,23 +629,39 @@ async def menu_call(update: Update, context: CallbackContext):
         )
         log_state_transition(TRANSACTION)
         return TRANSACTION
-    
-    # Main menu options
-    elif action == "menu_add_transaction" or action == "back_to_categories":
-        # Get frequently used categories
+
+    if action == "show_last_transactions":
+        await query.answer()
+        return await start_detailed_transactions(update, context)
+
+    # =========================================================================
+    # Category management actions
+    # =========================================================================
+    if action == "edit_show_categories":
+        await query.answer()
+        return await show_categories(update, context)
+
+    if action == "menu_edit_transactions":
+        await query.answer()
+        return await show_recent_entries(update, context)
+
+    if action == "menu_edit_categories":
+        await query.answer()
+        context.user_data["current_page"] = 0
+        return await show_categories(update, context)
+
+    # =========================================================================
+    # Main menu navigation
+    # =========================================================================
+    if action in ("menu_add_transaction", "back_to_categories"):
         log_function_call()
-        categories = get_frequently_used_categories(user_id)
+        repos = get_repos(context)
+        language = context.user_data.get('language', 'en')
+        categories = await repos.categories.get_all_categories(user_id, language)
         
-        # If no categories found, use the dictionary keys
-        if not categories:
-            cat_dict = read_dictionary(user_id)
-            categories = list(cat_dict.keys())
-        
-        # Store categories and current page in context
         context.user_data["tx_categories"] = categories
         context.user_data["tx_page"] = 0
         
-        # Create and show the categories keyboard
         reply_markup = create_tx_categories_keyboard(categories, texts, context.user_data["tx_page"])
         await query.edit_message_text(
             texts.SELECT_TRANSACTION_CATEGORY,
@@ -1263,8 +670,8 @@ async def menu_call(update: Update, context: CallbackContext):
         )
         log_state_transition(SELECT_TRANSACTION_CATEGORY)
         return SELECT_TRANSACTION_CATEGORY
-    
-    elif action == "menu_show_transactions":
+
+    if action == "menu_show_transactions":
         reply_markup = create_show_transactions_keyboard(texts)
         await query.edit_message_text(
             texts.SHOW_TRANSACTIONS_MENU_TEXT,
@@ -1273,8 +680,8 @@ async def menu_call(update: Update, context: CallbackContext):
         )
         log_state_transition(TRANSACTION)
         return TRANSACTION
-        
-    elif action == "menu_settings":
+
+    if action == "menu_settings":
         reply_markup = create_settings_keyboard_menu(texts)
         await query.edit_message_text(
             texts.SETTINGS_MENU_TEXT,
@@ -1283,22 +690,9 @@ async def menu_call(update: Update, context: CallbackContext):
         )
         log_state_transition(TRANSACTION)
         return TRANSACTION
-        
-    elif action == "menu_edit_categories":
-        await query.answer()
-        # Import show_categories from change_data
-        from change_data import show_categories, CATEGORY_MANAGEMENT
-        
-        # Reset the current page when entering category management
-        context.user_data["current_page"] = 0
-        
-        return await show_categories(update, context)
-        
-    elif action == "menu_help":
-        await query.edit_message_text(
-            texts.HELP_TEXT,
-        )
-        # Send a new message with the main menu keyboard to continue interaction
+
+    if action == "menu_help":
+        await query.edit_message_text(texts.HELP_TEXT)
         reply_markup = create_main_menu_keyboard(texts)
         await query.message.reply_text(
             texts.BACK_TO_MAIN_MENU,
@@ -1307,9 +701,8 @@ async def menu_call(update: Update, context: CallbackContext):
         )
         log_state_transition(TRANSACTION)
         return TRANSACTION
-        
-    # Back to main menu from any submenu
-    elif action == "back_to_main_menu":
+
+    if action == "back_to_main_menu":
         reply_markup = create_main_menu_keyboard(texts)
         await query.edit_message_text(
             texts.MAIN_MENU_TEXT,
@@ -1318,9 +711,11 @@ async def menu_call(update: Update, context: CallbackContext):
         )
         log_state_transition(TRANSACTION)
         return TRANSACTION
-    
+
+    # =========================================================================
     # Settings submenu
-    elif action == "settings_change_language":
+    # =========================================================================
+    if action == "settings_change_language":
         reply_markup = create_settings_language_keyboard()
         await query.edit_message_text(
             texts.SELECT_LANGUAGE,
@@ -1329,8 +724,8 @@ async def menu_call(update: Update, context: CallbackContext):
         )
         log_state_transition(SETTINGS_LANGUAGE)
         return SETTINGS_LANGUAGE
-        
-    elif action == "settings_change_currency":
+
+    if action == "settings_change_currency":
         reply_markup = create_settings_currency_keyboard()
         await query.edit_message_text(
             texts.CHOOSE_CURRENCY_TEXT,
@@ -1339,31 +734,20 @@ async def menu_call(update: Update, context: CallbackContext):
         )
         log_state_transition(SETTINGS_CURRENCY)
         return SETTINGS_CURRENCY
-        
-    elif action == "settings_change_limit":
+
+    if action == "settings_change_limit":
         context.user_data['awaiting_limit'] = True
         await query.edit_message_text(texts.CHOOSE_LIMIT_TEXT)
         log_state_transition(SETTINGS_LIMIT)
         return SETTINGS_LIMIT
-        
-    elif action == "settings_about":
-        # Get user info for about page
-        name, currency, language, limit = read_config(user_id)
-        await query.edit_message_text(
-            texts.ABOUT.format(query.from_user.first_name, currency, language, limit),
-            parse_mode=ParseMode.HTML
-        )
-        
-        # Send a new message with the main menu keyboard to continue interaction
-        reply_markup = create_main_menu_keyboard(texts)
-        await query.message.reply_text(
-            texts.BACK_TO_MAIN_MENU,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        log_state_transition(TRANSACTION)
-        return TRANSACTION
-    elif action == "cancel_transaction":
+
+    if action == "settings_about":
+        return await _handle_settings_about(query, context, texts, user_id)
+
+    # =========================================================================
+    # Transaction actions
+    # =========================================================================
+    if action == "cancel_transaction":
         log_function_call()
         await query.edit_message_text(
             texts.TRANSACTION_CANCELED,
@@ -1378,46 +762,29 @@ async def menu_call(update: Update, context: CallbackContext):
         )
         log_state_transition(TRANSACTION)
         return TRANSACTION
-    # Edit categories submenu
-    elif action == "edit_add_remove_category":
+
+    if action == "edit_add_remove_category":
         await query.edit_message_text(
             texts.ADD_CAT_PROMPT,
             parse_mode="MarkdownV2"
         )
         log_state_transition(ADD_CATEGORY)
         return ADD_CATEGORY
+
+    # Default fallback
     log_state_transition(TRANSACTION)
     return TRANSACTION
- 
-async def menu_callback(update: Update, context: CallbackContext) -> int:
-    query = update.callback_query
-    user_id = str(update.effective_user.id)
-    log_debug("menu_callback called")
-    return await menu_call(update, context)
-    
-async def update_file_structure(update: Update, context: CallbackContext) -> None:
-    """Handle the /update_file command to update the structure of the user's spendings file."""
-    user_id = str(update.effective_user.id)
-    texts = check_language(update, context)
-    log_user_interaction(
-        update.effective_user.id,
-        update.effective_user.first_name,
-        update.effective_user.username,
-    )
-    if user_id == "46304833":
-        # Call the function to update the file structure
-        result = migrate_all_user_files_to_new_structure()
-        
-    # Send a message back to the user with the result
-    if result["success"]:
-        await update.message.reply_text(f"✅ {result['message']}")
-    else:
-        await update.message.reply_text(f"❌ {result['message']}")
-    
-    return TRANSACTION
+
 
 def main():
-    application = Application.builder().token(token).build()
+    # Build application with database container lifecycle hooks
+    application = (
+        Application.builder()
+        .token(token)
+        .post_init(setup_container)
+        .post_shutdown(cleanup_container)
+        .build()
+    )
 
     application.add_handler(CommandHandler("show", show_records))
     application.add_handler(CommandHandler("show_ext", show_detailed))
@@ -1433,9 +800,7 @@ def main():
     application.add_handler(CommandHandler("monthly_stat", send_chart))
     application.add_handler(CommandHandler("monthly_ext_stat", send_ext_chart))
     application.add_handler(CommandHandler("yearly_stat", send_yearly_piechart))
-    application.add_handler(CommandHandler("show_log", show_log))
     application.add_handler(CommandHandler("show_log_chart", show_log_chart))
-    application.add_handler(CommandHandler("update_files", update_file_structure))
     application.add_handler(CommandHandler("debug", toggle_debug))
 
     # Handler for the leave command to archive user profile
@@ -1504,7 +869,7 @@ def main():
                 # For text input of transaction amount
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_transaction_amount),
             ],
-            # Add the category management states from change_data
+            # Category management states (handlers/categories.py, handlers/tasks.py)
             CATEGORY_MANAGEMENT: [
                 CallbackQueryHandler(handle_category_selection, pattern="^cat_"),
                 CallbackQueryHandler(handle_category_selection, pattern="^catpage_(prev|next)$"),
