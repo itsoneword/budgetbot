@@ -1,7 +1,0 @@
-[TELEGRAM]
-TOKEN = 
-test = path/test
-
-[DEBUG]
-enabled = False
-

@@ -1,15 +1,15 @@
 config.ini
 /configs/config
-/user_data/
+/user_data*
 /myenv
 /newvenv
-/__pycache__
+__pycache__/
+*.pyc
 global_log.txt
 user_list.csv
 /budgetbot/
 /back/
 /tests
-/__pycache__/
 .DS_Store
 /userdatabot
 .secrets
@@ -19,3 +19,6 @@ config
 todos.txt
 deploy.sh
 docker-compose.yml
+.opencode/
+.claude/
+.serena/
