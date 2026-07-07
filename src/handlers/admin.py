@@ -10,6 +10,7 @@ from telegram.ext import CallbackContext, ConversationHandler
 
 from language_util import check_language
 from shared.di import get_repos
+from src.config import ADMIN_USER_ID
 from src.logger import log_user_interaction
 from keyboards import create_settings_keyboard
 from charts import generate_usage_summary_chart
@@ -79,7 +80,7 @@ async def archive_profile(update: Update, context: CallbackContext):
 async def show_log_chart(update: Update, context: CallbackContext) -> int:
     """Admin-only: Display usage statistics charts."""
     user_id = update.effective_user.id
-    if user_id != "46304833":
+    if user_id != ADMIN_USER_ID:
         await update.message.reply_text("This command is restricted to the bot owner.")
         return TRANSACTION
 

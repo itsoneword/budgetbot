@@ -7,11 +7,10 @@ Updated: 2026-07-07 · see docs/ROADMAP.md for milestones
 ## Doing (0)
 _empty_
 
-## Review (0)
-_empty_
+## Review (1)
+- **T-001** `p0/bug/bot` Fix admin check (int vs str comparison) — last: 2026-07-07 moved to review
 
-## Todo (9)
-- **T-001** `p0/bug/bot` Fix admin check (int vs str comparison)
+## Todo (8)
 - **T-002** `p1/refactor/bot` Standardize package-qualified imports
 - **T-003** `p1/ops/bot` Replace print() with logger in runtime code
 - **T-004** `p1/refactor/bot` Move chart rendering off the event loop

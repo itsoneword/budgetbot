@@ -5,6 +5,8 @@ from language_util import check_language, cache_user_language, get_cached_curren
 # Database integration
 from shared.di import setup_container, cleanup_container, get_repos
 
+from src.config import ADMIN_USER_ID
+
 # Domain layer - batch fetch + filter
 from domain.session_loader import load_user_session
 from domain.filters import (
@@ -176,11 +178,10 @@ except Exception as e:
 
 # Command to toggle debug mode
 async def toggle_debug(update: Update, context: CallbackContext):
-    user_id =update.effective_user.id
-    
+    user_id = update.effective_user.id
+
     # Only allow admin users to toggle debug mode
-    # You can modify this check based on your needs
-    if user_id != "46304833":  # Replace with your actual admin user ID
+    if user_id != ADMIN_USER_ID:
         await update.message.reply_text("Sorry, only admin users can toggle debug mode.")
         return TRANSACTION
     
