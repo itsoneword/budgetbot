@@ -2,13 +2,13 @@
 
 # Task Board
 
-Updated: 2026-07-07 · see docs/ROADMAP.md for milestones
+Updated: 2026-07-08 · see docs/ROADMAP.md for milestones
 
 ## Doing (0)
 _empty_
 
-## Review (1)
-- **T-001** `p0/bug/bot` Fix admin check (int vs str comparison) — last: 2026-07-07 moved to review
+## Review (0)
+_empty_
 
 ## Todo (8)
 - **T-002** `p1/refactor/bot` Standardize package-qualified imports
@@ -30,5 +30,5 @@ _empty_
 - **T-016** `p3/feature/infra` Analytics events table
 - **T-017** `p3/feature/infra` Web UI / API layer
 
-## Done (last 10 of 0)
-_empty_
+## Done (last 10 of 1)
+- **T-001** `p0/bug/bot` Fix admin check (int vs str comparison)
