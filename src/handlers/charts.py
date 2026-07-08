@@ -7,10 +7,10 @@ Handles: monthly charts, extended charts, yearly pie charts.
 from telegram import Update, InputMediaPhoto
 from telegram.ext import CallbackContext
 
-from language_util import check_language
+from src.language_util import check_language
 from shared.di import get_repos
 from src.logger import log_debug, log_user_interaction
-from charts import (
+from src.charts import (
     load_chart_data,
     monthly_pivot_chart,
     monthly_line_chart,

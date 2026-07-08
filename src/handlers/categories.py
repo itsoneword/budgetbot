@@ -6,8 +6,8 @@ from telegram import Update
 from telegram.ext import CallbackContext, ConversationHandler
 from telegram.constants import ParseMode
 
-from language_util import check_language
-from keyboards import (
+from src.language_util import check_language
+from src.keyboards import (
     create_category_edit_keyboard,
     create_category_options_keyboard,
     create_confirmation_keyboard,

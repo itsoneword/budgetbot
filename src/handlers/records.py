@@ -10,7 +10,7 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import CallbackContext, ConversationHandler
 
-from language_util import check_language, cache_user_language, get_cached_currency, ensure_user_config_cached
+from src.language_util import check_language, cache_user_language, get_cached_currency, ensure_user_config_cached
 from shared.di import get_repos
 from src.logger import log_debug, log_user_interaction
 from domain.session_loader import load_user_session

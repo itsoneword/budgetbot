@@ -10,8 +10,8 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, ConversationHandler
 from telegram.constants import ParseMode
 
-from language_util import check_language
-from keyboards import (
+from src.language_util import check_language
+from src.keyboards import (
     create_transaction_edit_keyboard,
     create_tx_del_confirmation_keyboard,
     create_numbered_transaction_keyboard,
@@ -237,7 +237,7 @@ async def handle_edit_option(update: Update, context: CallbackContext) -> int:
         filtered_tx = 0
 
     if callback_data == "back_to_transactions" and filtered_tx == 1:
-        from detailed_transactions import show_filtered_transactions
+        from src.detailed_transactions import show_filtered_transactions
         return await show_filtered_transactions(update, context)
     elif callback_data == "back_to_transactions":
         return await show_recent_entries(update, context)
@@ -344,7 +344,7 @@ async def handle_edit_date(update: Update, context: CallbackContext) -> int:
             )
 
             if context.user_data.get('return_to_detailed', False):
-                from detailed_transactions import show_filtered_transactions
+                from src.detailed_transactions import show_filtered_transactions
                 context.user_data['tx_page'] = 0
                 return await show_filtered_transactions(update, context)
             else:
@@ -414,7 +414,7 @@ async def handle_edit_category(update: Update, context: CallbackContext) -> int:
             )
 
             if context.user_data.get('return_to_detailed', False):
-                from detailed_transactions import show_filtered_transactions
+                from src.detailed_transactions import show_filtered_transactions
                 context.user_data['tx_page'] = 0
                 return await show_filtered_transactions(update, context)
             else:
@@ -477,7 +477,7 @@ async def handle_edit_subcategory(update: Update, context: CallbackContext) -> i
         )
 
         if context.user_data.get('return_to_detailed', False):
-            from detailed_transactions import show_filtered_transactions
+            from src.detailed_transactions import show_filtered_transactions
             context.user_data['tx_page'] = 0
             return await show_filtered_transactions(update, context)
         else:
@@ -516,7 +516,7 @@ async def handle_edit_amount(update: Update, context: CallbackContext) -> int:
             )
 
             if context.user_data.get('return_to_detailed', False):
-                from detailed_transactions import show_filtered_transactions
+                from src.detailed_transactions import show_filtered_transactions
                 context.user_data['tx_page'] = 0
                 return await show_filtered_transactions(update, context)
             else:
@@ -581,7 +581,7 @@ async def handle_delete_tx_confirmation(update: Update, context: CallbackContext
 
     # Return to appropriate view
     if context.user_data.get('return_to_detailed', False):
-        from detailed_transactions import show_filtered_transactions
+        from src.detailed_transactions import show_filtered_transactions
         return await show_filtered_transactions(update, context)
     else:
         context.user_data['tx_page'] = 0

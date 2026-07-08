@@ -36,12 +36,12 @@ def check_language(update, context):
 
         # Return appropriate texts module
         if language == "ru":
-            return importlib.import_module("texts_ru")
+            return importlib.import_module("src.texts_ru")
         else:
-            return importlib.import_module("texts")
+            return importlib.import_module("src.texts")
     else:
         # Default to English if update or user is None
-        return importlib.import_module("texts")
+        return importlib.import_module("src.texts")
 
 
 async def cache_user_language(context, repos, user_id: int) -> str:

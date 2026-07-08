@@ -1,6 +1,6 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackContext
-from language_util import check_language
+from src.language_util import check_language
 from shared.utils.pagination import paginate, get_page_slice, create_nav_buttons
 import sys
 

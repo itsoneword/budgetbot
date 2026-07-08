@@ -21,14 +21,14 @@ from domain.filters import (
 )
 
 # Bot components
-from keyboards import (
+from src.keyboards import (
     create_category_selection_keyboard,
     create_time_period_keyboard,
     create_detailed_transactions_keyboard,
     create_main_menu_keyboard,
     create_show_transactions_keyboard
 )
-from language_util import check_language
+from src.language_util import check_language
 from src.handlers.transactions import handle_transaction_selection
 from shared.di import get_repos
 

@@ -8,12 +8,12 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import CallbackContext, ConversationHandler
 
-from language_util import check_language
+from src.language_util import check_language
 from shared.di import get_repos
 from src.config import ADMIN_USER_ID
 from src.logger import log_user_interaction
-from keyboards import create_settings_keyboard
-from charts import generate_usage_summary_chart
+from src.keyboards import create_settings_keyboard
+from src.charts import generate_usage_summary_chart
 from src.states import TRANSACTION, DELETE_PROFILE
 
 

@@ -16,8 +16,8 @@ from domain.session_loader import load_user_session
 from domain.filters import calculate_limit_usage
 
 # file_ops imports removed - using PostgreSQL repositories instead
-from language_util import check_language, get_cached_currency, ensure_user_config_cached
-from keyboards import (
+from src.language_util import check_language, get_cached_currency, ensure_user_config_cached
+from src.keyboards import (
     create_main_menu_keyboard, create_category_keyboard, 
     create_found_category_keyboard,
     create_multiple_categories_keyboard, create_subcategories_keyboard,
@@ -190,7 +190,7 @@ async def _check_and_show_limit_warning(update_or_query, context: CallbackContex
     from domain.session_loader import load_user_session
     from domain.filters import calculate_limit_usage
     from decimal import Decimal
-    from language_util import get_cached_currency, get_cached_monthly_limit
+    from src.language_util import get_cached_currency, get_cached_monthly_limit
     
     try:
         repos = get_repos(context)

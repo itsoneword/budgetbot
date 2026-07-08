@@ -10,10 +10,10 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import CallbackContext
 
-from language_util import check_language
+from src.language_util import check_language
 from shared.di import get_repos
 from src.logger import log_debug, log_state_transition
-from keyboards import create_main_menu_keyboard
+from src.keyboards import create_main_menu_keyboard
 from src.states import TRANSACTION, SETTINGS_LIMIT
 
 
