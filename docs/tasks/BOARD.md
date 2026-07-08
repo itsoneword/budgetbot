@@ -7,8 +7,8 @@ Updated: 2026-07-08 · see docs/ROADMAP.md for milestones
 ## Doing (0)
 _empty_
 
-## Review (1)
-- **T-002** `p1/refactor/bot` Standardize package-qualified imports — last: 2026-07-08 moved to review
+## Review (0)
+_empty_
 
 ## Todo (7)
 - **T-003** `p1/ops/bot` Replace print() with logger in runtime code
@@ -29,5 +29,6 @@ _empty_
 - **T-016** `p3/feature/infra` Analytics events table
 - **T-017** `p3/feature/infra` Web UI / API layer
 
-## Done (last 10 of 1)
+## Done (last 10 of 2)
 - **T-001** `p0/bug/bot` Fix admin check (int vs str comparison)
+- **T-002** `p1/refactor/bot` Standardize package-qualified imports

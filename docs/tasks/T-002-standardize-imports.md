@@ -1,7 +1,7 @@
 ---
 id: T-002
 title: Standardize package-qualified imports
-status: review
+status: done
 type: refactor
 area: bot
 priority: p1
@@ -18,7 +18,7 @@ src/core.py and siblings use bare `from language_util import ...` that only work
 ## Acceptance
 - [x] All intra-project imports use the src.* prefix
 - [x] run.py adds only the project root to sys.path
-- [ ] Bot boots and responds to /start (boot verified; /start pending manual check)
+- [x] Bot boots and responds to /start
 
 ## Log
 - 2026-07-07 created from production-readiness B2
@@ -31,10 +31,10 @@ src/core.py and siblings use bare `from language_util import ...` that only work
 Behavior-preserving refactor — the goal is confirming nothing broke, with extra attention on the two riskiest changes: dynamic texts loading (`importlib.import_module("src.texts*")`) and the dual-instance fix for save_transaction.
 
 ### Critical
-- [ ] /start responds (fresh user onboarding keyboard, or normal reply for existing user)
-- [ ] Language switch to Russian works and bot replies in Russian (exercises dynamic src.texts_ru import); switch back to English works
-- [ ] Save a spending transaction end-to-end (category → subcategory → amount → confirm) — exercises src.save_transaction
-- [ ] /menu opens and Edit transactions → recent entries list works (exercises function-level detailed_transactions imports)
+- [x] /start responds (fresh user onboarding keyboard, or normal reply for existing user)
+- [x] Language switch to Russian works and bot replies in Russian (exercises dynamic src.texts_ru import); switch back to English works
+- [x] Save a spending transaction end-to-end (category → subcategory → amount → confirm) — exercises src.save_transaction
+- [x] /menu opens and Edit transactions → recent entries list works (exercises function-level detailed_transactions imports)
 
 ### Important
 - [ ] Charts render (/menu → charts or /show_chart equivalents)
@@ -43,3 +43,5 @@ Behavior-preserving refactor — the goal is confirming nothing broke, with extr
 
 ### Nice-to-have
 - [ ] No ImportError/ModuleNotFoundError anywhere in `docker compose logs budgetbot` after exercising the flows above
+- 2026-07-08 Manual pass in test bot OK (/start, RU switch, tx save, menu)
+- 2026-07-08 done
