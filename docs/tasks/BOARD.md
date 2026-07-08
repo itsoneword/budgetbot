@@ -19,10 +19,12 @@ _empty_
 - **T-010** `p2/ops/infra` Currency API circuit breaker
 - **T-011** `p2/ops/obs` Observability: structured logs, Sentry, health check
 
-## Backlog (8)
+## Backlog (10)
 - **T-008** `p2/feature/deploy` Webhook mode + horizontal scaling path _(waiting: T-009)_
 - **T-009** `p2/refactor/bot` Durable conversation state
 - **T-012** `p2/ops/deploy` Deploy hardening: prod compose overlay + secrets
+- **T-018** `p2/feature/bot` AI Q&A over spendings (/ask)
+- **T-019** `p2/feature/bot` Voice input: transcribe + route to Q&A or transaction entry _(waiting: T-018)_
 - **T-013** `p3/feature/db` Soft delete and recovery
 - **T-014** `p3/refactor/db` Data-model cleanups (limit sentinel, timezone, enums, category language)
 - **T-015** `p3/feature/bot` CSV download/upload restore
