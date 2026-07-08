@@ -31,6 +31,8 @@ From personal use to 1k+ users: performance, reliability, operability. Source an
 - T-015 CSV download/upload restore
 - T-016 Analytics events table
 - T-017 Web UI / API layer
+- T-018 AI Q&A over spendings (/ask) — LLM client behind provider-agnostic interface (subscription OAuth → OpenRouter)
+- T-019 Voice input — local faster-whisper transcription, routed to Q&A or transaction entry
 
 ## History
 
