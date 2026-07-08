@@ -26,6 +26,9 @@ WORKDIR /app
 # Copy only necessary files and directories
 COPY run.py /app/
 COPY src/ /app/src/
+COPY domain/ /app/domain/
+COPY infrastructure/ /app/infrastructure/
+COPY shared/ /app/shared/
 COPY configs/ /app/configs/
 COPY entrypoint.sh /app/
 
