@@ -1,7 +1,7 @@
 ---
 id: T-018
 title: AI Q&A over spendings (/ask)
-status: review
+status: done
 type: feature
 area: bot
 priority: p2
@@ -46,3 +46,5 @@ Natural-language questions about the user's finances (e.g. 'how much did I spend
 - [ ] Saving a transaction still works
 - [ ] Container restart: bot comes up clean with CLI mounts present
 - 2026-07-09 Bugfix: /ask crashed with AttributeError when the command arrived as an edited message (update.message is None on edits; PTB CommandHandler fires for both). Switched ask() to update.effective_message. Found via the T-011 error handler log — user_id and exact input were in the traceback context.
+- 2026-07-09 done
+- 2026-07-09 Owner confirmed /ask works in production (happy path). Remaining checklist items (edge cases, ru language, regression sweep after py3.12 bump) not individually walked — revisit if issues surface.

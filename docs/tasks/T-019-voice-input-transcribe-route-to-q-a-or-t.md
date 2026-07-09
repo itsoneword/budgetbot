@@ -9,7 +9,7 @@ deps: [T-018]
 tags: [ai]
 blocked: 
 created: 2026-07-08
-updated: 2026-07-08
+updated: 2026-07-09
 ---
 
 ## Context
@@ -20,3 +20,4 @@ Telegram voice messages (OGG/Opus) downloaded via bot API, transcribed locally w
 
 ## Log
 - 2026-07-08 created
+- 2026-07-09 Prereq T-018 is done: LLM client at infrastructure/llm/ (get_llm_client), /ask pipeline in core.py. Open decisions for voice: (a) faster-whisper model size + weights in image vs volume (~150MB small / ~1GB large, CPU-only VPS), (b) owner suggestion: optionally ship intent-routing on TEXT messages first, audio second. Intent routing = LLM call classifying transcript -> /ask pipeline or parsed transaction with confirm buttons.

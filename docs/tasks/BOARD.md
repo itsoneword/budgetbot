@@ -7,9 +7,8 @@ Updated: 2026-07-09 · see docs/ROADMAP.md for milestones
 ## Doing (0)
 _empty_
 
-## Review (2)
+## Review (1)
 - **T-020** `p0/bug/bot` Fix show_last: Transaction attribute mismatch (tx.category vs category_name) — last: 2026-07-09 moved to review
-- **T-018** `p2/feature/bot` AI Q&A over spendings (/ask) — last: 2026-07-09 moved to review
 
 ## Todo (6)
 - **T-003** `p1/ops/bot` Replace print() with logger in runtime code
@@ -23,7 +22,7 @@ _empty_
 - **T-008** `p2/feature/deploy` Webhook mode + horizontal scaling path _(waiting: T-009)_
 - **T-009** `p2/refactor/bot` Durable conversation state
 - **T-012** `p2/ops/deploy` Deploy hardening: prod compose overlay + secrets
-- **T-019** `p2/feature/bot` Voice input: transcribe + route to Q&A or transaction entry _(waiting: T-018)_
+- **T-019** `p2/feature/bot` Voice input: transcribe + route to Q&A or transaction entry
 - **T-021** `p2/feature/bot` Sync bot menu commands with code (set_my_commands on startup)
 - **T-013** `p3/feature/db` Soft delete and recovery
 - **T-014** `p3/refactor/db` Data-model cleanups (limit sentinel, timezone, enums, category language)
@@ -31,7 +30,8 @@ _empty_
 - **T-016** `p3/feature/infra` Analytics events table
 - **T-017** `p3/feature/infra` Web UI / API layer
 
-## Done (last 10 of 3)
+## Done (last 10 of 4)
 - **T-007** `p1/ops/db` Automated Postgres backups
+- **T-018** `p2/feature/bot` AI Q&A over spendings (/ask)
 - **T-001** `p0/bug/bot` Fix admin check (int vs str comparison)
 - **T-002** `p1/refactor/bot` Standardize package-qualified imports
