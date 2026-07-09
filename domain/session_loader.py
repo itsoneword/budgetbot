@@ -78,19 +78,7 @@ async def load_user_session(
         )
 
         # Convert to domain model
-        transactions = [
-            Transaction(
-                id=tx.id,
-                user_id=tx.user_id,
-                timestamp=tx.timestamp,
-                transaction_type=tx.transaction_type,
-                category=tx.category_name,
-                subcategory=tx.subcategory_name,
-                amount=tx.amount,
-                currency=tx.currency,
-            )
-            for tx in db_transactions
-        ]
+        transactions = [Transaction.from_repo(tx) for tx in db_transactions]
 
     return UserSession(
         user_id=user_id,
@@ -160,19 +148,7 @@ async def refresh_transactions(
         repos, session.user_id, since, transaction_type
     )
 
-    transactions = [
-        Transaction(
-            id=tx.id,
-            user_id=tx.user_id,
-            timestamp=tx.timestamp,
-            transaction_type=tx.transaction_type,
-            category=tx.category_name,
-            subcategory=tx.subcategory_name,
-            amount=tx.amount,
-            currency=tx.currency,
-        )
-        for tx in db_transactions
-    ]
+    transactions = [Transaction.from_repo(tx) for tx in db_transactions]
 
     # Return new session with updated transactions
     return UserSession(

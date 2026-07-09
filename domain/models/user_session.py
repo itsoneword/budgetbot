@@ -32,6 +32,20 @@ class Transaction:
     amount: Decimal
     currency: str
 
+    @classmethod
+    def from_repo(cls, tx) -> 'Transaction':
+        """Convert a repository Transaction (category_name/subcategory_name) to the domain model."""
+        return cls(
+            id=tx.id,
+            user_id=tx.user_id,
+            timestamp=tx.timestamp,
+            transaction_type=tx.transaction_type,
+            category=tx.category_name,
+            subcategory=tx.subcategory_name,
+            amount=tx.amount,
+            currency=tx.currency,
+        )
+
     @property
     def date(self) -> datetime:
         """Return date portion of timestamp."""

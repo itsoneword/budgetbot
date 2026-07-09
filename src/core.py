@@ -402,8 +402,10 @@ async def latest_records(update: Update, context):
     # Determine if argument is a number or category name
     try:
         limit = int(record_num_or_category)
-        # Get latest N transactions
-        transactions = await repos.transactions.get_latest(user_id, limit=limit, transaction_type='spending')
+        # Get latest N transactions (convert to domain model for .category/.subcategory)
+        from domain.models.user_session import Transaction as DomainTransaction
+        repo_transactions = await repos.transactions.get_latest(user_id, limit=limit, transaction_type='spending')
+        transactions = [DomainTransaction.from_repo(tx) for tx in repo_transactions]
     except ValueError:
         # It's a category name - load more and filter
         from domain.session_loader import load_user_session

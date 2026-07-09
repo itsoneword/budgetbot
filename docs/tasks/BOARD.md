@@ -7,16 +7,14 @@ Updated: 2026-07-09 · see docs/ROADMAP.md for milestones
 ## Doing (0)
 _empty_
 
-## Review (0)
-_empty_
+## Review (1)
+- **T-020** `p0/bug/bot` Fix show_last: Transaction attribute mismatch (tx.category vs category_name) — last: 2026-07-09 moved to review
 
-## Todo (8)
-- **T-020** `p0/bug/bot` Fix show_last: Transaction attribute mismatch (tx.category vs category_name)
+## Todo (6)
 - **T-003** `p1/ops/bot` Replace print() with logger in runtime code
 - **T-004** `p1/refactor/bot` Move chart rendering off the event loop
 - **T-005** `p1/ops/db` Adopt alembic for schema migrations
 - **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating
-- **T-007** `p1/ops/db` Automated Postgres backups
 - **T-010** `p2/ops/infra` Currency API circuit breaker
 - **T-011** `p2/ops/obs` Observability: structured logs, Sentry, health check
 
@@ -33,6 +31,7 @@ _empty_
 - **T-016** `p3/feature/infra` Analytics events table
 - **T-017** `p3/feature/infra` Web UI / API layer
 
-## Done (last 10 of 2)
+## Done (last 10 of 3)
+- **T-007** `p1/ops/db` Automated Postgres backups
 - **T-001** `p0/bug/bot` Fix admin check (int vs str comparison)
 - **T-002** `p1/refactor/bot` Standardize package-qualified imports
