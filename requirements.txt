@@ -15,8 +15,11 @@ yfinance==0.2.55
 asyncpg==0.29.0
 
 # Configuration & utilities (Phase 2+)
-pydantic-settings==2.4.0
+pydantic-settings>=2.5.2
 aiofiles==23.2.1
 
 # Logging (Phase 2+)
 structlog==24.1.0
+# AI Q&A /ask (T-018) — uses Claude Code subscription OAuth via mounted CLI
+claude-agent-sdk>=0.1.80,<0.2
+mcp>=1.20

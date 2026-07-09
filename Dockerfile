@@ -1,4 +1,4 @@
-FROM python:3.9-slim AS builder
+FROM python:3.12-slim AS builder
 
 # Set up pip to be faster and more efficient
 ENV PIP_NO_CACHE_DIR=1 \
@@ -9,7 +9,7 @@ COPY requirements.txt /tmp/
 RUN pip install --user --no-warn-script-location -r /tmp/requirements.txt
 
 # Final stage
-FROM python:3.9-slim
+FROM python:3.12-slim
 
 # Copy the installed packages from the builder stage
 COPY --from=builder /root/.local /root/.local

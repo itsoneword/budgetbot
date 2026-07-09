@@ -779,6 +779,52 @@ async def handle_text(update: Update, context):
     return TRANSACTION
 
 
+async def ask(update: Update, context: CallbackContext):
+    """AI Q&A over the user's spendings (T-018). Data is aggregated in memory
+    and packed into the prompt; the model never touches the DB."""
+    user_id = update.effective_user.id
+    texts = check_language(update, context)
+    log_user_interaction(
+        user_id, update.effective_user.first_name, update.effective_user.username
+    )
+
+    from src.config import is_llm_allowed
+    if not is_llm_allowed(user_id):
+        await update.message.reply_text(texts.ASK_NOT_ALLOWED)
+        return
+
+    question = " ".join(context.args) if context.args else ""
+    if not question.strip():
+        await update.message.reply_text(texts.ASK_USAGE)
+        return
+
+    thinking_message = await update.message.reply_text(texts.ASK_THINKING)
+
+    try:
+        from domain.ask_summary import build_finance_summary, build_ask_system_prompt
+        from infrastructure.llm import get_llm_client, LLMError
+
+        repos = get_repos(context)
+        session = await load_user_session(
+            user_id, repos, load_transactions=True, transactions_months=12
+        )
+        if not session.transactions:
+            await thinking_message.edit_text(texts.ASK_NO_DATA)
+            return
+
+        summary = build_finance_summary(session)
+        prompt = (
+            f"User's financial data:\n{summary}\n\n"
+            f"User's question: {question}"
+        )
+        client = get_llm_client()
+        answer = await client.complete(prompt, build_ask_system_prompt(session.language))
+        await thinking_message.edit_text(answer)
+    except LLMError as e:
+        logging.error(f"/ask LLM failure for user {user_id}: {e}")
+        await thinking_message.edit_text(texts.ASK_ERROR)
+
+
 async def global_error_handler(update: object, context) -> None:
     """Log unhandled handler exceptions with user context; send a short apology to the user."""
     user_ctx = ""
@@ -825,6 +871,7 @@ def main():
     application.add_handler(CommandHandler("yearly_stat", send_yearly_piechart))
     application.add_handler(CommandHandler("show_log_chart", show_log_chart))
     application.add_handler(CommandHandler("debug", toggle_debug))
+    application.add_handler(CommandHandler("ask", ask))
 
     # Handler for the leave command to archive user profile
     leave_handler = ConversationHandler(

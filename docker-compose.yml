@@ -32,3 +32,8 @@ services:
     volumes:
       # Persist user data (read-only during migration, then can remove)
       - ./user_data:/app/user_data
+      # Claude CLI + subscription OAuth credentials for /ask (T-018), read-only.
+      # Same pattern as claude-code-telegram: host refreshes tokens, container only reads.
+      - /home/cleversol/.local/share/claude:/home/cleversol/.local/share/claude:ro
+      - /home/cleversol/.local/bin/claude:/usr/local/bin/claude:ro
+      - /home/cleversol/.claude/.credentials.json:/root/.claude/.credentials.json:ro
