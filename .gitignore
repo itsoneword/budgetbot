@@ -18,7 +18,6 @@ user_list.csv
 config
 todos.txt
 deploy.sh
-docker-compose.yml
 .opencode/
 .claude/settings.local.json
 .claude/hooks-state/
