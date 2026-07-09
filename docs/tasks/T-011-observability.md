@@ -23,3 +23,4 @@ File logs only (app.log + user_log.csv); structlog is in requirements but unwire
 ## Log
 - 2026-07-07 created from production-readiness O1
 - 2026-07-09 Scope narrowed per owner 2026-07-09: proper logging + PTB error handler only. NO in-bot owner notifications — external devops agent will watch logs and report. Sentry optional/deferred.
+- 2026-07-09 Added global PTB error handler (core.py): logs full traceback + user_id/input/callback context to app.log and stdout, replies with localized ERROR_PROCESSING_REQUEST. 'No error handlers registered' warning gone. Remaining scope: structured logs, health check.

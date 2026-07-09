@@ -779,6 +779,26 @@ async def handle_text(update: Update, context):
     return TRANSACTION
 
 
+async def global_error_handler(update: object, context) -> None:
+    """Log unhandled handler exceptions with user context; send a short apology to the user."""
+    user_ctx = ""
+    if isinstance(update, Update) and update.effective_user:
+        user_ctx = f" [user_id={update.effective_user.id}"
+        if update.effective_message and update.effective_message.text:
+            user_ctx += f", input={update.effective_message.text!r}"
+        elif update.callback_query and update.callback_query.data:
+            user_ctx += f", callback={update.callback_query.data!r}"
+        user_ctx += "]"
+    logging.error(f"Unhandled exception{user_ctx}", exc_info=context.error)
+
+    if isinstance(update, Update) and update.effective_message:
+        try:
+            texts = check_language(update, context)
+            await update.effective_message.reply_text(texts.ERROR_PROCESSING_REQUEST)
+        except Exception:
+            logging.exception("Failed to notify user about the error")
+
+
 def main():
     # Build application with database container lifecycle hooks
     application = (
@@ -981,6 +1001,8 @@ def main():
     application.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text)
     )
+
+    application.add_error_handler(global_error_handler)
 
     application.run_polling()
 
