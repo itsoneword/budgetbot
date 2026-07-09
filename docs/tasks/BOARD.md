@@ -2,7 +2,7 @@
 
 # Task Board
 
-Updated: 2026-07-08 · see docs/ROADMAP.md for milestones
+Updated: 2026-07-09 · see docs/ROADMAP.md for milestones
 
 ## Doing (0)
 _empty_
@@ -10,7 +10,8 @@ _empty_
 ## Review (0)
 _empty_
 
-## Todo (7)
+## Todo (8)
+- **T-020** `p0/bug/bot` Fix show_last: Transaction attribute mismatch (tx.category vs category_name)
 - **T-003** `p1/ops/bot` Replace print() with logger in runtime code
 - **T-004** `p1/refactor/bot` Move chart rendering off the event loop
 - **T-005** `p1/ops/db` Adopt alembic for schema migrations
