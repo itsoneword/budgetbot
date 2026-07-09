@@ -22,3 +22,4 @@ deploy.sh
 .claude/settings.local.json
 .claude/hooks-state/
 .serena/
+/pgdata
