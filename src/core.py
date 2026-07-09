@@ -599,7 +599,16 @@ async def handle_text(update: Update, context):
             # Return a save transaction
             log_debug(f"Text message matching spending pattern, calling save_transaction: {text}")
             return await save_transaction(update, context)
-        
+
+        # Free text with no pattern match: LLM intent routing for allowed users
+        # (T-019). Routed transactions/commands are re-injected as typed text,
+        # which always matches the pattern above or a CommandHandler — no loop.
+        from src.config import is_llm_allowed
+        if is_llm_allowed(user_id):
+            from src.handlers.voice import route_free_text
+            await route_free_text(update, context, text)
+            return TRANSACTION
+
         # Default message back to the user if no patterns match
         await update.message.reply_text(
             texts.UNKNOWN_TEXT_FORMAT,
@@ -1043,6 +1052,15 @@ def main():
                    ],
 
     )
+    # Voice input + intent routing (T-019). Registered before spendings_handler
+    # so the vtx_ confirm callback isn't swallowed by its pattern-less
+    # menu_callback fallback while a conversation is active.
+    from src.handlers.voice import handle_voice, handle_voice_tx_confirmation
+    application.add_handler(MessageHandler(filters.VOICE, handle_voice))
+    application.add_handler(
+        CallbackQueryHandler(handle_voice_tx_confirmation, pattern="^vtx_")
+    )
+
     application.add_handler(spendings_handler)
     # message handler for text input
     application.add_handler(

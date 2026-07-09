@@ -311,3 +311,21 @@ ASK_THINKING = "🤔 Analyzing your data..."
 ASK_NOT_ALLOWED = "The /ask command is in limited testing and not available for your account yet."
 ASK_ERROR = "Could not get an answer right now. Please try again later."
 ASK_NO_DATA = "You don't have any transactions yet — add some spendings first."
+
+# Voice input & intent routing (T-019)
+VOICE_TRANSCRIBING = "🎙 Transcribing..."
+VOICE_TOO_LONG = "Voice message is too long — please keep it under {seconds} seconds."
+VOICE_ERROR = "Could not transcribe the voice message. Please try again."
+VOICE_NO_SPEECH = "I couldn't hear any speech in that voice message."
+VOICE_HEARD = "🎙 Heard: “{transcript}”"
+VOICE_ROUTING = "🤔 Working out what you meant..."
+VOICE_CONFIRM_TX = "🎙 Heard: “{transcript}”\n\nAdd transaction: {transaction}?"
+VOICE_TX_CONFIRM_BTN = "✅ Add"
+VOICE_TX_CANCEL_BTN = "❌ Cancel"
+VOICE_TX_ACCEPTED = "Adding: {transaction}"
+VOICE_TX_CANCELLED = "Cancelled — nothing saved."
+VOICE_UNKNOWN = (
+    "🎙 Heard: “{transcript}”\n\n"
+    "I couldn't map this to an action. You can add a spending like “coffee 4.5”, "
+    "ask a question with /ask, or see /help."
+)

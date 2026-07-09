@@ -7,8 +7,9 @@ Updated: 2026-07-09 · see docs/ROADMAP.md for milestones
 ## Doing (0)
 _empty_
 
-## Review (1)
+## Review (2)
 - **T-020** `p0/bug/bot` Fix show_last: Transaction attribute mismatch (tx.category vs category_name) — last: 2026-07-09 moved to review
+- **T-019** `p2/feature/bot` Voice input: transcribe + route to Q&A or transaction entry — last: 2026-07-09 moved to review
 
 ## Todo (6)
 - **T-003** `p1/ops/bot` Replace print() with logger in runtime code
@@ -18,11 +19,10 @@ _empty_
 - **T-010** `p2/ops/infra` Currency API circuit breaker
 - **T-011** `p2/ops/obs` Observability: structured logs, Sentry, health check
 
-## Backlog (10)
+## Backlog (9)
 - **T-008** `p2/feature/deploy` Webhook mode + horizontal scaling path _(waiting: T-009)_
 - **T-009** `p2/refactor/bot` Durable conversation state
 - **T-012** `p2/ops/deploy` Deploy hardening: prod compose overlay + secrets
-- **T-019** `p2/feature/bot` Voice input: transcribe + route to Q&A or transaction entry
 - **T-021** `p2/feature/bot` Sync bot menu commands with code (set_my_commands on startup)
 - **T-013** `p3/feature/db` Soft delete and recovery
 - **T-014** `p3/refactor/db` Data-model cleanups (limit sentinel, timezone, enums, category language)

@@ -37,3 +37,6 @@ services:
       - /home/cleversol/.local/share/claude:/home/cleversol/.local/share/claude:ro
       - /home/cleversol/.local/bin/claude:/usr/local/bin/claude:ro
       - /home/cleversol/.claude/.credentials.json:/root/.claude/.credentials.json:ro
+      # Whisper weights for voice input (T-019) — host HF cache already holds
+      # faster-whisper-small (shared with Devvybot); rw so HF can write lock files.
+      - /home/cleversol/.cache/huggingface:/root/.cache/huggingface

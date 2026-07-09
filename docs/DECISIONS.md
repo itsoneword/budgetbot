@@ -12,3 +12,5 @@ Append-only. Format: `date — decision — why — rejected alternative`. Refer
 - 2026-07-09: LLM backend = claude-agent-sdk spawning host-mounted claude CLI (subscription OAuth, credentials ro) / why: zero API cost for tests, pattern proven in claude-code-telegram / rejected: raw OAuth token against API (fragile), OpenRouter now (paid; deferred to config swap).
 - 2026-07-09: Docker image python 3.9 -> 3.12 / why: claude-agent-sdk requires 3.10+ / rejected: separate LLM sidecar container (more moving parts).
 - 2026-07-09: /ask gated by ADMIN_USER_ID + LLM_ALLOWED_USERS env allowlist / why: LLM runs on owner's personal subscription / rejected: open to all 72 users.
+
+- 2026-07-09: Voice/text intent routing dispatches by synthetic Update injected through application.process_update (LLM output reduced to enum + validated payload) / reuses all existing handlers, gating and conversation states; PTB v22 Message objects are immutable so mutating .text (as core.py menu_call does) crashes / rejected: calling handlers directly (show_records reads message.text -> None on voice) and duplicating the save flow.
