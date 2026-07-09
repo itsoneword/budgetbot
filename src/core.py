@@ -790,15 +790,15 @@ async def ask(update: Update, context: CallbackContext):
 
     from src.config import is_llm_allowed
     if not is_llm_allowed(user_id):
-        await update.message.reply_text(texts.ASK_NOT_ALLOWED)
+        await update.effective_message.reply_text(texts.ASK_NOT_ALLOWED)
         return
 
     question = " ".join(context.args) if context.args else ""
     if not question.strip():
-        await update.message.reply_text(texts.ASK_USAGE)
+        await update.effective_message.reply_text(texts.ASK_USAGE)
         return
 
-    thinking_message = await update.message.reply_text(texts.ASK_THINKING)
+    thinking_message = await update.effective_message.reply_text(texts.ASK_THINKING)
 
     try:
         from domain.ask_summary import build_finance_summary, build_ask_system_prompt

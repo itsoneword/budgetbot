@@ -45,3 +45,4 @@ Natural-language questions about the user's finances (e.g. 'how much did I spend
 - [ ] All non-LLM commands (/show, /show_last, charts) still work after py3.9→3.12 image bump — this is the riskiest change
 - [ ] Saving a transaction still works
 - [ ] Container restart: bot comes up clean with CLI mounts present
+- 2026-07-09 Bugfix: /ask crashed with AttributeError when the command arrived as an edited message (update.message is None on edits; PTB CommandHandler fires for both). Switched ask() to update.effective_message. Found via the T-011 error handler log — user_id and exact input were in the traceback context.
