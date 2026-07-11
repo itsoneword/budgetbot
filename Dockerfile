@@ -30,6 +30,7 @@ COPY domain/ /app/domain/
 COPY infrastructure/ /app/infrastructure/
 COPY shared/ /app/shared/
 COPY configs/ /app/configs/
+COPY alembic.ini /app/
 COPY entrypoint.sh /app/
 
 # Ensure entrypoint script has correct line endings and permissions

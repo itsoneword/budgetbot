@@ -25,6 +25,10 @@ else
   echo "TOKEN = $API_KEY" >> /app/configs/config
 fi
 
+# Apply database schema migrations (idempotent; set -e aborts start on failure)
+echo "Applying database migrations (alembic upgrade head)..."
+cd /app && alembic upgrade head
+
 # Check if run.py exists first, as that's the intended entry point
 if [ -f "/app/run.py" ]; then
   echo "Running run.py..."

@@ -2,18 +2,17 @@
 
 # Task Board
 
-Updated: 2026-07-08 · see docs/ROADMAP.md for milestones
+Updated: 2026-07-11 · see docs/ROADMAP.md for milestones
 
-## Doing (0)
-_empty_
+## Doing (1)
+- **T-005** `p1/ops/db` Adopt alembic for schema migrations — last: 2026-07-11 alembic scaffold (async asyncpg env.py, baseline 0001 from idempotent SQL, sample 0002); entrypoint runs upgrade head; initdb.d mount removed; apply_schema.py stubbed; verified fresh-DB, existing-DB, downgrade, scheme-rewrite against throwaway pg15
 
 ## Review (0)
 _empty_
 
-## Todo (7)
+## Todo (6)
 - **T-003** `p1/ops/bot` Replace print() with logger in runtime code
 - **T-004** `p1/refactor/bot` Move chart rendering off the event loop
-- **T-005** `p1/ops/db` Adopt alembic for schema migrations
 - **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating
 - **T-007** `p1/ops/db` Automated Postgres backups
 - **T-010** `p2/ops/infra` Currency API circuit breaker

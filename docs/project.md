@@ -55,7 +55,7 @@ docker compose up -d --build
 docker logs -f budgetbot-container
 ```
 
-The Postgres schema is applied automatically from `infrastructure/database/migrations/001_initial_schema.sql` on first boot.
+The Postgres schema is managed by alembic: the bot container runs `alembic upgrade head` on every start (entrypoint.sh), so `docker compose up` migrates fresh and existing databases alike. The baseline revision (0001) replays the idempotent `infrastructure/database/migrations/001_initial_schema.sql`.
 
 ### Running outside Docker
 
@@ -102,7 +102,7 @@ python3 scripts/test_repositories.py           # CRUD round-trip
 
 ## How to add a feature
 
-1. **DB change?** Add a new migration file in `infrastructure/database/migrations/` (no migration framework yet — see production-readiness gap). Apply via `python3 scripts/apply_schema.py` against your dev DB.
+1. **DB change?** Add an alembic revision: `alembic revision -m "short_slug" --rev-id NNNN` (next number after the latest file in `infrastructure/database/alembic/versions/`), write `upgrade()`/`downgrade()` by hand (no models — autogenerate is unavailable; use `op.get_bind().exec_driver_sql(...)` for raw SQL), then apply with `DATABASE_URL=postgresql://... alembic upgrade head` against your dev DB. In Docker it applies automatically on container start.
 2. **Repo method?** Add to the relevant `infrastructure/repositories/*_repository.py`. Keep it dumb — pure CRUD or simple SQL queries, no business logic.
 3. **Business logic?** Add a pure function to `domain/filters.py` (or a new module under `domain/`). It should take dataclasses, return dataclasses or primitives, never touch I/O.
 4. **Handler?** Add to the right module under `src/handlers/`. Pattern:

@@ -55,8 +55,10 @@ domain/                         # Pure-Python business logic, no I/O
 infrastructure/                 # Outbound adapters
 ├── database/
 │   ├── connection.py           # DatabaseConnection wrapper (asyncpg pool)
+│   ├── alembic/                # Migration framework (env.py + versions/)
+│   │   └── versions/           #   0001 baseline, 0002+, handwritten revisions
 │   └── migrations/
-│       └── 001_initial_schema.sql
+│       └── 001_initial_schema.sql  # source SQL replayed by baseline revision 0001
 ├── repositories/               # CRUD + simple queries; no business logic
 │   ├── base.py                 # BaseRepository (execute / fetch_one / fetch_all / fetch_val)
 │   ├── transaction_repository.py
@@ -73,7 +75,7 @@ shared/
     └── pagination.py           # paginate() + create_nav_buttons()
 
 scripts/                        # One-off utilities
-├── apply_schema.py             #   apply 001_initial_schema.sql
+├── apply_schema.py             #   deprecated stub — schema is alembic-managed now
 ├── migrate_csv_to_postgres.py  #   one-shot migration from old user_data/*.csv tree
 ├── test_repositories.py        #   integration smoke test against running PG
 └── verify_postgres.py          #   connectivity check
@@ -85,7 +87,7 @@ configs/
 ├── dictionary.json             # default category seeds (en)
 └── dictionary_ru.txt           # default category seeds (ru)
 
-infrastructure/database/migrations/   # SQL migrations (only 001 so far; no migration framework)
+infrastructure/database/migrations/   # legacy SQL (replayed by alembic baseline; new changes = alembic revisions)
 ```
 
 ## 4. Data model
@@ -195,8 +197,8 @@ Note: `structlog` is in `requirements.txt` but not actually wired up — see pro
 docker compose up -d --build
 ```
 
-- `postgres` service (PG 15-alpine) with `infrastructure/database/migrations/` mounted as initdb scripts → schema applied on first boot.
-- `budgetbot` service depends on Postgres health check.
+- `postgres` service (PG 15-alpine); schema is NOT applied via initdb anymore.
+- `budgetbot` service depends on Postgres health check and runs `alembic upgrade head` in its entrypoint before starting the bot — fresh and existing databases converge to the same schema.
 - `./user_data` mounted into the bot container — vestigial from the CSV era; can be unmounted post-migration.
 - Token comes from `.env` via `env_file:` and Postgres password from `POSTGRES_PASSWORD`.
 
