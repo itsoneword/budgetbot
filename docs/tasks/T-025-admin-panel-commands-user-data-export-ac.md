@@ -1,7 +1,7 @@
 ---
 id: T-025
 title: Admin panel commands: user data export + activity monitoring
-status: doing
+status: review
 type: feature
 area: bot
 priority: p2
@@ -41,3 +41,26 @@ Files: new src/usage_log.py, domain/admin_stats.py; modified src/handlers/admin.
 Risks: log file starts fresh per deploy volume — stats cover only on-disk history (accepted); `/admin_export` exposes user data — admin scope only.
 - 2026-07-11 started
 - 2026-07-11 Implemented: is_admin seam, usage_log parser extraction, domain/admin_stats, get_activity_by_user, /admin_users /admin_export /admin_stats handlers + registry rows + EN/RU copy. Verified: import smoke, pure-fn unit tests, chart render on synthetic log, SQL against throwaway postgres.
+- 2026-07-11 moved to review
+
+## Testing
+
+### Critical (must pass before merge)
+- [ ] As admin: /admin_users lists all users, most recently active first, users without transactions last, no message over 4096 chars (72 users should arrive in 1-2 messages)
+- [ ] As admin: /admin_export <known_user_id> returns spendings_<id>.csv; header is id,timestamp,category,subcategory,amount,currency,user_id,transaction_type and rows match that user's data
+- [ ] As admin: /admin_stats replies with DAU/WAU/MAU, new users 7d/30d, total users/transactions, AI calls per function (ask, handle_voice)
+- [ ] As non-admin: each of /admin_users, /admin_export 123, /admin_stats replies with the ADMIN_ONLY message (RU user gets Russian copy) and leaks no data
+- [ ] /show_log_chart still renders both charts (30d + 1y) after the parser extraction
+- [ ] Admin /help lists the three new commands; non-admin /help does not; admin chat command menu shows them after restart (sync_bot_commands)
+
+### Important
+- [ ] /admin_export with no args, non-numeric arg, or extra args → usage message
+- [ ] /admin_export with an unknown user_id → "User ... not found"
+- [ ] /admin_export for an existing user with zero transactions → "no transactions" message, no empty file
+- [ ] /admin_stats 7 narrows event/AI counts to 7 days while MAU stays a 30-day window
+- [ ] /admin_stats right after a fresh deploy (missing/empty global_log.txt) → zeros, no crash
+- [ ] /debug still admin-gated after the is_admin refactor
+
+### Nice-to-have
+- [ ] Users with NULL telegram_username render as "-" in /admin_users rather than "None"
+- [ ] /admin_stats active-users list shows readable "Name @username" labels
