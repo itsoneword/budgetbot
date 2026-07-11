@@ -10,7 +10,7 @@ _empty_
 ## Review (1)
 - **T-020** `p0/bug/bot` Fix show_last: Transaction attribute mismatch (tx.category vs category_name) — last: 2026-07-09 moved to review
 
-## Todo (11)
+## Todo (12)
 - **T-003** `p1/ops/bot` Replace print() with logger in runtime code
 - **T-004** `p1/refactor/bot` Move chart rendering off the event loop
 - **T-005** `p1/ops/db` Adopt alembic for schema migrations
@@ -19,6 +19,7 @@ _empty_
 - **T-023** `p1/feature/bot` Paywall: buy AI access via Telegram Stars _(waiting: T-022)_
 - **T-026** `p1/feature/bot` Recurring transactions: rules engine, daily scheduler, manual management
 - **T-027** `p1/feature/bot` AI channel: manage recurring spendings by voice//ask _(waiting: T-026)_
+- **T-028** `p1/bug/bot` Fix /download: export transactions from PostgreSQL, not stale user_data CSV
 - **T-010** `p2/ops/infra` Currency API circuit breaker
 - **T-011** `p2/ops/obs` Observability: structured logs, Sentry, health check
 - **T-025** `p2/feature/bot` Admin panel commands: user data export + activity monitoring
