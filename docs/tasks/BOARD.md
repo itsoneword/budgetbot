@@ -4,11 +4,12 @@
 
 Updated: 2026-07-11 · see docs/ROADMAP.md for milestones
 
-## Doing (1)
-- **T-029** `p1/docs/bot` Docs catch-up: changelog, roadmap M4, README; enforce changelog on task done — last: 2026-07-11 ROADMAP M4 (current) + 2026-07 history line; README features rewritten, release notes moved to CHANGELOG; CLAUDE.md changelog convention line; DECISIONS entry
+## Doing (0)
+_empty_
 
-## Review (1)
+## Review (2)
 - **T-020** `p0/bug/bot` Fix show_last: Transaction attribute mismatch (tx.category vs category_name) — last: 2026-07-09 moved to review
+- **T-029** `p1/docs/bot` Docs catch-up: changelog, roadmap M4, README; enforce changelog on task done — last: 2026-07-11 moved to review
 
 ## Todo (12)
 - **T-003** `p1/ops/bot` Replace print() with logger in runtime code

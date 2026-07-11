@@ -1,7 +1,7 @@
 ---
 id: T-029
 title: Docs catch-up: changelog, roadmap M4, README; enforce changelog on task done
-status: doing
+status: review
 type: docs
 area: bot
 priority: p1
@@ -41,3 +41,26 @@ Conflicts: none with T-003/004/005/021/028 (docs + scripts/tasks.py only) — sa
 - 2026-07-11 docs/CHANGELOG.md created — backfilled from git log, done task files, README release notes (moved under original dates)
 - 2026-07-11 tasks.py: done now requires --changelog (appends dated line under Unreleased) or --no-changelog; post-tool-use backstop warns on done task with untouched CHANGELOG; gate tested on throwaway T-030 and cleaned up
 - 2026-07-11 ROADMAP M4 (current) + 2026-07 history line; README features rewritten, release notes moved to CHANGELOG; CLAUDE.md changelog convention line; DECISIONS entry
+- 2026-07-11 moved to review
+
+## Testing
+
+This is a docs + tooling task — no bot runtime surface. Testing = exercising scripts/tasks.py paths and proofreading docs.
+
+### Critical
+- [ ] `python3 scripts/tasks.py done <id>` with NO flag exits non-zero with a usage error (gate holds)
+- [ ] `done <id> --changelog "line"` appends `- YYYY-MM-DD T-NNN: line` as the first entry under `## Unreleased` in docs/CHANGELOG.md and notes it in the task log
+- [ ] `done <id> --no-changelog` skips the changelog and appends "changelog skipped" to the task log
+- [ ] `--changelog` and `--no-changelog` together are rejected (mutually exclusive)
+- [ ] `python3 scripts/tasks.py validate` and `board` still pass; other subcommands (new/start/review/log/next/archive) unaffected
+
+### Important
+- [ ] Backstop: with a committed (clean) CHANGELOG, editing a task file whose status is done triggers the stderr warning from hook-post-tool-use and still exits 0
+- [ ] Backstop stays silent when CHANGELOG.md has uncommitted changes (normal done flow)
+- [ ] Hooks still fail open: malformed stdin / missing git do not break a session (exit 0)
+- [ ] `done` against a fresh empty-Unreleased changelog and against one with existing entries both insert correctly (newest first, no doubled blank lines)
+
+### Nice-to-have
+- [ ] Proofread docs/CHANGELOG.md backfill against `git log` — dates and task IDs match
+- [ ] README renders correctly on GitHub; docs/CHANGELOG.md link resolves; docker compose quickstart works on a clean clone
+- [ ] ROADMAP M4 list matches the actual open T-020..T-028 tasks
