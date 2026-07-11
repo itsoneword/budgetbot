@@ -115,19 +115,46 @@ def format_admin_stats(
     return "\n".join(lines)
 
 
-def format_user_activity_lines(rows: Sequence) -> List[str]:
+def format_user_activity_lines(rows: Sequence, name_fallbacks: dict = None) -> List[str]:
     """
     Render /admin_users lines from repository UserActivity rows
     (.user_id/.username/.telegram_username/.tx_count/.last_tx_at).
     Rows arrive sorted by last activity desc (SQL ORDER BY).
+
+    name_fallbacks maps user_id -> (name, tg_username) harvested from the
+    usage log, used when the users table columns are NULL (they are never
+    populated by onboarding as of T-025).
     """
+    fallbacks = name_fallbacks or {}
     lines = []
     for row in rows:
+        fb_name, fb_tg = fallbacks.get(row.user_id, (None, None))
         last = row.last_tx_at.strftime("%Y-%m-%d") if row.last_tx_at else "never"
-        username = f"@{row.telegram_username}" if row.telegram_username else "-"
-        name = row.username or "-"
+        tg = row.telegram_username or fb_tg
+        username = f"@{tg}" if tg else "-"
+        name = row.username or fb_name or "-"
         lines.append(f"{row.user_id} | {username} | {name} | tx: {row.tx_count} | last: {last}")
     return lines
+
+
+def latest_names_by_user(records: Sequence) -> dict:
+    """
+    Map int user_id -> (name, telegram_username) from UsageRecords, keeping
+    the most recent non-empty values per user (records are chronological).
+    UsageRecord.user_id is a string parsed from the log; non-numeric ids are
+    skipped. 'None' strings are log artifacts of absent values.
+    """
+    names = {}
+    for r in records:
+        try:
+            uid = int(r.user_id)
+        except (TypeError, ValueError):
+            continue
+        name = r.name if r.name and r.name != "None" else None
+        tg = r.username if r.username and r.username != "None" else None
+        prev_name, prev_tg = names.get(uid, (None, None))
+        names[uid] = (name or prev_name, tg or prev_tg)
+    return names
 
 
 def chunk_lines(lines: Sequence[str], limit: int = TELEGRAM_MESSAGE_LIMIT) -> List[str]:

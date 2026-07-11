@@ -16,7 +16,6 @@ from src.language_util import check_language
 from shared.di import get_repos
 from src.commands import build_help_text
 from src.config import ADMIN_USER_ID, LLM_ALLOWED_USERS, is_admin
-from src.config import is_admin
 from src.logger import log_user_interaction
 from src.keyboards import create_settings_keyboard
 from src.charts import generate_usage_summary_chart
@@ -30,6 +29,7 @@ from domain.admin_stats import (
     count_new_users,
     format_admin_stats,
     format_user_activity_lines,
+    latest_names_by_user,
 )
 
 
@@ -244,12 +244,20 @@ async def admin_users(update: Update, context: CallbackContext) -> int:
 
     repos = get_repos(context)
     rows = await repos.transactions.get_activity_by_user()
+    total = len(rows)
+    # Default to users who ever added a transaction; /admin_users all shows everyone.
+    if not (context.args and context.args[0].lower() == "all"):
+        rows = [r for r in rows if r.tx_count > 0]
     if not rows:
         await update.message.reply_text(texts.ADMIN_NO_USERS)
         return TRANSACTION
 
-    lines = [texts.ADMIN_USERS_HEADER.format(count=len(rows))]
-    lines.extend(format_user_activity_lines(rows))
+    # users.username/telegram_username are never populated by onboarding;
+    # harvest display names from the usage log instead.
+    names = latest_names_by_user(await asyncio.to_thread(parse_usage_log))
+
+    lines = [texts.ADMIN_USERS_HEADER.format(count=len(rows), total=total)]
+    lines.extend(format_user_activity_lines(rows, names))
     for chunk in chunk_lines(lines):
         await update.message.reply_text(chunk)
     return TRANSACTION

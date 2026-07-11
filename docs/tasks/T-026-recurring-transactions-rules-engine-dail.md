@@ -71,3 +71,4 @@ Manual checklist (live bot, after image rebuild — the job-queue extra requires
 - [ ] New subcategory from a rule appears in the category dictionary after first auto-post
 - [ ] RECURRING_HOUR_UTC env override respected
 - 2026-07-11 moved to review
+- 2026-07-11 hotfix: recurring DI property lost @property decorator in union merge — repos.recurring returned the function itself; /recurring crashed

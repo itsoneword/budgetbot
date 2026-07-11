@@ -99,6 +99,8 @@ class Container:
         if not self._entitlement_repo:
             raise RuntimeError("Container not initialized. Call init() first.")
         return self._entitlement_repo
+
+    @property
     def recurring(self) -> RecurringRepository:
         """Get recurring rules repository."""
         if not self._recurring_repo:

@@ -64,3 +64,4 @@ Risks: log file starts fresh per deploy volume — stats cover only on-disk hist
 ### Nice-to-have
 - [ ] Users with NULL telegram_username render as "-" in /admin_users rather than "None"
 - [ ] /admin_stats active-users list shows readable "Name @username" labels
+- 2026-07-11 owner feedback: /admin_users now defaults to users with >=1 tx (all arg shows everyone) and enriches names/@usernames from the usage log (users table name columns are never populated)
