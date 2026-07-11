@@ -14,6 +14,10 @@ yfinance==0.2.55
 # Database (Phase 1 - PostgreSQL migration)
 asyncpg==0.29.0
 
+# Schema migrations (T-005) — alembic runs over asyncpg via SQLAlchemy async engine
+alembic==1.13.2
+SQLAlchemy==2.0.35
+
 # Configuration & utilities (Phase 2+)
 pydantic-settings>=2.5.2
 aiofiles==23.2.1

@@ -9,7 +9,8 @@ services:
       POSTGRES_DB: budgetbot
     volumes:
       - ./pgdata:/var/lib/postgresql/data
-      - ./infrastructure/database/migrations:/docker-entrypoint-initdb.d:ro
+      # Schema is applied by alembic from the bot container entrypoint (T-005),
+      # not via docker-entrypoint-initdb.d anymore.
     ports:
       - "5432:5432"  # Expose for local development; remove in production
     healthcheck:
