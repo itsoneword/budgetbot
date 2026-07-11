@@ -1,7 +1,7 @@
 ---
 id: T-029
 title: Docs catch-up: changelog, roadmap M4, README; enforce changelog on task done
-status: todo
+status: doing
 type: docs
 area: bot
 priority: p1
@@ -37,3 +37,6 @@ Conflicts: none with T-003/004/005/021/028 (docs + scripts/tasks.py only) — sa
 
 ## Log
 - 2026-07-11 created
+- 2026-07-11 started
+- 2026-07-11 docs/CHANGELOG.md created — backfilled from git log, done task files, README release notes (moved under original dates)
+- 2026-07-11 tasks.py: done now requires --changelog (appends dated line under Unreleased) or --no-changelog; post-tool-use backstop warns on done task with untouched CHANGELOG; gate tested on throwaway T-030 and cleaned up

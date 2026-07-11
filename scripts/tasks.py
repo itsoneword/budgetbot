@@ -21,6 +21,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TASKS_DIR = os.path.join(ROOT, "docs", "tasks")
 ARCHIVE_DIR = os.path.join(TASKS_DIR, "archive")
 BOARD_PATH = os.path.join(TASKS_DIR, "BOARD.md")
+CHANGELOG_PATH = os.path.join(ROOT, "docs", "CHANGELOG.md")
 STATE_DIR = os.path.join(ROOT, ".claude", "hooks-state")
 
 STATUSES = ["backlog", "todo", "doing", "review", "done"]
@@ -143,6 +144,28 @@ def append_log(task, message):
     if "## Log" not in task["body"]:
         task["body"] = task["body"].rstrip("\n") + "\n\n## Log\n"
     task["body"] = task["body"].rstrip("\n") + f"\n- {date.today()} {message}\n"
+
+
+def append_changelog(task_id, summary):
+    """Insert '- YYYY-MM-DD T-NNN: summary' as first entry under ## Unreleased."""
+    entry = f"- {date.today()} {task_id}: {summary}"
+    if os.path.exists(CHANGELOG_PATH):
+        with open(CHANGELOG_PATH) as f:
+            lines = f.read().split("\n")
+    else:
+        lines = ["# Changelog", "", "## Unreleased", ""]
+    for i, line in enumerate(lines):
+        if line.strip() == "## Unreleased":
+            j = i + 1
+            while j < len(lines) and not lines[j].strip():
+                j += 1
+            lines.insert(j, entry)
+            if j + 1 < len(lines) and lines[j + 1].startswith("## "):
+                lines.insert(j + 1, "")
+            break
+    else:
+        lines = ["## Unreleased", "", entry, ""] + lines
+    atomic_write(CHANGELOG_PATH, "\n".join(lines))
 
 
 # ---------- validation ----------
@@ -372,11 +395,22 @@ def cmd_done(args):
         print(f"error: no task {args.id}", file=sys.stderr)
         return 1
     unchecked = len(re.findall(r"^- \[ \]", task["body"], flags=re.M))
-    rc = _transition(args.id, "done", "done")
-    if rc == 0 and unchecked:
+    task["meta"]["status"] = "done"
+    append_log(task, "done")
+    if args.no_changelog:
+        append_log(task, "changelog skipped (--no-changelog: docs/meta task)")
+    else:
+        append_changelog(args.id, args.changelog)
+        append_log(task, f"changelog: {args.changelog}")
+    save_task(task)
+    write_board(tasks)
+    print(f"{args.id} -> done")
+    if not args.no_changelog:
+        print(f"changelog: appended to {os.path.relpath(CHANGELOG_PATH, ROOT)} under Unreleased")
+    if unchecked:
         print(f"warning: {unchecked} unchecked checkbox(es) remain in {args.id} — "
               f"verify they are intentionally skipped")
-    return rc
+    return 0
 
 
 def cmd_log(args):
@@ -458,6 +492,20 @@ def read_stdin_json():
         return {}
 
 
+def changelog_untouched():
+    """True iff docs/CHANGELOG.md has no uncommitted change. On any doubt
+    (no git, timeout, error) returns False so the backstop stays silent."""
+    try:
+        import subprocess
+        r = subprocess.run(
+            ["git", "-C", ROOT, "status", "--porcelain", "--",
+             os.path.relpath(CHANGELOG_PATH, ROOT)],
+            capture_output=True, text=True, timeout=5)
+        return r.returncode == 0 and not r.stdout.strip()
+    except Exception:
+        return False
+
+
 def board_is_stale():
     if not os.path.exists(BOARD_PATH):
         return True
@@ -537,6 +585,11 @@ def hook_post_tool_use(args):
     tasks, parse_errors = load_tasks(include_archive=True)
     if not parse_errors:
         write_board(tasks)
+    if task["meta"].get("status") == "done" and changelog_untouched():
+        print(f"warning: {task['meta'].get('id', name)} is 'done' but "
+              f"docs/CHANGELOG.md has no uncommitted change — close tasks via "
+              f"`python3 scripts/tasks.py done <id> --changelog \"...\"` (backstop "
+              f"only, not blocking)", file=sys.stderr)
     return 0
 
 
@@ -647,11 +700,21 @@ def main():
     p.set_defaults(func=cmd_new)
 
     for name, func, help_text in [("start", cmd_start, "todo -> doing"),
-                                  ("review", cmd_review, "doing -> review"),
-                                  ("done", cmd_done, "-> done (warns on unchecked boxes)")]:
+                                  ("review", cmd_review, "doing -> review")]:
         p = sub.add_parser(name, help=help_text)
         p.add_argument("id")
         p.set_defaults(func=func)
+
+    p = sub.add_parser("done", help="-> done; requires --changelog \"one-line summary\" "
+                       "(appended to docs/CHANGELOG.md) or --no-changelog for docs/meta "
+                       "tasks; warns on unchecked boxes")
+    p.add_argument("id")
+    g = p.add_mutually_exclusive_group(required=True)
+    g.add_argument("--changelog", metavar="LINE",
+                   help="one-line summary appended under Unreleased in docs/CHANGELOG.md")
+    g.add_argument("--no-changelog", action="store_true",
+                   help="skip the changelog entry (docs/meta tasks); noted in the task log")
+    p.set_defaults(func=cmd_done)
 
     p = sub.add_parser("log", help="append a dated log entry")
     p.add_argument("id")
