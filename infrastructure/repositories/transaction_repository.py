@@ -40,6 +40,17 @@ class Transaction:
         )
 
 
+@dataclass
+class UserActivity:
+    """Per-user activity aggregate for /admin_users and /admin_stats (T-025)."""
+    user_id: int
+    username: Optional[str]
+    telegram_username: Optional[str]
+    created_at: Optional[datetime]
+    tx_count: int
+    last_tx_at: Optional[datetime]
+
+
 class TransactionRepository(BaseRepository[Transaction]):
     """Repository for transaction CRUD operations."""
     
@@ -274,6 +285,32 @@ class TransactionRepository(BaseRepository[Transaction]):
     # UTILITY
     # ==========================================
     
+    async def get_activity_by_user(self) -> List[UserActivity]:
+        """
+        All users with transaction count and last transaction time,
+        most recently active first (T-025 /admin_users, /admin_stats).
+        """
+        query = """
+            SELECT u.user_id, u.username, u.telegram_username, u.created_at,
+                   COUNT(t.id) AS tx_count, MAX(t.timestamp) AS last_tx_at
+            FROM users u
+            LEFT JOIN transactions t ON t.user_id = u.user_id
+            GROUP BY u.user_id, u.username, u.telegram_username, u.created_at
+            ORDER BY last_tx_at DESC NULLS LAST, u.user_id
+        """
+        records = await self.fetch_all(query)
+        return [
+            UserActivity(
+                user_id=r['user_id'],
+                username=r['username'],
+                telegram_username=r['telegram_username'],
+                created_at=r['created_at'],
+                tx_count=r['tx_count'],
+                last_tx_at=r['last_tx_at'],
+            )
+            for r in records
+        ]
+
     async def count_for_user(self, user_id: int) -> int:
         """Count total transactions for a user."""
         query = "SELECT COUNT(*) FROM transactions WHERE user_id = $1"

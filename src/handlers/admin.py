@@ -5,6 +5,8 @@ Handles: help command, about/profile info, archive profile, usage charts.
 """
 
 import asyncio
+from datetime import datetime, timezone
+from io import BytesIO
 
 from telegram import Update
 from telegram.constants import ParseMode
@@ -14,10 +16,21 @@ from src.language_util import check_language
 from shared.di import get_repos
 from src.commands import build_help_text
 from src.config import ADMIN_USER_ID, LLM_ALLOWED_USERS, is_admin
+from src.config import is_admin
 from src.logger import log_user_interaction
 from src.keyboards import create_settings_keyboard
 from src.charts import generate_usage_summary_chart
 from src.states import TRANSACTION, DELETE_PROFILE
+from src.usage_log import parse_usage_log
+from domain.export import render_transactions_csv
+from domain.models.user_session import Transaction as DomainTransaction
+from domain.admin_stats import (
+    chunk_lines,
+    compute_usage_stats,
+    count_new_users,
+    format_admin_stats,
+    format_user_activity_lines,
+)
 
 
 async def help(update: Update, context: CallbackContext):
@@ -29,7 +42,7 @@ async def help(update: Update, context: CallbackContext):
     )
     texts = check_language(update, context)
     help_text = build_help_text(
-        texts, is_admin=update.effective_user.id == ADMIN_USER_ID
+        texts, is_admin=is_admin(update.effective_user.id)
     )
     await update.message.reply_text(help_text, parse_mode=ParseMode.HTML)
     return TRANSACTION
@@ -178,8 +191,9 @@ async def list_ai(update: Update, context: CallbackContext) -> int:
 async def show_log_chart(update: Update, context: CallbackContext) -> int:
     """Admin-only: Display usage statistics charts."""
     user_id = update.effective_user.id
-    if user_id != ADMIN_USER_ID:
-        await update.message.reply_text("This command is restricted to the bot owner.")
+    if not is_admin(user_id):
+        texts = check_language(update, context)
+        await update.message.reply_text(texts.ADMIN_ONLY)
         return TRANSACTION
 
     log_user_interaction(
@@ -212,4 +226,109 @@ async def show_log_chart(update: Update, context: CallbackContext) -> int:
                 caption=caption,
             )
 
+    return TRANSACTION
+
+
+async def admin_users(update: Update, context: CallbackContext) -> int:
+    """Admin-only: list all users with tx counts and last activity (T-025)."""
+    texts = check_language(update, context)
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text(texts.ADMIN_ONLY)
+        return TRANSACTION
+
+    log_user_interaction(
+        update.effective_user.id,
+        update.effective_user.first_name,
+        update.effective_user.username,
+    )
+
+    repos = get_repos(context)
+    rows = await repos.transactions.get_activity_by_user()
+    if not rows:
+        await update.message.reply_text(texts.ADMIN_NO_USERS)
+        return TRANSACTION
+
+    lines = [texts.ADMIN_USERS_HEADER.format(count=len(rows))]
+    lines.extend(format_user_activity_lines(rows))
+    for chunk in chunk_lines(lines):
+        await update.message.reply_text(chunk)
+    return TRANSACTION
+
+
+async def admin_export(update: Update, context: CallbackContext) -> int:
+    """Admin-only: export a user's transactions as CSV, /admin_export <user_id> (T-025)."""
+    texts = check_language(update, context)
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text(texts.ADMIN_ONLY)
+        return TRANSACTION
+
+    log_user_interaction(
+        update.effective_user.id,
+        update.effective_user.first_name,
+        update.effective_user.username,
+    )
+
+    args = context.args or []
+    if len(args) != 1 or not args[0].isdigit():
+        await update.message.reply_text(texts.ADMIN_EXPORT_USAGE)
+        return TRANSACTION
+    target_id = int(args[0])
+
+    repos = get_repos(context)
+    if not await repos.users.user_exists(target_id):
+        await update.message.reply_text(texts.ADMIN_USER_NOT_FOUND.format(user_id=target_id))
+        return TRANSACTION
+
+    # Same unbounded-fetch pattern as /download (T-028): all transactions,
+    # silently truncated for users with >10k records.
+    repo_txs = await repos.transactions.get_latest(target_id, limit=10000)
+    if not repo_txs:
+        await update.message.reply_text(texts.ADMIN_NO_TRANSACTIONS.format(user_id=target_id))
+        return TRANSACTION
+
+    transactions = [DomainTransaction.from_repo(tx) for tx in repo_txs]
+    csv_str = render_transactions_csv(transactions)
+    await context.bot.send_document(
+        chat_id=update.effective_chat.id,
+        document=BytesIO(csv_str.encode("utf-8")),
+        filename=f"spendings_{target_id}.csv",
+    )
+    return TRANSACTION
+
+
+async def admin_stats(update: Update, context: CallbackContext) -> int:
+    """Admin-only: DAU/WAU/MAU, new users, AI usage — /admin_stats [days=30] (T-025)."""
+    texts = check_language(update, context)
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text(texts.ADMIN_ONLY)
+        return TRANSACTION
+
+    log_user_interaction(
+        update.effective_user.id,
+        update.effective_user.first_name,
+        update.effective_user.username,
+    )
+
+    days = 30
+    args = context.args or []
+    if args and args[0].isdigit():
+        days = max(1, int(args[0]))
+
+    # Parse at least 30 days so the fixed MAU window stays correct.
+    records = await asyncio.to_thread(parse_usage_log, max(days, 30))
+    stats = compute_usage_stats(records, datetime.now(), window_days=days)
+
+    repos = get_repos(context)
+    rows = await repos.transactions.get_activity_by_user()
+    now_utc = datetime.now(timezone.utc)
+    created_ats = [row.created_at for row in rows]
+    text = format_admin_stats(
+        stats,
+        total_users=len(rows),
+        total_transactions=sum(row.tx_count for row in rows),
+        new_users_7d=count_new_users(created_ats, now_utc, 7),
+        new_users_30d=count_new_users(created_ats, now_utc, 30),
+    )
+    for chunk in chunk_lines(text.split("\n")):
+        await update.message.reply_text(chunk)
     return TRANSACTION

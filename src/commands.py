@@ -180,6 +180,21 @@ COMMANDS: Tuple[CommandSpec, ...] = (
         "list_ai", "list_ai",
         "List users with active AI access (admin)",
         "Список пользователей с активным доступом к ИИ (админ)",
+        "admin_users", "admin_users",
+        "List users with transaction counts and last activity (admin)",
+        "Список пользователей с числом транзакций и последней активностью (админ)",
+        admin_only=True,
+    ),
+    CommandSpec(
+        "admin_export", "admin_export",
+        "Export a user's transactions as CSV: /admin_export <user_id> (admin)",
+        "Экспорт транзакций пользователя в CSV: /admin_export <user_id> (админ)",
+        admin_only=True,
+    ),
+    CommandSpec(
+        "admin_stats", "admin_stats",
+        "Usage stats: DAU/WAU/MAU, new users, AI calls. Optional days: /admin_stats 7 (admin)",
+        "Статистика: DAU/WAU/MAU, новые пользователи, вызовы ИИ. Дни опционально: /admin_stats 7 (админ)",
         admin_only=True,
     ),
 )

@@ -35,6 +35,9 @@ from src.handlers.admin import (
     grant_ai,
     revoke_ai,
     list_ai,
+    admin_users,
+    admin_export,
+    admin_stats,
 )
 
 from src.handlers.charts import (
@@ -106,6 +109,9 @@ __all__ = [
     'grant_ai',
     'revoke_ai',
     'list_ai',
+    'admin_users',
+    'admin_export',
+    'admin_stats',
     # Charts
     'send_chart',
     'send_ext_chart',

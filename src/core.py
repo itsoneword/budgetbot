@@ -6,7 +6,7 @@ from src.language_util import check_language, cache_user_language, get_cached_cu
 # Database integration
 from shared.di import setup_container, cleanup_container, get_repos
 
-from src.config import ADMIN_USER_ID, RECURRING_HOUR_UTC
+from src.config import ADMIN_USER_ID, RECURRING_HOUR_UTC, is_admin
 
 # Command registry: single source for handler registration, /help and menu sync
 from src.commands import COMMANDS, build_help_text, sync_bot_commands
@@ -69,6 +69,9 @@ from src.handlers import (
     grant_ai,
     revoke_ai,
     list_ai,
+    admin_users,
+    admin_export,
+    admin_stats,
     # Charts
     send_chart,
     send_ext_chart,
@@ -188,7 +191,7 @@ async def toggle_debug(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
 
     # Only allow admin users to toggle debug mode
-    if user_id != ADMIN_USER_ID:
+    if not is_admin(user_id):
         await update.message.reply_text("Sorry, only admin users can toggle debug mode.")
         return TRANSACTION
     
