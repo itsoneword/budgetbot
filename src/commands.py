@@ -180,6 +180,9 @@ COMMANDS: Tuple[CommandSpec, ...] = (
         "list_ai", "list_ai",
         "List users with active AI access (admin)",
         "Список пользователей с активным доступом к ИИ (админ)",
+        admin_only=True,
+    ),
+    CommandSpec(
         "admin_users", "admin_users",
         "List users with transaction counts and last activity (admin)",
         "Список пользователей с числом транзакций и последней активностью (админ)",
