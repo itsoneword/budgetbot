@@ -166,14 +166,14 @@ COMMANDS: Tuple[CommandSpec, ...] = (
     ),
     CommandSpec(
         "grant_ai", "grant_ai",
-        "Grant AI access: /grant_ai <user_id> [days], no days = perpetual (admin)",
-        "Выдать доступ к ИИ: /grant_ai <user_id> [дней], без дней — бессрочно (админ)",
+        "Grant AI access: /grant_ai USER_ID [days], no days = perpetual (admin)",
+        "Выдать доступ к ИИ: /grant_ai USER_ID [дней], без дней — бессрочно (админ)",
         admin_only=True,
     ),
     CommandSpec(
         "revoke_ai", "revoke_ai",
-        "Revoke AI access: /revoke_ai <user_id> (admin)",
-        "Отозвать доступ к ИИ: /revoke_ai <user_id> (админ)",
+        "Revoke AI access: /revoke_ai USER_ID (admin)",
+        "Отозвать доступ к ИИ: /revoke_ai USER_ID (админ)",
         admin_only=True,
     ),
     CommandSpec(
@@ -190,8 +190,8 @@ COMMANDS: Tuple[CommandSpec, ...] = (
     ),
     CommandSpec(
         "admin_export", "admin_export",
-        "Export a user's transactions as CSV: /admin_export <user_id> (admin)",
-        "Экспорт транзакций пользователя в CSV: /admin_export <user_id> (админ)",
+        "Export a user's transactions as CSV: /admin_export USER_ID (admin)",
+        "Экспорт транзакций пользователя в CSV: /admin_export USER_ID (админ)",
         admin_only=True,
     ),
     CommandSpec(
@@ -201,6 +201,14 @@ COMMANDS: Tuple[CommandSpec, ...] = (
         admin_only=True,
     ),
 )
+
+
+# /help renders these through parse_mode=HTML at one call site: reserved HTML
+# chars in a description break /help for every affected user at send time.
+for _spec in COMMANDS:
+    for _d in (_spec.desc_en, _spec.desc_ru):
+        if "<" in _d or ">" in _d or "&" in _d:
+            raise ValueError(f"HTML-reserved char in /{_spec.name} description: {_d!r}")
 
 
 def menu_commands(lang: str = "en", include_admin: bool = False) -> List[BotCommand]:

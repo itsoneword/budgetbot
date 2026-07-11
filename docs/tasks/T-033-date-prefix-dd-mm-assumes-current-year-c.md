@@ -20,3 +20,4 @@ Verified 2026-07-11: tx 3532 (31.12, user 49560859) and 4164 (26.12, user 497754
 
 ## Log
 - 2026-07-11 created
+- 2026-07-11 one-off data fix applied: tx 3532/4164 shifted back one year (2026-12 -> 2025-12); parser fix still open
