@@ -7,17 +7,19 @@ Updated: 2026-07-11 · see docs/ROADMAP.md for milestones
 ## Doing (0)
 _empty_
 
-## Review (2)
+## Review (1)
 - **T-020** `p0/bug/bot` Fix show_last: Transaction attribute mismatch (tx.category vs category_name) — last: 2026-07-09 moved to review
-- **T-019** `p2/feature/bot` Voice input: transcribe + route to Q&A or transaction entry — last: 2026-07-11 Extended intent schema: comma-separated multi-transactions (max 5) and optional dd.mm date prefix per item, resolved from today's date passed into the prompt. Validator checks each item + date sanity. Verified in prod container with the exact failing phrase.
 
-## Todo (6)
+## Todo (9)
 - **T-003** `p1/ops/bot` Replace print() with logger in runtime code
 - **T-004** `p1/refactor/bot` Move chart rendering off the event loop
 - **T-005** `p1/ops/db` Adopt alembic for schema migrations
 - **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating
+- **T-022** `p1/feature/db` AI access control: DB-backed entitlements + admin grant/revoke
+- **T-023** `p1/feature/bot` Paywall: buy AI access via Telegram Stars _(waiting: T-022)_
 - **T-010** `p2/ops/infra` Currency API circuit breaker
 - **T-011** `p2/ops/obs` Observability: structured logs, Sentry, health check
+- **T-025** `p2/feature/bot` Admin panel commands: user data export + activity monitoring
 
 ## Backlog (9)
 - **T-008** `p2/feature/deploy` Webhook mode + horizontal scaling path _(waiting: T-009)_
@@ -30,7 +32,8 @@ _empty_
 - **T-016** `p3/feature/infra` Analytics events table
 - **T-017** `p3/feature/infra` Web UI / API layer
 
-## Done (last 10 of 4)
+## Done (last 10 of 5)
+- **T-019** `p2/feature/bot` Voice input: transcribe + route to Q&A or transaction entry
 - **T-007** `p1/ops/db` Automated Postgres backups
 - **T-018** `p2/feature/bot` AI Q&A over spendings (/ask)
 - **T-001** `p0/bug/bot` Fix admin check (int vs str comparison)

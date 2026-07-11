@@ -1,7 +1,7 @@
 ---
 id: T-019
 title: Voice input: transcribe + route to Q&A or transaction entry
-status: review
+status: done
 type: feature
 area: bot
 priority: p2
@@ -23,7 +23,7 @@ Telegram voice messages (OGG/Opus) downloaded via bot API, transcribed locally w
 - [x] question: routed into the /ask pipeline
 - [x] Free text that doesn't match the transaction pattern also intent-routed (allowed users only)
 - [x] Guardrails: is_llm_allowed() gate, voice ≤120s, transcript ≤1000 chars, no leading-"/" payloads, amount sanity cap
-- [ ] Manually tested in Telegram (see Testing)
+- [x] Manually tested in Telegram (see Testing)
 
 ## Testing
 
@@ -59,3 +59,4 @@ Telegram voice messages (OGG/Opus) downloaded via bot API, transcribed locally w
 - 2026-07-09 Deployed to prod: image rebuilt with faster-whisper, HF cache mount verified in container, in-container transcription smoke test passed (model loads from host cache, no download). Awaiting manual Telegram testing.
 - 2026-07-11 Fixed root cause of intent routing always returning unknown: single-file bind mount of .credentials.json pinned a deleted inode after host token refresh -> expired OAuth broke ALL LLM calls. Now mount ~/.claude dir ro at /host-claude + entrypoint symlink. Also hardened intent prompt for STT-garbled commands. Verified in container: garbled RU transcripts now classify correctly.
 - 2026-07-11 Extended intent schema: comma-separated multi-transactions (max 5) and optional dd.mm date prefix per item, resolved from today's date passed into the prompt. Validator checks each item + date sanity. Verified in prod container with the exact failing phrase.
+- 2026-07-11 done
