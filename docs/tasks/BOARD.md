@@ -19,10 +19,11 @@ _empty_
 - **T-021** `p2/feature/bot` Sync bot menu commands with code (set_my_commands on startup) — last: 2026-07-11 acceptance boxes checked (static verification); Testing checklist appended; moved to review
 - **T-025** `p2/feature/bot` Admin panel commands: user data export + activity monitoring — last: 2026-07-11 created
 
-## Todo (7)
+## Todo (8)
 - **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating
 - **T-023** `p1/feature/bot` Paywall: buy AI access via Telegram Stars _(waiting: T-022)_
 - **T-027** `p1/feature/bot` AI channel: manage recurring spendings by voice//ask _(waiting: T-026)_
+- **T-033** `p1/bug/bot` Date prefix dd.mm assumes current year, creates future-dated transactions
 - **T-010** `p2/ops/infra` Currency API circuit breaker
 - **T-011** `p2/ops/obs` Observability: structured logs, Sentry, health check
 - **T-031** `p2/bug/bot` Fix /about panel: stale version, raw limit sentinel, dead settings buttons
