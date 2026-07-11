@@ -9,7 +9,7 @@ deps: []
 tags: []
 blocked: 
 created: 2026-07-09
-updated: 2026-07-09
+updated: 2026-07-11
 ---
 
 ## Context
@@ -21,3 +21,4 @@ Extended scope (2026-07-11, supersedes archived T-024): single registry (command
 
 ## Log
 - 2026-07-09 created
+- 2026-07-11 Owner decisions 2026-07-11: debug and show_log_chart are admin-only (admin command scope + admin help). /help must differ for admin vs regular users. Menu should balance too-many/too-few; final user-facing list still pending owner confirmation of the proposed set.

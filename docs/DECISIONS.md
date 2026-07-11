@@ -14,3 +14,4 @@ Append-only. Format: `date — decision — why — rejected alternative`. Refer
 - 2026-07-09: /ask gated by ADMIN_USER_ID + LLM_ALLOWED_USERS env allowlist / why: LLM runs on owner's personal subscription / rejected: open to all 72 users.
 
 - 2026-07-09: Voice/text intent routing dispatches by synthetic Update injected through application.process_update (LLM output reduced to enum + validated payload) / reuses all existing handlers, gating and conversation states; PTB v22 Message objects are immutable so mutating .text (as core.py menu_call does) crashes / rejected: calling handlers directly (show_records reads message.text -> None on voice) and duplicating the save flow.
+- 2026-07-11: Recurring transactions (T-026/T-027) built code-first as an internal action API (domain + repo) consumed by both manual handlers and the AI intent router / keeps single write path, LLM only selects validated intents / rejected: letting the LLM call scheduling directly via its own tools.
