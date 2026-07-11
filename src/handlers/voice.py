@@ -10,7 +10,8 @@ the exact text the user could have typed ("/ask <q>", "/show_last",
 same handlers, gating and conversation states as typed input.
 
 Guardrails:
-- is_llm_allowed() allowlist; voice duration and transcript length caps;
+- check_ai_access() gate (admin / env fallback / DB entitlement, T-022);
+  voice duration and transcript length caps;
 - the LLM output is reduced to an intent enum + validated payload — commands
   come from a hardcoded whitelist, transaction text must match the normal
   typed pattern (single line, no leading "/");
@@ -41,7 +42,7 @@ from domain.intent import (
 )
 from infrastructure.llm import LLMError, get_llm_client
 from infrastructure.stt import STTError, transcribe_ogg
-from src.config import is_llm_allowed
+from src.ai_access import check_ai_access
 from src.language_util import check_language
 from src.logger import log_user_interaction
 
@@ -56,7 +57,7 @@ async def handle_voice(update: Update, context: CallbackContext):
         user_id, update.effective_user.first_name, update.effective_user.username
     )
 
-    if not is_llm_allowed(user_id):
+    if not await check_ai_access(user_id, context):
         await update.effective_message.reply_text(texts.ASK_NOT_ALLOWED)
         return
 

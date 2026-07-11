@@ -1,7 +1,7 @@
 ---
 id: T-022
 title: AI access control: DB-backed entitlements + admin grant/revoke
-status: todo
+status: doing
 type: feature
 area: db
 priority: p1
@@ -34,3 +34,5 @@ Decisions: dedicated `ai_entitlements` table (not a flag on users — T-023 need
 
 Files: new entitlement_repository.py, src/ai_access.py, alembic 0003; modified repositories/__init__.py, shared/di/container.py, src/core.py, src/handlers/voice.py, src/handlers/admin.py, docs/DECISIONS.md.
 Risks: fail-closed = DB outage denies AI to all but admin/env users (log loudly, don't mistake for revocation bug); handlers/admin.py conflicts with T-025 (merge T-022 first, keep handlers self-contained).
+- 2026-07-11 started
+- 2026-07-11 alembic 0003 ai_entitlements + EntitlementRepository + DI + src/ai_access.check_ai_access; 3 gate sites swapped (ask, handle_text, voice); admin /grant_ai /revoke_ai /list_ai via T-021 registry; py_compile + import smoke OK

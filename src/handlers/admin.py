@@ -13,7 +13,7 @@ from telegram.ext import CallbackContext, ConversationHandler
 from src.language_util import check_language
 from shared.di import get_repos
 from src.commands import build_help_text
-from src.config import ADMIN_USER_ID
+from src.config import ADMIN_USER_ID, LLM_ALLOWED_USERS, is_admin
 from src.logger import log_user_interaction
 from src.keyboards import create_settings_keyboard
 from src.charts import generate_usage_summary_chart
@@ -81,6 +81,98 @@ async def archive_profile(update: Update, context: CallbackContext):
             parse_mode=ParseMode.HTML
         )
         return DELETE_PROFILE
+
+
+def _format_expiry(expires_at) -> str:
+    """Human string for an entitlement expiry (None = perpetual)."""
+    if expires_at is None:
+        return "perpetual"
+    return f"until {expires_at.strftime('%Y-%m-%d %H:%M')} UTC"
+
+
+async def grant_ai(update: Update, context: CallbackContext) -> int:
+    """Admin-only: /grant_ai <user_id> [days] — grant AI access (T-022).
+
+    Without days the grant is perpetual. With days, a repeat grant extends
+    the current expiry (GREATEST semantics in EntitlementRepository.grant).
+    """
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("This command is restricted to the bot owner.")
+        return TRANSACTION
+
+    args = context.args or []
+    if not args or not args[0].lstrip("-").isdigit():
+        await update.message.reply_text("Usage: /grant_ai <user_id> [days]")
+        return TRANSACTION
+    target_id = int(args[0])
+
+    duration_days = None
+    if len(args) > 1:
+        if not args[1].isdigit() or int(args[1]) <= 0:
+            await update.message.reply_text("Days must be a positive integer. Usage: /grant_ai <user_id> [days]")
+            return TRANSACTION
+        duration_days = int(args[1])
+
+    repos = get_repos(context)
+    if not await repos.users.user_exists(target_id):
+        await update.message.reply_text(
+            f"User {target_id} is unknown — they must /start the bot first."
+        )
+        return TRANSACTION
+
+    entitlement = await repos.entitlements.grant(
+        target_id,
+        granted_by=update.effective_user.id,
+        source="admin",
+        duration_days=duration_days,
+    )
+    await update.message.reply_text(
+        f"AI access granted to {target_id}: {_format_expiry(entitlement.expires_at)}."
+    )
+    return TRANSACTION
+
+
+async def revoke_ai(update: Update, context: CallbackContext) -> int:
+    """Admin-only: /revoke_ai <user_id> — revoke AI access (T-022)."""
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("This command is restricted to the bot owner.")
+        return TRANSACTION
+
+    args = context.args or []
+    if not args or not args[0].lstrip("-").isdigit():
+        await update.message.reply_text("Usage: /revoke_ai <user_id>")
+        return TRANSACTION
+    target_id = int(args[0])
+
+    repos = get_repos(context)
+    if await repos.entitlements.revoke(target_id, revoked_by=update.effective_user.id):
+        await update.message.reply_text(f"AI access revoked for {target_id}.")
+    else:
+        await update.message.reply_text(f"User {target_id} has no active AI entitlement.")
+    return TRANSACTION
+
+
+async def list_ai(update: Update, context: CallbackContext) -> int:
+    """Admin-only: /list_ai — list active AI entitlements (T-022)."""
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("This command is restricted to the bot owner.")
+        return TRANSACTION
+
+    repos = get_repos(context)
+    entitlements = await repos.entitlements.list_active()
+
+    lines = [f"Active AI entitlements: {len(entitlements)}"]
+    for ent in entitlements:
+        username = f" @{ent.telegram_username}" if ent.telegram_username else ""
+        lines.append(
+            f"{ent.user_id}{username} — {ent.source}, {_format_expiry(ent.expires_at)}"
+        )
+    if LLM_ALLOWED_USERS:
+        env_ids = ", ".join(str(uid) for uid in sorted(LLM_ALLOWED_USERS))
+        lines.append(f"Env allowlist (LLM_ALLOWED_USERS, legacy): {env_ids}")
+
+    await update.message.reply_text("\n".join(lines))
+    return TRANSACTION
 
 
 async def show_log_chart(update: Update, context: CallbackContext) -> int:
