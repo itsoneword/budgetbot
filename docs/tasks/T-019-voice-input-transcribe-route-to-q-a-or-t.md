@@ -9,7 +9,7 @@ deps: [T-018]
 tags: [ai]
 blocked: 
 created: 2026-07-08
-updated: 2026-07-09
+updated: 2026-07-11
 ---
 
 ## Context
@@ -56,3 +56,5 @@ Telegram voice messages (OGG/Opus) downloaded via bot API, transcribed locally w
 - 2026-07-09 started
 - 2026-07-09 Implemented: infrastructure/stt (faster-whisper small via host HF cache mount), domain/intent.py (strict enum+payload validation), src/handlers/voice.py (voice handler, free-text routing, vtx_ confirm, synthetic-update injection via process_update), LLM_INTENT_MODEL=haiku default. Offline tests pass; whisper smoke-tested.
 - 2026-07-09 moved to review
+- 2026-07-09 Deployed to prod: image rebuilt with faster-whisper, HF cache mount verified in container, in-container transcription smoke test passed (model loads from host cache, no download). Awaiting manual Telegram testing.
+- 2026-07-11 Fixed root cause of intent routing always returning unknown: single-file bind mount of .credentials.json pinned a deleted inode after host token refresh -> expired OAuth broke ALL LLM calls. Now mount ~/.claude dir ro at /host-claude + entrypoint symlink. Also hardened intent prompt for STT-garbled commands. Verified in container: garbled RU transcripts now classify correctly.

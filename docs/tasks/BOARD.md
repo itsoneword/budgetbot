@@ -2,14 +2,14 @@
 
 # Task Board
 
-Updated: 2026-07-09 · see docs/ROADMAP.md for milestones
+Updated: 2026-07-11 · see docs/ROADMAP.md for milestones
 
 ## Doing (0)
 _empty_
 
 ## Review (2)
 - **T-020** `p0/bug/bot` Fix show_last: Transaction attribute mismatch (tx.category vs category_name) — last: 2026-07-09 moved to review
-- **T-019** `p2/feature/bot` Voice input: transcribe + route to Q&A or transaction entry — last: 2026-07-09 moved to review
+- **T-019** `p2/feature/bot` Voice input: transcribe + route to Q&A or transaction entry — last: 2026-07-11 Fixed root cause of intent routing always returning unknown: single-file bind mount of .credentials.json pinned a deleted inode after host token refresh -> expired OAuth broke ALL LLM calls. Now mount ~/.claude dir ro at /host-claude + entrypoint symlink. Also hardened intent prompt for STT-garbled commands. Verified in container: garbled RU transcripts now classify correctly.
 
 ## Todo (6)
 - **T-003** `p1/ops/bot` Replace print() with logger in runtime code

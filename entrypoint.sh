@@ -9,6 +9,13 @@ fi
 
 echo "Starting budgetbot with provided API_KEY..."
 
+# Claude subscription OAuth: link credentials from the read-only host mount so
+# host-side token refreshes (atomic renames) are always picked up (T-019).
+if [ -f "/host-claude/.credentials.json" ]; then
+  mkdir -p /root/.claude
+  ln -sf /host-claude/.credentials.json /root/.claude/.credentials.json
+fi
+
 # Make sure the config directory exists
 if [ ! -d "/app/configs" ]; then
   echo "Creating configs directory..."

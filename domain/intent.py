@@ -39,7 +39,11 @@ class Intent:
 def build_intent_system_prompt() -> str:
     return (
         "You classify one message for a personal finance Telegram bot. "
-        "The message is a transcribed voice note or free text, in English or Russian.\n"
+        "The message is a transcribed voice note or free text, in English or Russian. "
+        "Voice transcripts often contain speech-recognition errors — interpret mis-heard or "
+        "phonetically transliterated words by what the user most plausibly said "
+        "(e.g. Russian «шоу манс» = 'show month' -> monthly stats, «местечную статистику» = "
+        "«месячную статистику»).\n"
         'Reply with ONLY a JSON object, no markdown fences, no other text:\n'
         '{"intent": "...", "payload": "..."}\n'
         "intent must be exactly one of:\n"

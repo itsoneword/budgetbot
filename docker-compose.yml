@@ -33,10 +33,13 @@ services:
       # Persist user data (read-only during migration, then can remove)
       - ./user_data:/app/user_data
       # Claude CLI + subscription OAuth credentials for /ask (T-018), read-only.
-      # Same pattern as claude-code-telegram: host refreshes tokens, container only reads.
+      # Host ~/.claude is mounted as a DIRECTORY, not the credentials file alone:
+      # the CLI refreshes tokens by atomic rename, and a single-file bind mount
+      # keeps pointing at the deleted pre-refresh inode (expired token).
+      # entrypoint.sh symlinks /root/.claude/.credentials.json into this mount.
       - /home/cleversol/.local/share/claude:/home/cleversol/.local/share/claude:ro
       - /home/cleversol/.local/bin/claude:/usr/local/bin/claude:ro
-      - /home/cleversol/.claude/.credentials.json:/root/.claude/.credentials.json:ro
+      - /home/cleversol/.claude:/host-claude:ro
       # Whisper weights for voice input (T-019) — host HF cache already holds
       # faster-whisper-small (shared with Devvybot); rw so HF can write lock files.
       - /home/cleversol/.cache/huggingface:/root/.cache/huggingface
