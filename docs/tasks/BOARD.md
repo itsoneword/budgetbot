@@ -26,10 +26,11 @@ _empty_
 - **T-011** `p2/ops/obs` Observability: structured logs, Sentry, health check
 - **T-025** `p2/feature/bot` Admin panel commands: user data export + activity monitoring
 
-## Backlog (8)
+## Backlog (9)
 - **T-008** `p2/feature/deploy` Webhook mode + horizontal scaling path _(waiting: T-009)_
 - **T-009** `p2/refactor/bot` Durable conversation state
 - **T-012** `p2/ops/deploy` Deploy hardening: prod compose overlay + secrets
+- **T-030** `p2/refactor/bot` Split oversized modules: core.py and save_transaction.py
 - **T-013** `p3/feature/db` Soft delete and recovery
 - **T-014** `p3/refactor/db` Data-model cleanups (limit sentinel, timezone, enums, category language)
 - **T-015** `p3/feature/bot` CSV download/upload restore
