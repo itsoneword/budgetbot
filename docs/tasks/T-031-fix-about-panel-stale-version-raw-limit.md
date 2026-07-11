@@ -20,3 +20,4 @@ All pre-existing (verified 2026-07-11): (1) version string hardcoded in texts.AB
 
 ## Log
 - 2026-07-11 created
+- 2026-07-11 new finding from owner test: /about greets 'Hello, None!' — users.username/config.name never populated; fall back to update.effective_user.first_name. Also limit renders as float 4000.0 — format as int/currency
