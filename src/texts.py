@@ -306,3 +306,11 @@ VOICE_UNKNOWN = (
     "I couldn't map this to an action. You can add a spending like “coffee 4.5”, "
     "ask a question with /ask, or see /help."
 )
+
+# Admin panel commands (T-025)
+ADMIN_ONLY = "This command is restricted to the bot owner."
+ADMIN_EXPORT_USAGE = "Usage: /admin_export <user_id>"
+ADMIN_USER_NOT_FOUND = "User {user_id} not found."
+ADMIN_NO_TRANSACTIONS = "User {user_id} has no transactions."
+ADMIN_NO_USERS = "No users found."
+ADMIN_USERS_HEADER = "Users: {count} (sorted by last activity)"

@@ -16,3 +16,8 @@ LLM_ALLOWED_USERS = frozenset(
 
 def is_llm_allowed(user_id: int) -> bool:
     return user_id == ADMIN_USER_ID or user_id in LLM_ALLOWED_USERS
+
+
+def is_admin(user_id: int) -> bool:
+    """Single seam for admin-only gating (/debug, /show_log_chart, /admin_*)."""
+    return user_id == ADMIN_USER_ID

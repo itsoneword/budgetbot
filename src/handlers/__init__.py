@@ -32,6 +32,9 @@ from src.handlers.admin import (
     about,
     archive_profile,
     show_log_chart,
+    admin_users,
+    admin_export,
+    admin_stats,
 )
 
 from src.handlers.charts import (
@@ -100,6 +103,9 @@ __all__ = [
     'about',
     'archive_profile',
     'show_log_chart',
+    'admin_users',
+    'admin_export',
+    'admin_stats',
     # Charts
     'send_chart',
     'send_ext_chart',

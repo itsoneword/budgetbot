@@ -300,3 +300,11 @@ VOICE_UNKNOWN = (
     "Не понял, что нужно сделать. Можно добавить трату («кофе 4.5»), "
     "задать вопрос через /ask или открыть /help."
 )
+
+# Admin panel commands (T-025)
+ADMIN_ONLY = "Эта команда доступна только владельцу бота."
+ADMIN_EXPORT_USAGE = "Использование: /admin_export <user_id>"
+ADMIN_USER_NOT_FOUND = "Пользователь {user_id} не найден."
+ADMIN_NO_TRANSACTIONS = "У пользователя {user_id} нет транзакций."
+ADMIN_NO_USERS = "Пользователи не найдены."
+ADMIN_USERS_HEADER = "Пользователей: {count} (по последней активности)"

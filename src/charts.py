@@ -24,7 +24,10 @@ import threading
 import functools
 from io import BytesIO
 
+from dataclasses import asdict
+
 from src.logger import log_debug, timed_function, log_function_call, LogConfig
+from src.usage_log import parse_usage_log
 
 # pandas_ops imports removed - data comes pre-converted from load_chart_data()
 
@@ -420,38 +423,12 @@ def generate_usage_summary_chart(
     if not os.path.exists(log_path):
         raise FileNotFoundError("Log file not found.")
 
-    records = []
-    with open(log_path, "r") as log_file:
-        for line in log_file:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                timestamp_str, remainder = line.split(" - ", 1)
-                timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S,%f")
-            except ValueError:
-                continue
-
-            if "UserID:" not in remainder:
-                continue
-            details = remainder.split("UserID:", 1)[1].strip()
-            parts = [part.strip() for part in details.split(",")]
-            if len(parts) < 4:
-                continue
-
-            user_id, name, username, handler = parts[:4]
-            records.append({
-                "timestamp": timestamp,
-                "user_id": user_id,
-                "name": name,
-                "username": username,
-                "handler": handler,
-            })
+    records = parse_usage_log(log_path=log_path)
 
     if not records:
         raise ValueError("No log entries found.")
 
-    df = pd.DataFrame(records)
+    df = pd.DataFrame([asdict(r) for r in records])
     cutoff = datetime.now() - timedelta(days=days)
     df_recent = df[df["timestamp"] >= cutoff].copy()
     if df_recent.empty:
