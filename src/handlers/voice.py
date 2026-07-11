@@ -143,8 +143,9 @@ async def handle_voice_tx_confirmation(update: Update, context: CallbackContext)
 async def _classify(text: str) -> Intent:
     """Classify via a small/fast model; failures degrade to unknown, never raise."""
     client = get_llm_client(os.getenv("LLM_INTENT_MODEL", "haiku"))
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d %A")
     try:
-        raw = await client.complete(build_intent_prompt(text), build_intent_system_prompt())
+        raw = await client.complete(build_intent_prompt(text, today), build_intent_system_prompt())
     except LLMError as e:
         logging.error(f"Intent classification failed: {e}")
         return Intent("unknown")

@@ -24,10 +24,12 @@ MAX_TRANSCRIPT_CHARS = 1000
 MAX_QUESTION_CHARS = 500
 MAX_AMOUNT = 10_000_000
 
-# Must stay compatible with the transaction pattern in handle_text
-# (core.py: r".*\s+\d+(\.\d+)?$"). Single line, no leading "/" (would inject a
-# command), no comma/newline (would trigger multi-transaction mode).
-_TX_TEXT_RE = re.compile(r"^[^/\s,][^,\n]{0,78}\s(\d+(\.\d+)?)$")
+# One transaction: optional "dd.mm " date prefix, item words, numeric amount.
+# Must stay compatible with the typed-input pattern in handle_text
+# (core.py: r".*\s+\d+(\.\d+)?$") and process_transaction_input_async's
+# "date item amount" form. No leading "/" (would inject a command).
+_TX_ITEM_RE = re.compile(r"^((\d{1,2})\.(\d{1,2})\s+)?[^/\s,][^,\n]{0,60}\s(\d+(\.\d+)?)$")
+MAX_TX_ITEMS = 5
 
 
 @dataclass
@@ -47,10 +49,14 @@ def build_intent_system_prompt() -> str:
         'Reply with ONLY a JSON object, no markdown fences, no other text:\n'
         '{"intent": "...", "payload": "..."}\n'
         "intent must be exactly one of:\n"
-        '- "add_transaction" — the user wants to record a spending. payload: the spending as '
-        '"<item> <amount>": the item in the user\'s own words and language, then the amount as a '
-        'plain number (convert number words to digits, drop currency symbols). Examples: '
-        '"coffee 4.5", "продукты 1500". Never invent an amount; if none is stated, use "unknown".\n'
+        '- "add_transaction" — the user wants to record one or more spendings. payload: each '
+        'spending as "<item> <amount>": the item in the user\'s own words and language, then the '
+        "amount as a plain number (convert number words to digits, drop currency symbols). "
+        'Multiple spendings are comma-separated: "пиво 10, продукты 8". If the user names a day '
+        '(yesterday, позавчера, "on the 5th"), prefix EACH spending with the date as "dd.mm " '
+        'computed from today\'s date given with the message: "09.07 пиво 10, 09.07 продукты 8". '
+        "No date prefix when the spending is for today. Never invent an amount; if none is "
+        'stated, use "unknown".\n'
         '- "show_stat" — the user asks to see their records, stats or charts. payload: exactly one of: '
         "show (current month records), show_last (recent transactions), show_ext (detailed stats), "
         "monthly_stat (monthly chart), yearly_stat (yearly chart).\n"
@@ -61,8 +67,10 @@ def build_intent_system_prompt() -> str:
     )
 
 
-def build_intent_prompt(transcript: str) -> str:
-    return f"Message to classify:\n{transcript[:MAX_TRANSCRIPT_CHARS]}"
+def build_intent_prompt(transcript: str, today: str = "") -> str:
+    """today: e.g. "2026-07-11 Friday" — lets the model resolve relative dates."""
+    date_line = f"Today is {today}.\n" if today else ""
+    return f"{date_line}Message to classify:\n{transcript[:MAX_TRANSCRIPT_CHARS]}"
 
 
 def parse_intent_response(raw: str) -> Intent:
@@ -82,13 +90,21 @@ def parse_intent_response(raw: str) -> Intent:
     payload = " ".join(payload.split())  # collapse whitespace/newlines
 
     if kind == INTENT_ADD_TRANSACTION:
-        match = _TX_TEXT_RE.match(payload)
-        if not match:
+        items = [item.strip() for item in payload.split(",")]
+        if not 1 <= len(items) <= MAX_TX_ITEMS:
             return Intent(INTENT_UNKNOWN)
-        amount = float(match.group(1))
-        if not 0 < amount <= MAX_AMOUNT:
-            return Intent(INTENT_UNKNOWN)
-        return Intent(INTENT_ADD_TRANSACTION, payload)
+        for item in items:
+            match = _TX_ITEM_RE.match(item)
+            if not match:
+                return Intent(INTENT_UNKNOWN)
+            if match.group(1):  # dd.mm prefix present — check it's a real date
+                day, month = int(match.group(2)), int(match.group(3))
+                if not (1 <= day <= 31 and 1 <= month <= 12):
+                    return Intent(INTENT_UNKNOWN)
+            amount = float(match.group(4))
+            if not 0 < amount <= MAX_AMOUNT:
+                return Intent(INTENT_UNKNOWN)
+        return Intent(INTENT_ADD_TRANSACTION, ", ".join(items))
 
     if kind == INTENT_SHOW_STAT:
         if payload not in ALLOWED_STAT_COMMANDS:
