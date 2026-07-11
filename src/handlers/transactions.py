@@ -2,6 +2,7 @@
 Transaction editing and deletion handlers.
 Uses PostgreSQL repositories for all data operations.
 """
+import logging
 from typing import Optional
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -26,6 +27,8 @@ from domain.filters import filter_by_type, get_total
 from domain.models.user_session import Transaction
 
 import asyncio
+
+logger = logging.getLogger(__name__)
 
 
 async def show_recent_entries(update: Update, context: CallbackContext) -> int:
@@ -194,7 +197,7 @@ async def handle_transaction_selection(update: Update, context: CallbackContext)
         context.user_data['current_tx_id'] = transaction['id']
 
     except Exception as e:
-        print(f"Error selecting transaction: {e}")
+        logger.exception("Error selecting transaction")
         await query.edit_message_text(
             texts.ERROR_SELECTING_TRANSACTION,
             parse_mode=ParseMode.HTML
@@ -568,7 +571,7 @@ async def handle_delete_tx_confirmation(update: Update, context: CallbackContext
                     parse_mode=ParseMode.HTML
                 )
         except Exception as e:
-            print(f"Error deleting transaction: {e}")
+            logger.exception("Error deleting transaction")
             await query.edit_message_text(
                 texts.ERROR_DELETING_TRANSACTION,
                 parse_mode=ParseMode.HTML
