@@ -4,11 +4,12 @@
 
 Updated: 2026-07-11 · see docs/ROADMAP.md for milestones
 
-## Doing (1)
-- **T-021** `p2/feature/bot` Sync bot menu commands with code (set_my_commands on startup) — last: 2026-07-11 started
+## Doing (0)
+_empty_
 
-## Review (1)
+## Review (2)
 - **T-020** `p0/bug/bot` Fix show_last: Transaction attribute mismatch (tx.category vs category_name) — last: 2026-07-09 moved to review
+- **T-021** `p2/feature/bot` Sync bot menu commands with code (set_my_commands on startup) — last: 2026-07-11 acceptance boxes checked (static verification); Testing checklist appended; moved to review
 
 ## Todo (12)
 - **T-003** `p1/ops/bot` Replace print() with logger in runtime code
