@@ -82,11 +82,10 @@ NO_RECORDS_TO_DELETE = "No records to delete."
 RECORD_DELETED = "Deleted record number {}."
 NOT_ENOUGH_RECORDS = "There are less than {} records."
 LANG = "en"
-HELP_INTRO = """BudgetBot helps you track spendings and income right in Telegram.
-Try /menu — most features are available through the interactive menu.
-Noticed a problem or want a new feature? Contact @dy0r2
-
-Available commands:"""
+HELP_INTRO = """👋 BudgetBot helps you track spendings and income right in Telegram.
+💬 Add a spending by simply typing it, e.g. "coffee 4" — or "31.12 coffee 4" to backdate it.
+📱 Try /menu — most features are available through the interactive menu.
+Noticed a problem or want a new feature? Contact @dy0r2"""
 UPLOAD_FILE_TEXT = "Please upload your spendings file. It should be in CSV format."
 UPLOADING_FINISHED = "Spendings file updated!"
 INCOME_TYPE1 = "income"
