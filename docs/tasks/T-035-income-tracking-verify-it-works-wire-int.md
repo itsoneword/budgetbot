@@ -60,3 +60,4 @@ Risks: confirm-gate cross-talk (mitigated by vinc_ separation); delete_records b
 - `/ask add 300 eur income from trading` → AI correctly refuses (read-only by design), but the refusal should point users at the working paths: mention /income and (once shipped) plain-text/voice entry. Update the ask system prompt's refusal guidance in Phase 3.
 - Verify the two-step flow (/income → next-message "trading 300") actually saves post-T-033 — owner stopped at the help text, so the happy path is still UNVERIFIED on live.
 - 2026-07-11 owner test: /income inline args ignored (help shown instead of saving); /ask write-refusal should redirect; two-step flow still unverified live
+- 2026-07-11 owner verified on live: two-step /income flow saves correctly post-T-033 — remaining income work is inline args, delete_income type-safety, intent + /ask context
