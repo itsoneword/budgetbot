@@ -5,7 +5,7 @@
 Updated: 2026-07-11 · see docs/ROADMAP.md for milestones
 
 ## Doing (1)
-- **T-029** `p1/docs/bot` Docs catch-up: changelog, roadmap M4, README; enforce changelog on task done — last: 2026-07-11 tasks.py: done now requires --changelog (appends dated line under Unreleased) or --no-changelog; post-tool-use backstop warns on done task with untouched CHANGELOG; gate tested on throwaway T-030 and cleaned up
+- **T-029** `p1/docs/bot` Docs catch-up: changelog, roadmap M4, README; enforce changelog on task done — last: 2026-07-11 ROADMAP M4 (current) + 2026-07 history line; README features rewritten, release notes moved to CHANGELOG; CLAUDE.md changelog convention line; DECISIONS entry
 
 ## Review (1)
 - **T-020** `p0/bug/bot` Fix show_last: Transaction attribute mismatch (tx.category vs category_name) — last: 2026-07-09 moved to review

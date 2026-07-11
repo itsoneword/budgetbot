@@ -2,7 +2,7 @@
 
 Milestones reference task IDs in `docs/tasks/`. Live status is in the task files and `docs/tasks/BOARD.md` — this file records direction, not state.
 
-## M1 — Hygiene (current)
+## M1 — Hygiene
 
 Fix the known bugs left over from the Jan 2026 PostgreSQL migration.
 
@@ -34,7 +34,21 @@ From personal use to 1k+ users: performance, reliability, operability. Source an
 - T-018 AI Q&A over spendings (/ask) — LLM client behind provider-agnostic interface (subscription OAuth → OpenRouter)
 - T-019 Voice input — local faster-whisper transcription, routed to Q&A or transaction entry
 
+## M4 — Monetization & automation (current)
+
+Post-migration bugfixes, AI access control + Stars paywall, admin tooling, recurring transactions.
+
+- T-020 Fix /show_last Transaction attribute mismatch
+- T-021 Sync bot menu commands with code (set_my_commands, admin/user registry)
+- T-022 AI access control: DB-backed entitlements + admin grant/revoke
+- T-023 Paywall: buy AI access via Telegram Stars
+- T-025 Admin panel commands: user data export + activity monitoring
+- T-026 Recurring transactions: rules engine, daily scheduler, manual management
+- T-027 AI channel: manage recurring spendings by voice//ask
+- T-028 Fix /download: export from PostgreSQL, not stale CSV
+
 ## History
 
+- 2026-07: planning wave — M4 scoped (T-020..T-029), implementation plans approved for T-003/004/005/021/022/025/026/028; T-018 /ask and T-019 voice input shipped; changelog process added (`docs/CHANGELOG.md`, enforced by `tasks.py done --changelog`)
 - 2026-01: CSV → PostgreSQL migration + layered architecture refactor (`docs/REFACTORING.md`)
 - 2025: v0.2.x feature releases (inline menus, multi-transactions, charts)

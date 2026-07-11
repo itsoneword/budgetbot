@@ -15,6 +15,7 @@ Telegram bot for personal finance tracking. Python + python-telegram-bot (async)
 - Log progress when an acceptance checkbox flips, not only at session end: `python3 scripts/tasks.py log T-NNN "what changed"`. This bounds context loss from interrupted sessions.
 - `review` status means: generate a manual-testing checklist per `.claude/instructions/post_implementation_testing.md` and append it under a `## Testing` section in the task file.
 - Commit messages for task work: `T-NNN: subject`. Find a task's commits with `git log --grep T-NNN`.
+- Closing a task requires a changelog line: `done T-NNN --changelog "one-line summary"` appends it to `docs/CHANGELOG.md` under Unreleased (`--no-changelog` only for docs/meta tasks).
 
 ## Code conventions (details in docs/project.md)
 

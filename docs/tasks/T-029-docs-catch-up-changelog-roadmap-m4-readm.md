@@ -16,12 +16,12 @@ updated: 2026-07-11
 Six months of shipped work (PostgreSQL migration, layered refactor, /ask, voice, T-001..T-020) is recorded only in git log and task files. README changelog stale since 0.2.3 (18.10.25); ROADMAP.md still marks M1 current and stops at T-019. Create docs/CHANGELOG.md (backfilled), add M4 milestone, refresh README feature section, and add a deterministic enforcement gate so the changelog cannot rot again.
 
 ## Acceptance
-- [ ] `docs/CHANGELOG.md` exists, backfilled from git history + done task files: one dated line per shipped task/release, newest first, covering at least the Jan 2026 PostgreSQL migration through T-020.
-- [ ] `scripts/tasks.py done` requires a `--changelog "one-line summary"` argument and itself appends the dated line to `docs/CHANGELOG.md` (hard gate — closing a task without a changelog entry is impossible). `--no-changelog` escape hatch for docs/meta tasks.
-- [ ] Backstop hook: the existing PostToolUse/stop hook machinery in `scripts/tasks.py` warns when a task file flips to `done` while `docs/CHANGELOG.md` is untouched in the working tree (fail-open, per existing hook design).
-- [ ] `docs/ROADMAP.md`: M1 no longer marked current; new "M4 — Monetization & automation (current)" milestone listing T-020..T-028; History section gains 2026-07 planning-wave line.
-- [ ] `README.md`: feature section rewritten to match today's bot (PostgreSQL, /ask AI Q&A, voice input, charts, multi-currency); stale in-README release notes replaced with a pointer to `docs/CHANGELOG.md` (old entries moved there, not deleted).
-- [ ] `CLAUDE.md` / `docs/project.md` task-workflow section documents the changelog convention in one line.
+- [x] `docs/CHANGELOG.md` exists, backfilled from git history + done task files: one dated line per shipped task/release, newest first, covering at least the Jan 2026 PostgreSQL migration through T-020.
+- [x] `scripts/tasks.py done` requires a `--changelog "one-line summary"` argument and itself appends the dated line to `docs/CHANGELOG.md` (hard gate — closing a task without a changelog entry is impossible). `--no-changelog` escape hatch for docs/meta tasks.
+- [x] Backstop hook: the existing PostToolUse/stop hook machinery in `scripts/tasks.py` warns when a task file flips to `done` while `docs/CHANGELOG.md` is untouched in the working tree (fail-open, per existing hook design).
+- [x] `docs/ROADMAP.md`: M1 no longer marked current; new "M4 — Monetization & automation (current)" milestone listing T-020..T-028; History section gains 2026-07 planning-wave line.
+- [x] `README.md`: feature section rewritten to match today's bot (PostgreSQL, /ask AI Q&A, voice input, charts, multi-currency); stale in-README release notes replaced with a pointer to `docs/CHANGELOG.md` (old entries moved there, not deleted).
+- [x] `CLAUDE.md` / `docs/project.md` task-workflow section documents the changelog convention in one line.
 
 ## Implementation plan (approved 2026-07-11)
 
@@ -40,3 +40,4 @@ Conflicts: none with T-003/004/005/021/028 (docs + scripts/tasks.py only) — sa
 - 2026-07-11 started
 - 2026-07-11 docs/CHANGELOG.md created — backfilled from git log, done task files, README release notes (moved under original dates)
 - 2026-07-11 tasks.py: done now requires --changelog (appends dated line under Unreleased) or --no-changelog; post-tool-use backstop warns on done task with untouched CHANGELOG; gate tested on throwaway T-030 and cleaned up
+- 2026-07-11 ROADMAP M4 (current) + 2026-07 history line; README features rewritten, release notes moved to CHANGELOG; CLAUDE.md changelog convention line; DECISIONS entry

@@ -1,181 +1,88 @@
 # BudgetBot
 
-BudgetBot is a powerful and user-friendly Telegram bot designed to help you manage your personal finances. With BudgetBot, you can easily track your daily expenses, incomes, and gain insights into your spending habits.
+BudgetBot is a Telegram bot for personal finance tracking. Log expenses and income by text or voice, organize them into categories, and get charts and AI-powered answers about your spending.
 
-## update 0.2.3 from 18.10.25
-Fixed Upload command
-added logging and analytic
+Release history: [docs/CHANGELOG.md](docs/CHANGELOG.md).
 
-## fix patch 0.2.2 from 23.4.25
-Minor changes in Ru version (saving message was changed)
-Behevior for Single car transaction was changed (no more Permanent Menu return)
+## Features
 
-## major release of 0.2.0 from 1.4.25
-Communication cahnged mostly to inline keyboard
-Adding transactoin now offers a list of existing cat|subcat
-namings of cats|subcats does not allow symbols anymore
-category edit process is now easier with inline keyboard
-deletion of transactions is more interactive with inline keyboard.
+### Transaction tracking
+Send a message with an amount and category and it is saved to PostgreSQL. Multi-transaction messages (comma-separated items) and dated entries (`dd.mm` prefix) are supported. Inline keyboards drive category selection, editing and deletion.
 
-## fix patch from 12.3.25
-Fix minor issues with charts
+### Voice input
+Send a voice message — it is transcribed locally with faster-whisper (no cloud STT, audio never leaves the host) and routed by intent: log a transaction, show stats, or answer a question. Multi-transaction and relative-date phrases work by voice too.
 
-## fix patch from 16.2.25
-Changed About command logic, how it handles settings changes.
+### AI Q&A (/ask)
+Ask free-form questions about your spending ("how much did I spend on food last month?"). Your data is summarized into the prompt — the model never touches the database. Access is gated by an admin allowlist.
 
-## fix patch from 01.12.24
-Updated monthly pivot charts to cover 1st month of the range fully (was covering only since 1st month day, current time)
-Updated monthly_ext_stat function to use log scale and show sorted per category(was subcat)
-Minor logging changes and bug fixes.
-version 0.1.2
+### Spending analysis and charts
+Totals, per-category breakdowns, average daily spend, monthly pivots, yearly bar and pie charts, heatmaps, and month-end spending predictions.
 
-## Minor fix from 19.09.24
-Updated logging and error handling for currency exchange functions.
-Fixed "A value is trying to be set on a copy of a slice from a DataFrame." issue.
+### Categories and limits
+Custom categories and subcategories, frequently-used shortcuts, monthly and daily spending limits with overspend warnings.
 
-## New Release 0.1.0 (16.07.2024)
-Fixed minor issues,  \n
-Added version control to /about.
-Changed monthly stat charts and ShowExt command. now showing 8 months and 5 top cats acordingly.
-added detailed subcat_cat chart showing monthly based statistic/monthly_ext_stat.
+### Multi-currency
+Track spending in different currencies; transactions are converted to your current currency at daily exchange rates.
 
-### we are celebrating our first users! 3 people constantly using the app now!
+### Localization
+English and Russian interfaces.
 
-## New Release 0.0.6 (24.02.2024)
-Fixed minor issues,
-Added version control to /about
-
-## New Release 0.0.5 (13.11.2023)
-
-### Fixed sorting months over the year
-Now January is being shown after December as expected.
-### Added /about command
-Showing information about current currency, limits, and language.
-### Added converting different currencies
-Previous transaction in different currencies now are being re-calculated to the current based on today's exchange rate
-
-## New Release 0.0.4 (13.11.2023)
-
-### Yearly piecharts
-
-Visualizing yearly spending with piechart. These tools provide an easy-to-understand overview of per category spendings on yearly basis
-
-### Fixed bugs
-Some bags related to stuck in Income mode are finally fixed
-
-## New Release 0.0.3 (14.06.2023)
-
-We're excited to introduce a number of new features in this release:
-
-### Charts and Heatmap
-
-Visualize your monthly spending with our charts and heatmap. These tools provide an easy-to-understand overview of your spending habits, helping you identify areas where you might be overspending.
-
-### Income Tracking
-
-Keep track of your income alongside your spending. By monitoring both, you can get a clearer picture of your overall financial health.
-
-### Monthly and Daily Limit Tracking
-
-Set monthly and daily spending limits and BudgetBot will notify you if you're exceeding these limits. This feature helps you stay within your budget and avoid overspending.
-
-### /show_last Command
-
-The re-considered /show_last command allows you to see the total sum and filter by category name (e.g. /show_last transport). This feature provides a quick and easy way to review your recent spending in specific categories.
-
-## Basic Features
-
-### Transaction Tracking
-
-Record your daily transactions with ease. Simply send a message to the bot with the amount and category of your spending, and it will be logged for future reference.
-
-### Category Management
-
-Organize your transactions into categories. You can add new categories, change existing ones, and even get a list of your most frequently used categories.
-
-### Spending Analysis
-
-Get a detailed breakdown of your spending. The bot can show you the total amount you've spent, the sum per category, and even the average spending per day for each category.
-
-### Spending Predictions
-
-Based on your current spending, BudgetBot can predict your total spending for the month. It also compares your average daily spending with the previous day and shows you the percentage difference.
-
-### Data Privacy
-
-Your data is stored locally and is only accessible to you. BudgetBot respects your privacy and does not share your data with third parties.
-
-BudgetBot is a great tool for anyone looking to gain more control over their personal finances. Whether you're a budgeting pro or just getting started, BudgetBot can help you keep track of your spending and make more informed financial decisions.
-
+### Data ownership
+Data lives in your own PostgreSQL instance (Docker volume on your machine). Nothing is shared with third parties.
 
 ## Getting Started
 
-This bot is currently available under my own production: https://t.me/mybudgetassistantbot
-But you can also host it yourself
+The bot runs under my own production: https://t.me/mybudgetassistantbot — or host it yourself.
 
-### Run using Docker
+### Run with Docker Compose
 
-Build an image by running:
-
-```Bash
+```bash
 git clone https://github.com/itsoneword/budgetbot.git
 cd budgetbot
-docker build -t budgetbot .
 ```
 
-And start the container providing your API key:
+Add your Telegram bot token to `configs/config`:
 
-```Bash
-docker run --name budgetbot \
---restart unless-stopped \
--v /mydata/path:/app/user_data/ \
--e API_KEY=yourkey \
--d budgetbot
 ```
-Change `/mydata/path` to your local folder where you want to keep your transaction history, and change `API_KEY` to your own.
-
-Alternartivelly, you can use the following docker compose:
-
-```Docker
-version: '3.3'
-services:
-    bot:
-        container_name: budgetbot
-        restart: unless-stopped
-        volumes:
-            - /mydata/path:/app/user_data/
-        environment:
-            - API_KEY='yourkey'
-        image: budgetbot
+[TELEGRAM]
+TOKEN = place_your_token_here
 ```
 
+Then start the stack (PostgreSQL + bot):
+
+```bash
+docker compose up -d --build
+```
+
+Set `POSTGRES_PASSWORD` in `.env` for anything beyond local testing. Postgres data persists in `./pgdata`. The optional AI features (/ask, voice routing) expect a Claude CLI + credentials mounted into the container — see `docker-compose.yml` comments.
 
 ### Run locally
 
-1. Install the necessary dependencies:  
-* pandas
-* matplotlib
-* seaborn
-* python-telegram-bot
-
-2. Clone the repository 
-```
-git clone https://github.com/itsoneword/budgetbot.git
-```
-2. Add your key to the config file inside: `configs\config` file 
-```
-[TELEGRAM]  
-TOKEN = place_your_token_here
-```
-3. Start the bot: 
+1. Install dependencies:
 
 ```bash
-python3 core.py
+pip install -r requirements.txt
 ```
+
+2. Point the bot at a running PostgreSQL via `DATABASE_URL` and put your token in `configs/config` as above.
+
+3. Start the bot:
+
+```bash
+python3 run.py
+```
+
+## Project Structure
+
+- `src/` — Telegram handlers and bot wiring
+- `domain/` — pure business logic
+- `infrastructure/` — repositories, database, external APIs
+- `shared/` — DI container and utilities
+- `docs/` — architecture, roadmap, changelog, task board
 
 ## Contributing
 
-We welcome contributions from the community. If you'd like to contribute, please contact me directly in telegram @dy0r2.
+Contributions are welcome — contact me directly in Telegram: @dy0r2.
 
 ## License
 
@@ -183,34 +90,4 @@ BudgetBot is licensed under the [MIT License](LICENSE).
 
 ## Contact
 
-If you have any questions or feedback, please feel free to contact me directly tg: @dy0r2.
-
-## Project Structure
-
-The project now follows a more organized structure:
-
-- `/src`: Contains all the core Python files for the application
-- Root directory: Contains configuration files, deployment-related files, and the main entry point
-
-## Running the Project
-
-To run the project, use:
-
-```bash
-python3 run.py
-```
-
-## Installation
-
-1. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-2. Ensure the required directories exist:
-```bash
-mkdir -p user_data
-```
-
-3. Configure the application by setting up the config file in the configs directory.
-
+Questions or feedback: tg @dy0r2.
