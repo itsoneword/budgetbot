@@ -1,5 +1,7 @@
 # Core bot dependencies
-python-telegram-bot==22
+# [job-queue] pulls APScheduler for the recurring-transactions scheduler (T-026);
+# without the extra application.job_queue is None.
+python-telegram-bot[job-queue]==22
 python-dateutil==2.9.0
 
 # Data processing & visualization

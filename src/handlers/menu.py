@@ -33,6 +33,7 @@ from src.states import (
 )
 
 # Import handlers used by menu_call
+from src.handlers.recurring import build_rules_view, list_rules
 from src.handlers.records import show_records, show_last_month_records
 from src.handlers.charts import send_chart, send_yearly_piechart
 from src.handlers.categories import show_categories
@@ -172,6 +173,18 @@ async def menu_call(update: Update, context: CallbackContext):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
+        log_state_transition(TRANSACTION)
+        return TRANSACTION
+
+    if action == "menu_recurring":
+        # Recurring rules (T-026). Rendered without parse_mode: rule names are
+        # user text. Button presses are handled by the standalone ^rr
+        # CallbackQueryHandler registered before spendings_handler in core.py.
+        await query.answer()
+        repos = get_repos(context)
+        rules = await list_rules(repos, user_id)
+        text, reply_markup = build_rules_view(rules, texts)
+        await query.edit_message_text(text, reply_markup=reply_markup)
         log_state_transition(TRANSACTION)
         return TRANSACTION
 

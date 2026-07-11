@@ -1,15 +1,20 @@
 import os, logging, configparser, inspect, re, asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time as dt_time, timezone as dt_timezone
 from io import BytesIO
 from src.language_util import check_language, cache_user_language, get_cached_currency, ensure_user_config_cached
 
 # Database integration
 from shared.di import setup_container, cleanup_container, get_repos
 
-from src.config import ADMIN_USER_ID
+from src.config import ADMIN_USER_ID, RECURRING_HOUR_UTC
 
 # Command registry: single source for handler registration, /help and menu sync
 from src.commands import COMMANDS, build_help_text, sync_bot_commands
+
+# Recurring transactions (T-026): recurring_command must be importable here —
+# the registry loop resolves CommandSpec.handler names from this module's globals.
+from src.handlers.recurring import recurring_command, handle_recurring_callback
+from src.scheduler import run_recurring_rules
 
 # Domain layer - batch fetch + filter
 from domain.session_loader import load_user_session
@@ -1040,6 +1045,10 @@ def main():
     application.add_handler(
         CallbackQueryHandler(handle_voice_tx_confirmation, pattern="^vtx_")
     )
+    # Recurring rules inline buttons (T-026): same ordering requirement as vtx_.
+    application.add_handler(
+        CallbackQueryHandler(handle_recurring_callback, pattern="^rr")
+    )
 
     application.add_handler(spendings_handler)
     # message handler for text input
@@ -1048,6 +1057,21 @@ def main():
     )
 
     application.add_error_handler(global_error_handler)
+
+    # Recurring transactions scheduler (T-026): daily run at a fixed UTC hour
+    # plus a startup catch-up 60s after boot (claim_run makes replays no-ops).
+    # job_queue is None when the [job-queue] extra is missing — fail loudly
+    # instead of silently never posting recurring transactions.
+    if application.job_queue is None:
+        raise RuntimeError(
+            "application.job_queue is None — install python-telegram-bot[job-queue]"
+        )
+    application.job_queue.run_daily(
+        run_recurring_rules,
+        time=dt_time(hour=RECURRING_HOUR_UTC, tzinfo=dt_timezone.utc),
+        name="recurring_rules_daily",
+    )
+    application.job_queue.run_once(run_recurring_rules, 60, name="recurring_rules_catchup")
 
     application.run_polling()
 

@@ -300,3 +300,32 @@ VOICE_UNKNOWN = (
     "Не понял, что нужно сделать. Можно добавить трату («кофе 4.5»), "
     "задать вопрос через /ask или открыть /help."
 )
+
+# Регулярные транзакции (T-026)
+RECURRING_BUTTON = "🔁 Регулярные"
+RECURRING_USAGE = (
+    "Чтобы добавить ежемесячную регулярную транзакцию:\n"
+    "/recurring add <название> <сумма> <день>\n"
+    "например /recurring add аренда 500 1"
+)
+RECURRING_LIST_EMPTY = (
+    "У вас пока нет регулярных транзакций.\n\n"
+    "Чтобы добавить ежемесячную регулярную транзакцию:\n"
+    "/recurring add <название> <сумма> <день>\n"
+    "например /recurring add аренда 500 1"
+)
+RECURRING_LIST_HEADER = "🔁 Ваши регулярные транзакции:"
+RECURRING_PAUSED_LABEL = "на паузе"
+RECURRING_DAY_WORD = "день"
+RECURRING_ADDED = "Регулярная транзакция сохранена: {name} — {amount} {currency}, каждый месяц {day}-го числа."
+RECURRING_DAY_CLAMP_NOTE = "В коротких месяцах она будет добавляться в последний день месяца."
+RECURRING_INVALID_NAME = "Некорректное название: 1-60 символов, не может начинаться с '/'."
+RECURRING_INVALID_AMOUNT = "Некорректная сумма: должна быть положительным числом."
+RECURRING_INVALID_DAY = "Некорректный день: должно быть число от 1 до 31."
+RECURRING_CONFIRM_DELETE = "Удалить регулярную транзакцию «{name}»? Это действие нельзя отменить."
+RECURRING_POSTED = "🔁 Добавлена регулярная транзакция: {name} — {amount} {currency} (за {date})."
+RECURRING_PAUSE_BTN = "⏸ {}"
+RECURRING_RESUME_BTN = "▶️ {}"
+RECURRING_DELETE_BTN = "🗑"
+RECURRING_CONFIRM_DELETE_BTN = "🗑 Удалить"
+RECURRING_BACK_BTN = "◀️ Назад"
