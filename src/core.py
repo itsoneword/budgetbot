@@ -1,5 +1,6 @@
 import os, logging, configparser, inspect, re, asyncio
 from datetime import datetime, timedelta
+from io import BytesIO
 from src.language_util import check_language, cache_user_language, get_cached_currency, ensure_user_config_cached
 
 # Database integration
@@ -9,6 +10,7 @@ from src.config import ADMIN_USER_ID
 
 # Domain layer - batch fetch + filter
 from domain.session_loader import load_user_session
+from domain.export import render_transactions_csv
 from domain.filters import (
     filter_by_type,
     filter_current_month,
@@ -509,15 +511,25 @@ async def cancel(update: Update, context):
 
 
 async def download_spendings(update: Update, context: CallbackContext) -> None:
-    user_id =update.effective_user.id
+    user_id = update.effective_user.id
     log_user_interaction(
         update.effective_user.id,
         update.effective_user.first_name,
         update.effective_user.username,
     )
-    spendings_file_path = f"user_data/{user_id}/spendings_{user_id}.csv"
+    texts = check_language(update, context)
+    repos = get_repos(context)
+    # transactions_months=None -> get_latest(limit=10000): exports all
+    # transactions, but silently truncates users with >10k records.
+    session = await load_user_session(user_id, repos, transactions_months=None)
+    if not session.transactions:
+        await update.message.reply_text(texts.RECORDS_NOT_FOUND_TEXT)
+        return
+    csv_str = render_transactions_csv(session.transactions)
     await context.bot.send_document(
-        chat_id=update.effective_chat.id, document=open(spendings_file_path, "rb")
+        chat_id=update.effective_chat.id,
+        document=BytesIO(csv_str.encode("utf-8")),
+        filename=f"spendings_{user_id}.csv",
     )
 
 

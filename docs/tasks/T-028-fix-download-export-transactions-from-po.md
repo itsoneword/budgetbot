@@ -1,7 +1,7 @@
 ---
 id: T-028
 title: Fix /download: export transactions from PostgreSQL, not stale user_data CSV
-status: todo
+status: review
 type: bug
 area: bot
 priority: p1
@@ -16,7 +16,10 @@ updated: 2026-07-11
 download_spendings (src/core.py:511) sends user_data/{id}/spendings_{id}.csv — a frozen pre-migration file; everything added since the PostgreSQL migration is missing from the export. Fix: load transactions via repositories (load_user_session or repos.transactions), render CSV in memory (or scratch temp), send as document. Also fixes convention violations: file I/O in a handler + blocking open() on the event loop. Mind /download vs admin export overlap (T-025) — same CSV renderer should serve both.
 
 ## Acceptance
-- [ ] TODO
+- [x] /download exports transactions from PostgreSQL (via load_user_session), not the stale user_data CSV
+- [x] CSV rendered in memory by pure domain/export.py (legacy 7 columns + transaction_type, ascending timestamp sort); no file I/O in the handler
+- [x] Empty transaction list replies texts.RECORDS_NOT_FOUND_TEXT instead of crashing
+- [x] DECISIONS.md one-liner on the CSV format; >10k truncation commented in handler
 
 ## Log
 - 2026-07-11 created
@@ -31,3 +34,25 @@ Decision: CSV = legacy 7 columns in order (`id,timestamp,category,subcategory,am
 
 Files: `domain/export.py` (new), `src/core.py` (~511–521 + imports), docs.
 Risks: >10k tx silently truncated by get_latest limit (comment it); `str(Decimal)` scale variance (26.0 vs 26.00) — harmless to the tolerant importer.
+- 2026-07-11 started
+- 2026-07-11 started
+- 2026-07-11 domain/export.py render_transactions_csv + download_spendings rewritten to load from PostgreSQL and send BytesIO; unit assertions pass (header order, asc sort, iso timestamps, empty case)
+- 2026-07-11 moved to review
+
+## Testing
+
+### Critical
+- [ ] /download as a user with transactions: bot sends `spendings_{user_id}.csv`; file contains ALL transactions ever recorded (including post-migration ones missing before this fix)
+- [ ] Header is exactly `id,timestamp,category,subcategory,amount,currency,user_id,transaction_type`; rows sorted oldest-first; timestamps `YYYY-MM-DDTHH:MM:SS`
+- [ ] Income rows carry `transaction_type=income`, spendings `spending`
+- [ ] /download as a fresh user with zero transactions: bot replies "No records found." / "Записи не найдены." (per language), no crash
+
+### Important
+- [ ] Exported CSV re-imports cleanly via /upload (receive_document) — legacy columns still parse, extra transaction_type column ignored
+- [ ] Subcategory containing a comma is quoted and round-trips intact
+- [ ] User whose old `user_data/{id}/spendings_{id}.csv` file was deleted still gets a working export (no FileNotFoundError path remains)
+- [ ] Bot stays responsive during export for a user with thousands of transactions (no event-loop blocking)
+
+### Regression
+- [ ] /upload flow (start_upload/receive_document) unchanged and still works
+- [ ] show_records / stats commands unaffected (session_loader change surface)
