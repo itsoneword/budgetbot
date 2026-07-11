@@ -7,6 +7,8 @@ under `## Unreleased` by `python3 scripts/tasks.py done T-NNN --changelog "..."`
 
 ## Unreleased
 
+- 2026-07-11 release designation 0.3.0: version now a single constant in src/config.py (VERSION/VERSION_DATE), displayed by /about (T-031).
+
 ## 2026-07 — Task-tracked development
 
 - 2026-07-11 T-019: voice input — local faster-whisper transcription, LLM intent routing to transaction entry / stats / /ask with confirm gate; multi-transaction messages and relative dates (dd.mm prefix per comma-separated item).

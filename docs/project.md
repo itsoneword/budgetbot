@@ -10,7 +10,7 @@ A Telegram bot for tracking personal expenses. Send a message like `Coffee 4`, g
 | Architecture | Layered: handlers / domain / infrastructure |
 | Deployment | Docker Compose, single instance, long-polling |
 | Tested user base | Personal use; **not yet hardened for 1k–10k users** — see [`production-readiness.md`](./production-readiness.md) |
-| Current version | 0.2.3 (per `core.py`'s `/about`) |
+| Current version | 0.3.0 (per `VERSION` in `src/config.py`, shown by `/about`) |
 
 ## Repository layout
 

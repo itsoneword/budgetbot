@@ -10,10 +10,10 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import CallbackContext
 
-from src.language_util import check_language
+from src.language_util import check_language, format_monthly_limit
 from shared.di import get_repos
 from src.commands import build_help_text
-from src.config import ADMIN_USER_ID
+from src.config import ADMIN_USER_ID, VERSION, VERSION_DATE
 from src.logger import log_debug, log_function_call, log_state_transition, log_user_interaction
 from src.keyboards import (
     create_main_menu_keyboard,
@@ -246,12 +246,16 @@ async def menu_call(update: Update, context: CallbackContext):
     if action == "settings_about":
         repos = get_repos(context)
         config = await repos.users.get_config(int(user_id))
+        name = (config.name if config else None) or query.from_user.first_name
         currency = config.currency if config else 'EUR'
         language = config.language if config else 'en'
         limit = float(config.monthly_limit) if config else 99999999
 
         await query.edit_message_text(
-            texts.ABOUT.format(query.from_user.first_name, currency, language, limit),
+            texts.ABOUT.format(
+                name, currency, language,
+                format_monthly_limit(limit, texts), VERSION, VERSION_DATE,
+            ),
             parse_mode=ParseMode.HTML
         )
         return await _return_to_main_menu(query, texts)

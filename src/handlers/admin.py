@@ -12,10 +12,10 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import CallbackContext, ConversationHandler
 
-from src.language_util import check_language
+from src.language_util import check_language, format_monthly_limit
 from shared.di import get_repos
 from src.commands import build_help_text
-from src.config import ADMIN_USER_ID, LLM_ALLOWED_USERS, is_admin
+from src.config import ADMIN_USER_ID, LLM_ALLOWED_USERS, VERSION, VERSION_DATE, is_admin
 from src.logger import log_user_interaction
 from src.keyboards import create_settings_keyboard
 from src.charts import generate_usage_summary_chart
@@ -61,7 +61,8 @@ async def about(update: Update, context: CallbackContext):
     # Get user config from PostgreSQL
     repos = get_repos(context)
     config = await repos.users.get_config(user_id)
-    name = config.name if config else update.effective_user.first_name
+    # config.name is often unpopulated — fall back to the Telegram first name.
+    name = (config.name if config else None) or update.effective_user.first_name
     currency = config.currency if config else 'EUR'
     language = config.language if config else 'en'
     limit = float(config.monthly_limit) if config else 99999999
@@ -69,7 +70,10 @@ async def about(update: Update, context: CallbackContext):
     reply_markup = create_settings_keyboard(texts)
 
     await update.message.reply_text(
-        texts.ABOUT.format(name, currency, language, limit),
+        texts.ABOUT.format(
+            name, currency, language,
+            format_monthly_limit(limit, texts), VERSION, VERSION_DATE,
+        ),
         reply_markup=reply_markup,
         parse_mode=ParseMode.HTML
     )

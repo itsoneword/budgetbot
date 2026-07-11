@@ -2,6 +2,11 @@
 
 import os
 
+# Bot release version, shown in /about (T-031). Bump on release and note the
+# designation in docs/CHANGELOG.md.
+VERSION = "0.3.0"
+VERSION_DATE = "11.07.2026"
+
 # Telegram user ID allowed to run admin-only commands (/debug, /show_log_chart).
 # Defaults to 0 (matches no real user) when unset, so admin commands stay locked.
 ADMIN_USER_ID = int(os.getenv("ADMIN_USER_ID", "0"))

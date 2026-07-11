@@ -570,6 +570,12 @@ async def handle_text(update: Update, context):
         # Handle text messages outside of commands
         text = update.message.text
 
+        # Limit entry started from the /about settings keyboard outside an
+        # active conversation (T-031): no SETTINGS_LIMIT state to catch the
+        # number, so route it here. The handler clears the flag.
+        if context.user_data.get('awaiting_limit'):
+            return await handle_settings_limit(update, context)
+
         # Check if user exists in database, create if needed
         repos = get_repos(context)
         if not await repos.users.user_exists(int(user_id)):
@@ -1057,6 +1063,17 @@ def main():
     )
 
     application.add_handler(spendings_handler)
+    # Settings buttons attached by /about (T-031). While a spendings_handler
+    # conversation is active its pattern-less menu_callback fallback routes
+    # settings_* and transitions to the SETTINGS_* states, where lang_/cur_/
+    # limit-text follow-ups are handled. With no active conversation those
+    # presses fell through unhandled — catch them here. Registered AFTER
+    # spendings_handler (unlike ^rr/^vtx_) on purpose: registering before
+    # would swallow settings_* mid-conversation and break the state
+    # transitions the menu -> settings path depends on.
+    application.add_handler(CallbackQueryHandler(menu_call, pattern="^settings_"))
+    application.add_handler(CallbackQueryHandler(handle_settings_language, pattern="^lang_"))
+    application.add_handler(CallbackQueryHandler(handle_settings_currency, pattern="^cur_"))
     # message handler for text input
     application.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text)
