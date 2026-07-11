@@ -21,7 +21,7 @@ Users without AI entitlement get an offer instead of ASK_NOT_ALLOWED: inline but
 ## Log
 - 2026-07-11 created
 
-## Implementation plan (planned 2026-07-11, pre-approval)
+## Implementation plan (approved 2026-07-11)
 
 Verified against installed PTB v22.6: send_invoice(currency="XTR", provider_token omitted, exactly one LabeledPrice), PreCheckoutQueryHandler, filters.SUCCESSFUL_PAYMENT, Bot.refund_star_payment(user_id, telegram_payment_charge_id). Persist charge_id for refunds.
 
@@ -43,3 +43,5 @@ Open questions (recommended defaults):
 3. Refund policy → refund revokes entirely; admin re-grants remainder manually in stacked cases; advertise 7-day goodwill window.
 
 Risks: duplicate successful_payment delivery (handled: UNIQUE charge_id, insert-first); crash between record and grant (narrow; CRITICAL log + manual /grant_ai; shared transaction not worth breaking repo pattern); refund-after-stacking is blunt revoke-all (documented in refund reply); pre-checkout is I/O-free so 10s deadline safe; config change with pending invoices handled by payload-encoded terms.
+
+**Owner decisions 2026-07-11:** 100 Stars / 30-day pass (AI_ACCESS_PRICE_STARS=100, AI_ACCESS_DAYS=30); refund revokes all access (manual re-grant of remainder in stacked cases). All planner defaults accepted.

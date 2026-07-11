@@ -21,7 +21,7 @@ Owner request 2026-07-11: income tracking exists (/income conversation, /show_in
 ## Log
 - 2026-07-11 created
 
-## Implementation plan (planned 2026-07-11, pre-approval)
+## Implementation plan (approved 2026-07-11)
 
 ### Phase 0 — audit findings (verified in code; income IS broken)
 1. /income CRASHES on save for its most common inputs ("salary 2000", "2000"): process_income_input (src/save_transaction.py:63-95) returns timestamp as a STRING when no date given; TransactionRepository.save does ts.tzinfo → AttributeError. Classic post-migration stale type.
@@ -50,3 +50,5 @@ Open questions (recommended defaults):
 5. Typed "got paid 2000" (trailing-number text) hits the transaction regex BEFORE intent routing and saves as spending — out of scope; log as known limitation.
 
 Risks: confirm-gate cross-talk (mitigated by vinc_ separation); delete_records blast radius (/delete must keep exact behavior); classifier ambiguity contained by confirm gate; income "prediction" line in get_period_summary is meaningless for lumpy income (optionally suppress); no test infra (T-006 todo) — domain changes are pure, unit-test if T-006 lands first.
+
+**Owner decisions 2026-07-11:** all defaults accepted (free-form income categories with salary fallback; Income-stats button re-enabled; /delete_income no-arg deletes latest income). Sequencing: FIRST in the intent chain (T-035 → T-027 → T-034). ADJUSTMENT: T-033's parser fix is being implemented in parallel and lands first — Phase 1 must REUSE T-033's year-rollback helper (check what it shipped) instead of creating a new one.

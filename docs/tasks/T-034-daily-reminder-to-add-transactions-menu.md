@@ -21,7 +21,7 @@ Owner request 2026-07-11: 'remind me to add transactions every day at 5 pm' — 
 ## Log
 - 2026-07-11 created
 
-## Implementation plan (planned 2026-07-11, pre-approval)
+## Implementation plan (approved 2026-07-11)
 
 Design: every-5-min sweep job (NOT per-user JobQueue jobs — those are in-memory, need restart re-registration, drop fires on downtime). DB is the only state: `reminders` table with atomic `claim_send(reminder_id, local_date)` mirroring T-026's claim_run. Timezone = fixed UTC offset minutes (`user_configs.tz_offset_min SMALLINT`, NULL=UTC) set via a one-tap picker: buttons show candidate current local times ("15:07" / "15:37" / "16:07"...) for the ~38 real offsets — user taps the one matching their clock; asked lazily on first reminder set + in Settings. No IANA list, no typing.
 
@@ -43,3 +43,5 @@ Open questions (recommended defaults):
 4. Extra gating for voice path → none needed (inherits check_ai_access; /reminder itself public).
 
 Risks: DST drift (fixed offset shifts 1h twice/year — accepted v1, upgrade path to IANA column changes only is_due input; confirm message says "re-set if clocks change"); Forbidden caught per user (claim consumed = correct, no all-day retries of blocked users); ^rem registration order before spendings_handler; sweep fires up to 5 min late (irrelevant for daily nudge).
+
+**Owner decisions 2026-07-11:** all defaults accepted (one-tap offset picker; skip-if-logged on; default 17:00; no extra voice gating). Sequencing: LAST in the intent chain (T-035 → T-027 → T-034).

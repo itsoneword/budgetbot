@@ -21,7 +21,7 @@ Extend domain/intent.py with recurring intents on top of the T-026 action API: a
 ## Log
 - 2026-07-11 created
 
-## Implementation plan (planned 2026-07-11, pre-approval)
+## Implementation plan (approved 2026-07-11)
 
 Design: three flat intents — add_recurring, list_recurring, cancel_recurring (matches existing flat enum + one-string-payload Intent shape). Pause-vs-delete is decided by which button the user taps at confirm time, never by the LLM. All writes ride the T-026 action API: add via injected `/recurring add <payload>` after a vrc_yes confirm tap; pause/delete via the existing rr_* callback buttons (already the confirm gate).
 
@@ -41,3 +41,5 @@ Open questions (recommended defaults):
 3. Voice resume ("turn rent back on") → out of scope; list_recurring + resume button covers it.
 
 Risks: classifier accuracy regression as prompt grows (add contrast examples, watch "Intent routed" logs); transcription/language name mismatches degrade safely to full-list fallback; rule names ending in digits are ambiguous but consistent with /recurring add; stale pending confirm overwritten by second voice note (same accepted vtx_ behavior).
+
+**Owner decisions 2026-07-11:** all defaults accepted (day defaults to 1 shown in confirm; buttons decide pause-vs-delete; voice resume out of scope). Sequencing: runs AFTER T-035 in the intent chain (T-035 → T-027 → T-034).
