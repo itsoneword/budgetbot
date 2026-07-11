@@ -159,6 +159,24 @@ COMMANDS: Tuple[CommandSpec, ...] = (
         "Графики статистики использования (админ)",
         admin_only=True,
     ),
+    CommandSpec(
+        "grant_ai", "grant_ai",
+        "Grant AI access: /grant_ai <user_id> [days], no days = perpetual (admin)",
+        "Выдать доступ к ИИ: /grant_ai <user_id> [дней], без дней — бессрочно (админ)",
+        admin_only=True,
+    ),
+    CommandSpec(
+        "revoke_ai", "revoke_ai",
+        "Revoke AI access: /revoke_ai <user_id> (admin)",
+        "Отозвать доступ к ИИ: /revoke_ai <user_id> (админ)",
+        admin_only=True,
+    ),
+    CommandSpec(
+        "list_ai", "list_ai",
+        "List users with active AI access (admin)",
+        "Список пользователей с активным доступом к ИИ (админ)",
+        admin_only=True,
+    ),
 )
 
 

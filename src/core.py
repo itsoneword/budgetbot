@@ -61,6 +61,9 @@ from src.handlers import (
     about,
     archive_profile,
     show_log_chart,
+    grant_ai,
+    revoke_ai,
+    list_ai,
     # Charts
     send_chart,
     send_ext_chart,
@@ -579,8 +582,8 @@ async def handle_text(update: Update, context):
         # Free text with no pattern match: LLM intent routing for allowed users
         # (T-019). Routed transactions/commands are re-injected as typed text,
         # which always matches the pattern above or a CommandHandler — no loop.
-        from src.config import is_llm_allowed
-        if is_llm_allowed(user_id):
+        from src.ai_access import check_ai_access
+        if await check_ai_access(user_id, context):
             from src.handlers.voice import route_free_text
             await route_free_text(update, context, text)
             return TRANSACTION
@@ -775,8 +778,8 @@ async def ask(update: Update, context: CallbackContext):
         user_id, update.effective_user.first_name, update.effective_user.username
     )
 
-    from src.config import is_llm_allowed
-    if not is_llm_allowed(user_id):
+    from src.ai_access import check_ai_access
+    if not await check_ai_access(user_id, context):
         await update.effective_message.reply_text(texts.ASK_NOT_ALLOWED)
         return
 

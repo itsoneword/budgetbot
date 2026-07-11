@@ -7,18 +7,18 @@ Updated: 2026-07-11 · see docs/ROADMAP.md for milestones
 ## Doing (0)
 _empty_
 
-## Review (7)
+## Review (8)
 - **T-020** `p0/bug/bot` Fix show_last: Transaction attribute mismatch (tx.category vs category_name) — last: 2026-07-09 moved to review
 - **T-003** `p1/ops/bot` Replace print() with logger in runtime code — last: 2026-07-11 moved to review
 - **T-004** `p1/refactor/bot` Move chart rendering off the event loop — last: 2026-07-11 moved to review
 - **T-005** `p1/ops/db` Adopt alembic for schema migrations — last: 2026-07-11 moved to review
+- **T-022** `p1/feature/db` AI access control: DB-backed entitlements + admin grant/revoke — last: 2026-07-11 created
 - **T-028** `p1/bug/bot` Fix /download: export transactions from PostgreSQL, not stale user_data CSV — last: 2026-07-11 created
 - **T-029** `p1/docs/bot` Docs catch-up: changelog, roadmap M4, README; enforce changelog on task done — last: 2026-07-11 moved to review
 - **T-021** `p2/feature/bot` Sync bot menu commands with code (set_my_commands on startup) — last: 2026-07-11 acceptance boxes checked (static verification); Testing checklist appended; moved to review
 
-## Todo (10)
+## Todo (9)
 - **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating
-- **T-022** `p1/feature/db` AI access control: DB-backed entitlements + admin grant/revoke
 - **T-023** `p1/feature/bot` Paywall: buy AI access via Telegram Stars _(waiting: T-022)_
 - **T-026** `p1/feature/bot` Recurring transactions: rules engine, daily scheduler, manual management
 - **T-027** `p1/feature/bot` AI channel: manage recurring spendings by voice//ask _(waiting: T-026)_
