@@ -2,13 +2,17 @@
 Transaction repository for database operations on transactions.
 Replaces file_ops.py and pandas_ops.py transaction-related functions.
 """
+import logging
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone, date
 from decimal import Decimal
 from dataclasses import dataclass
 import asyncpg
 
+from domain.validation import clamp_future_timestamp
 from .base import BaseRepository
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -73,7 +77,16 @@ class TransactionRepository(BaseRepository[Transaction]):
         ts = transaction.timestamp
         if ts.tzinfo is None:
             ts = ts.replace(tzinfo=timezone.utc)
-        
+
+        # Safety net (T-033): no entry path may write a future-dated tx.
+        ts, clamped = clamp_future_timestamp(ts)
+        if clamped:
+            logger.warning(
+                f"Future timestamp clamped to now for user {transaction.user_id}: "
+                f"{transaction.timestamp.isoformat()} ({transaction.transaction_type} "
+                f"{transaction.category_name}/{transaction.subcategory_name})"
+            )
+
         return await self.fetch_val(
             query,
             transaction.user_id,

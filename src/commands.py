@@ -34,14 +34,25 @@ class CommandSpec:
     desc_ru: str
     admin_only: bool = False
     in_menu: bool = True
+    section: str = "tracking"  # /help section key, see HELP_SECTIONS
+
+
+# /help section order and localized titles (plain text + emoji — build_help_text
+# output must stay HTML-free).
+HELP_SECTIONS: Tuple[Tuple[str, str, str], ...] = (
+    ("tracking", "💸 Tracking", "💸 Учёт"),
+    ("stats", "📊 Stats", "📊 Статистика"),
+    ("settings", "⚙️ Settings", "⚙️ Настройки"),
+    ("admin", "🛠 Admin", "🛠 Админ"),
+)
 
 
 # Registry order == menu order == /help order.
 COMMANDS: Tuple[CommandSpec, ...] = (
     CommandSpec(
         "menu", None,
-        "Open the interactive menu",
-        "Открыть интерактивное меню",
+        "📱 Open the interactive menu",
+        "📱 Открыть интерактивное меню",
     ),
     CommandSpec(
         "start", None,
@@ -50,93 +61,106 @@ COMMANDS: Tuple[CommandSpec, ...] = (
     ),
     CommandSpec(
         "show", "show_records",
-        "Current month spendings per category with daily average",
-        "Расходы за текущий месяц по категориям и в среднем за день",
+        "📊 Current month spendings per category with daily average",
+        "📊 Расходы за текущий месяц по категориям и в среднем за день",
+        section="stats",
     ),
     CommandSpec(
         "show_last", "latest_records",
-        "Show last transactions, e.g. /show_last 10 or /show_last transport",
-        "Показать последние транзакции, например /show_last 10 или /show_last транспорт",
+        "📋 Show last transactions, e.g. /show_last 10 or /show_last transport",
+        "📋 Показать последние транзакции, например /show_last 10 или /show_last транспорт",
+        section="stats",
     ),
     CommandSpec(
         "show_ext", "show_detailed",
         "Detailed spendings list with top-3 subcategories",
         "Подробный список расходов с топ-3 подкатегориями",
+        section="stats",
     ),
     CommandSpec(
         "delete", "delete_records",
-        "Delete a transaction by its number from /show_last",
-        "Удалить транзакцию по номеру из /show_last",
+        "🗑 Delete a transaction by its number from /show_last",
+        "🗑 Удалить транзакцию по номеру из /show_last",
     ),
     CommandSpec(
         "income", None,
-        "Add an income record",
-        "Добавить доход",
+        "💰 Add an income record",
+        "💰 Добавить доход",
     ),
     CommandSpec(
         "show_income", "show_records",
-        "Current month income per category",
-        "Доход за текущий месяц по категориям",
+        "💰 Current month income per category",
+        "💰 Доход за текущий месяц по категориям",
+        section="stats",
     ),
     CommandSpec(
         "delete_income", "delete_records",
-        "Delete an income record by its number",
-        "Удалить запись о доходе по номеру",
+        "🗑 Delete an income record by its number",
+        "🗑 Удалить запись о доходе по номеру",
     ),
     CommandSpec(
         "monthly_stat", "send_chart",
-        "Monthly spending chart and heatmap",
-        "Месячный график расходов и тепловая карта",
+        "📈 Monthly spending chart and heatmap",
+        "📈 Месячный график расходов и тепловая карта",
+        section="stats",
     ),
     CommandSpec(
         "monthly_ext_stat", "send_ext_chart",
-        "Monthly heatmap per subcategory for the current year",
-        "Тепловая карта по подкатегориям за текущий год",
+        "📊 Monthly heatmap per subcategory for the current year",
+        "📊 Тепловая карта по подкатегориям за текущий год",
+        section="stats",
     ),
     CommandSpec(
         "yearly_stat", "send_yearly_piechart",
-        "Yearly pie chart of your spendings",
-        "Годовая круговая диаграмма расходов",
+        "🥧 Yearly pie chart of your spendings",
+        "🥧 Годовая круговая диаграмма расходов",
+        section="stats",
     ),
     CommandSpec(
         "show_cat", "show_cat",
         "Show your category dictionary",
         "Показать ваш словарь категорий",
+        section="settings",
     ),
     CommandSpec(
         "change_cat", None,
         "Add, rename or delete categories",
         "Добавить, переименовать или удалить категории",
+        section="settings",
     ),
     CommandSpec(
         "recurring", "recurring_command",
-        "Monthly recurring transactions: list, pause, delete; add with /recurring add rent 500 1",
-        "Регулярные месячные транзакции: список, пауза, удаление; добавить: /recurring add аренда 500 1",
+        "🔁 Monthly recurring transactions: list, pause, delete; add with /recurring add rent 500 1",
+        "🔁 Регулярные месячные транзакции: список, пауза, удаление; добавить: /recurring add аренда 500 1",
     ),
     CommandSpec(
         "ask", "ask",
-        "Ask AI a question about your spendings",
-        "Задать ИИ вопрос о ваших расходах",
+        "🤖 Ask AI a question about your spendings",
+        "🤖 Задать ИИ вопрос о ваших расходах",
+        section="stats",
     ),
     CommandSpec(
         "download", "download_spendings",
-        "Download your transactions as a CSV file",
-        "Скачать ваши транзакции в формате CSV",
+        "📥 Download your transactions as a CSV file",
+        "📥 Скачать ваши транзакции в формате CSV",
+        section="settings",
     ),
     CommandSpec(
         "upload", None,
-        "Upload a spendings CSV file",
-        "Загрузить файл расходов в формате CSV",
+        "📤 Upload a spendings CSV file",
+        "📤 Загрузить файл расходов в формате CSV",
     ),
     CommandSpec(
         "about", "about",
-        "Your profile and settings",
-        "Ваш профиль и настройки",
+        "⚙️ Your profile and settings",
+        "⚙️ Ваш профиль и настройки",
+        section="settings",
     ),
     CommandSpec(
         "help", "help",
-        "List all available commands",
-        "Список всех доступных команд",
+        "ℹ️ List all available commands",
+        "ℹ️ Список всех доступных команд",
+        section="settings",
     ),
     # Functional but hidden from the menu — still listed in /help.
     CommandSpec(
@@ -144,12 +168,14 @@ COMMANDS: Tuple[CommandSpec, ...] = (
         "Cancel the current action and return to the main menu",
         "Отменить текущее действие и вернуться в главное меню",
         in_menu=False,
+        section="settings",
     ),
     CommandSpec(
         "leave", None,
         "Delete your profile and all data. Cannot be undone",
         "Удалить профиль и все данные. Действие нельзя отменить",
         in_menu=False,
+        section="settings",
     ),
     # Admin-only: shown in the admin chat scope and admin /help.
     CommandSpec(
@@ -205,10 +231,15 @@ COMMANDS: Tuple[CommandSpec, ...] = (
 
 # /help renders these through parse_mode=HTML at one call site: reserved HTML
 # chars in a description break /help for every affected user at send time.
+_SECTION_KEYS = {key for key, _, _ in HELP_SECTIONS}
 for _spec in COMMANDS:
     for _d in (_spec.desc_en, _spec.desc_ru):
         if "<" in _d or ">" in _d or "&" in _d:
             raise ValueError(f"HTML-reserved char in /{_spec.name} description: {_d!r}")
+        if len(_d) > 256:
+            raise ValueError(f"Description over 256 chars for /{_spec.name}: {_d!r}")
+    if _spec.section not in _SECTION_KEYS:
+        raise ValueError(f"Unknown /help section {_spec.section!r} for /{_spec.name}")
 
 
 def menu_commands(lang: str = "en", include_admin: bool = False) -> List[BotCommand]:
@@ -221,7 +252,9 @@ def menu_commands(lang: str = "en", include_admin: bool = False) -> List[BotComm
 
 
 def build_help_text(texts, is_admin: bool = False) -> str:
-    """Render /help from the registry: HELP_INTRO + one line per command.
+    """Render /help from the registry: HELP_INTRO + commands grouped into
+    HELP_SECTIONS (registry order within a section; admin_only commands
+    always land in the admin section).
 
     `texts` is the src.texts / src.texts_ru module picked by check_language.
     Output is plain text (HTML-free) — call sites render it both with and
@@ -229,11 +262,19 @@ def build_help_text(texts, is_admin: bool = False) -> str:
     """
     lang = getattr(texts, "LANG", "en")
     lines = [texts.HELP_INTRO]
-    for spec in COMMANDS:
-        if spec.admin_only and not is_admin:
-            continue
-        desc = spec.desc_ru if lang == "ru" else spec.desc_en
-        lines.append(f"/{spec.name} - {desc}")
+    for key, title_en, title_ru in HELP_SECTIONS:
+        section_lines = []
+        for spec in COMMANDS:
+            if spec.admin_only and not is_admin:
+                continue
+            if ("admin" if spec.admin_only else spec.section) != key:
+                continue
+            desc = spec.desc_ru if lang == "ru" else spec.desc_en
+            section_lines.append(f"/{spec.name} - {desc}")
+        if section_lines:
+            lines.append("")
+            lines.append(title_ru if lang == "ru" else title_en)
+            lines.extend(section_lines)
     return "\n".join(lines)
 
 

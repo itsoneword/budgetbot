@@ -15,6 +15,7 @@ from shared.di import get_repos
 # Domain layer for limit calculation
 from domain.session_loader import load_user_session
 from domain.filters import calculate_limit_usage
+from domain.validation import resolve_backdated_year
 
 # file_ops imports removed - using PostgreSQL repositories instead
 from src.language_util import check_language, get_cached_currency, ensure_user_config_cached
@@ -40,14 +41,24 @@ async def _save_transaction_to_db(context: CallbackContext, user_id: int, transa
     """
     repos = get_repos(context)
     config = await repos.users.get_config(user_id)
-    
+
+    # Honor the timestamp parsed from a "dd.mm" prefix (T-033); default to now.
+    timestamp = transaction_data.get("timestamp")
+    if isinstance(timestamp, str):
+        try:
+            timestamp = datetime.fromisoformat(timestamp).replace(tzinfo=timezone.utc)
+        except ValueError:
+            timestamp = None
+    if not isinstance(timestamp, datetime):
+        timestamp = datetime.now(timezone.utc)
+
     tx_id = await repos.transactions.save_spending(
         user_id=user_id,
         category=transaction_data.get("category", ""),
         subcategory=transaction_data.get("subcategory", ""),
         amount=float(transaction_data.get("amount", 0)),
         currency=transaction_data.get("currency", config.currency if config else "EUR"),
-        timestamp=datetime.now(timezone.utc),
+        timestamp=timestamp,
     )
     
     # Also update category dictionary if needed
@@ -73,36 +84,74 @@ def process_income_input(user_id, parts: list) -> tuple:
         tuple: (timestamp, category)
     """
     # user_id not used in this function, but kept for API compatibility
-    from dateutil.parser import parse, ParserError
-    
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    timestamp = datetime.now(timezone.utc)
     category = "salary"  # Default category for income
-    
+
     if len(parts) == 3:
         # Format: date category amount OR category something amount
-        try:
-            timestamp = parse(parts[0], dayfirst=True)
+        parsed = _parse_income_date(parts[0])
+        if parsed:
+            timestamp = parsed
             category = parts[1]
-        except (ValueError, ParserError):
+        else:
             category = parts[0]
     elif len(parts) == 2:
         # Format: date amount OR category amount
-        try:
-            timestamp = parse(parts[0], dayfirst=True)
-        except (ValueError, ParserError):
+        parsed = _parse_income_date(parts[0])
+        if parsed:
+            timestamp = parsed
+        else:
             category = parts[0]
-    
+
     return timestamp, category
+
+
+def _parse_income_date(text: str) -> Optional[datetime]:
+    """
+    Parse a date token from income input; None if it isn't a date.
+    When the year was not given explicitly (dd.mm), a future result means the
+    user was backfilling — roll back one year (T-033). Explicit future years
+    are left alone here and caught by the save-path clamp.
+    """
+    from dateutil.parser import parse, ParserError
+
+    now = datetime.now(timezone.utc)
+
+    # "dd.mm" first — dateutil mangles it (reads "31.12" as day 31 of the
+    # *default* month, discarding the month), so parse it explicitly.
+    try:
+        ddmm = datetime.strptime(f"{now.year}-{text}", "%Y-%d.%m")
+        return resolve_backdated_year(ddmm.replace(tzinfo=timezone.utc), now)
+    except ValueError:
+        pass
+
+    today = datetime(now.year, now.month, now.day)
+    try:
+        parsed = parse(text, dayfirst=True, default=today)
+        # Re-parse with a different default year: if the result changes, the
+        # input had no explicit year and the current year was assumed.
+        year_was_assumed = parse(
+            text, dayfirst=True, default=today.replace(year=now.year - 4)
+        ).year != parsed.year
+    except (ValueError, OverflowError, ParserError):
+        return None
+
+    parsed = parsed.replace(tzinfo=timezone.utc)
+    if year_was_assumed:
+        parsed = resolve_backdated_year(parsed, now)
+    return parsed
 
 
 def _parse_date_to_utc(mdate: str) -> str:
     """
     Parse a date string in 'dd.mm' format and convert to UTC ISO format.
-    Assumes the current year.
+    Tries the current year first; if that lands in the future the user was
+    backfilling and meant the previous year (T-033).
     """
-    current_year = datetime.now().year
+    current_year = datetime.now(timezone.utc).year
     date_obj = datetime.strptime(f"{current_year}-{mdate}", "%Y-%d.%m")
-    return date_obj.replace(tzinfo=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    date_obj = resolve_backdated_year(date_obj.replace(tzinfo=timezone.utc))
+    return date_obj.strftime("%Y-%m-%dT%H:%M:%S")
 
 
 async def process_transaction_input_async(

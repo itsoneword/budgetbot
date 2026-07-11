@@ -27,6 +27,17 @@ def get_texts_for_language(language):
     return importlib.import_module("src.texts")
 
 
+def format_monthly_limit(limit, texts):
+    """User-facing monthly limit: 'no limit' for the 99999999 sentinel,
+    otherwise without a trailing .0 (4000, or 4000.50 if fractional)."""
+    limit = float(limit)
+    if limit >= 99999999:
+        return texts.NO_LIMIT
+    if limit == int(limit):
+        return str(int(limit))
+    return f"{limit:.2f}"
+
+
 def check_language(update, context):
     """Check the language setting for the current user and return the appropriate texts module.
 

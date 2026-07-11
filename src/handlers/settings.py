@@ -78,6 +78,10 @@ async def handle_settings_limit(update: Update, context: CallbackContext):
 
     try:
         new_limit = float(update.message.text)
+        # Consume the out-of-conversation marker set when the limit prompt
+        # was shown (see handle_text in core.py, T-031). Kept on invalid
+        # input so the retry still routes here.
+        context.user_data.pop('awaiting_limit', None)
 
         # Save to database
         repos = get_repos(context)

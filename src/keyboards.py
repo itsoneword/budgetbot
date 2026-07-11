@@ -21,13 +21,17 @@ def create_skip_keyboard(texts):
     return InlineKeyboardMarkup(keyboard)
 
 def create_settings_keyboard(texts):
-    """Create a keyboard for settings options"""
+    """Create a keyboard for settings options (attached to /about).
+
+    Uses the same settings_* callback_data as create_settings_keyboard_menu so
+    the buttons route through the existing settings handling (T-031 — the old
+    change_* values were handled nowhere)."""
     keyboard = [
         [
-            InlineKeyboardButton(texts.CHANGE_LANGUAGE_BUTTON, callback_data="change_language"),
-            InlineKeyboardButton(texts.CHANGE_CURRENCY_BUTTON, callback_data="change_currency"),
+            InlineKeyboardButton(texts.CHANGE_LANGUAGE_BUTTON, callback_data="settings_change_language"),
+            InlineKeyboardButton(texts.CHANGE_CURRENCY_BUTTON, callback_data="settings_change_currency"),
         ],
-        [InlineKeyboardButton(texts.CHANGE_LIMIT_BUTTON, callback_data="change_limit")]
+        [InlineKeyboardButton(texts.CHANGE_LIMIT_BUTTON, callback_data="settings_change_limit")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
