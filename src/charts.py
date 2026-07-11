@@ -4,6 +4,8 @@ Uses PostgreSQL for data loading.
 """
 import pandas as pd
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")  # Non-GUI backend: safe to render from worker threads
 import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.dates as mdates
@@ -18,6 +20,8 @@ import warnings
 import re
 import os
 import asyncio
+import threading
+import functools
 from io import BytesIO
 
 from src.logger import log_debug, timed_function, log_function_call, LogConfig
@@ -30,6 +34,20 @@ if TYPE_CHECKING:
 # Suppress Matplotlib font-related warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="matplotlib")
 plt.style.use('ggplot')
+
+# pyplot's implicit figure state is not thread-safe. Renders run in worker
+# threads (asyncio.to_thread), so serialize them with a lock. RLock because
+# make_yearly_pie_chart calls make_yearly_comparison_chart internally.
+_render_lock = threading.RLock()
+
+
+def _serialized_render(func):
+    """Hold the module render lock for the duration of a chart render."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        with _render_lock:
+            return func(*args, **kwargs)
+    return wrapper
 
 
 async def load_chart_data(
@@ -73,8 +91,6 @@ async def load_chart_data(
     # Perform currency conversion using DB-backed service
     if not df.empty:
         rates = await repos.currency.get_rates()
-        # Convert Decimal rates to float for pandas compatibility
-        float_rates = {k: float(v) for k, v in rates.items()}
         df = repos.currency.convert_dataframe(
             df, user_currency, rates,
             amount_col='amount',
@@ -87,6 +103,7 @@ async def load_chart_data(
 
 
 @timed_function
+@_serialized_render
 def monthly_pivot_chart(user_id, data: pd.DataFrame, user_currency: str):
     """Generate monthly pivot heatmap chart.
     
@@ -219,6 +236,7 @@ def monthly_pivot_chart(user_id, data: pd.DataFrame, user_currency: str):
 
 
 @timed_function
+@_serialized_render
 def monthly_ext_pivot_chart(user_id, data: pd.DataFrame, user_currency: str):
     """Generate extended monthly pivot chart with subcategories.
     
@@ -305,6 +323,7 @@ def monthly_ext_pivot_chart(user_id, data: pd.DataFrame, user_currency: str):
 
 
 @timed_function
+@_serialized_render
 def monthly_line_chart(user_id, data: pd.DataFrame, user_currency: str):
     """Generate monthly stacked area chart.
     
@@ -384,6 +403,7 @@ def monthly_line_chart(user_id, data: pd.DataFrame, user_currency: str):
     return buf
 
 
+@_serialized_render
 def generate_usage_summary_chart(
     days: int = 30,
     top_commands: int = 20,
@@ -529,6 +549,7 @@ def generate_usage_summary_chart(
 
 
 @timed_function
+@_serialized_render
 def make_yearly_pie_chart(user_id, data: pd.DataFrame, user_currency: str):
     """Generate yearly pie charts for spending distribution.
     
@@ -614,6 +635,7 @@ def make_yearly_pie_chart(user_id, data: pd.DataFrame, user_currency: str):
 
 
 @timed_function
+@_serialized_render
 def make_yearly_comparison_chart(user_id, data: pd.DataFrame, user_currency: str):
     """Generate yearly comparison bar charts (absolute and percentage).
     

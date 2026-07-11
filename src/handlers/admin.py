@@ -4,6 +4,8 @@ Admin and informational handlers.
 Handles: help command, about/profile info, archive profile, usage charts.
 """
 
+import asyncio
+
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import CallbackContext, ConversationHandler
@@ -92,8 +94,8 @@ async def show_log_chart(update: Update, context: CallbackContext) -> int:
 
     try:
         chart_paths = [
-            generate_usage_summary_chart(),
-            generate_usage_summary_chart(days=365, label="1y"),
+            await asyncio.to_thread(generate_usage_summary_chart),
+            await asyncio.to_thread(generate_usage_summary_chart, days=365, label="1y"),
         ]
     except FileNotFoundError:
         await update.message.reply_text("Log file not found.")

@@ -286,13 +286,15 @@ class CurrencyService:
             df[result_col] = pd.Series(dtype=float)
             return df
 
-        def convert_row(row):
-            amount = Decimal(str(row[amount_col]))
-            from_curr = row[currency_col]
-            return float(self.convert(amount, from_curr, to_currency, rates))
-
         df = df.copy()
-        df[result_col] = df.apply(convert_row, axis=1)
+        # Vectorized: one Decimal-precision factor per distinct currency
+        # (convert() keeps the missing-rate default of 1.0), then a single
+        # float multiply over the whole column.
+        factors = {
+            currency: float(self.convert(Decimal(1), currency, to_currency, rates))
+            for currency in df[currency_col].unique()
+        }
+        df[result_col] = df[amount_col].astype(float) * df[currency_col].map(factors)
         return df
 
 

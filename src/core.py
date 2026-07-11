@@ -37,13 +37,7 @@ from src.logger import (
 )
 
 # pandas_ops imports removed - all functions migrated to domain/filters.py and repos
-from src.charts import (
-    monthly_line_chart,
-    monthly_pivot_chart,
-    make_yearly_pie_chart,
-    monthly_ext_pivot_chart,
-    generate_usage_summary_chart,
-)
+# chart imports removed - chart handlers live in src/handlers/ (charts.py, admin.py)
 # process_income_input moved to save_transaction.py (pure parsing, no file I/O)
 from src.save_transaction import process_income_input
 
@@ -467,39 +461,6 @@ async def delete_records(update: Update, context: CallbackContext):
         else:
             await update.message.reply_text(texts.NOT_ENOUGH_RECORDS.format(record_id))
 
-
-
-    log_user_interaction(
-        update.effective_user.id,
-        update.effective_user.first_name,
-        update.effective_user.username,
-    )
-
-    try:
-        chart_paths = [
-            generate_usage_summary_chart(),
-            generate_usage_summary_chart(days=365, label="1y"),
-        ]
-    except FileNotFoundError:
-        await update.message.reply_text("Log file not found.")
-        return TRANSACTION
-    except ValueError as exc:
-        await update.message.reply_text(str(exc))
-        return TRANSACTION
-    except Exception as exc:
-        await update.message.reply_text(f"Failed to build usage chart: {exc}")
-        return TRANSACTION
-
-    captions = ["Usage summary (last 30 days)", "Usage summary (last year)"]
-    for path, caption in zip(chart_paths, captions):
-        with open(path, "rb") as chart_file:
-            await context.bot.send_photo(
-                chat_id=update.effective_chat.id,
-                photo=chart_file,
-                caption=caption,
-            )
-
-    return TRANSACTION
 
 async def cancel(update: Update, context):
     texts = check_language(update, context)

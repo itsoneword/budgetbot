@@ -4,6 +4,8 @@ Chart handlers for generating and sending transaction visualizations.
 Handles: monthly charts, extended charts, yearly pie charts.
 """
 
+import asyncio
+
 from telegram import Update, InputMediaPhoto
 from telegram.ext import CallbackContext
 
@@ -32,9 +34,15 @@ async def send_chart(update: Update, context: CallbackContext) -> None:
     repos = get_repos(context)
     data, user_currency = await load_chart_data(user_id, repos, months=12)
 
-    # Generate charts with DB data (returns BytesIO objects)
-    pivot_chart = monthly_pivot_chart(user_id, data=data, user_currency=user_currency)
-    line_chart = monthly_line_chart(user_id, data=data, user_currency=user_currency)
+    # Generate charts in worker threads so rendering doesn't block the event
+    # loop. Must stay sequential (no gather): both mutate the shared DataFrame
+    # in place.
+    pivot_chart = await asyncio.to_thread(
+        monthly_pivot_chart, user_id, data=data, user_currency=user_currency
+    )
+    line_chart = await asyncio.to_thread(
+        monthly_line_chart, user_id, data=data, user_currency=user_currency
+    )
 
     # Create media group from BytesIO objects
     media = []
@@ -63,8 +71,10 @@ async def send_ext_chart(update: Update, context: CallbackContext) -> None:
     repos = get_repos(context)
     data, user_currency = await load_chart_data(user_id, repos, months=12)
 
-    # Generate chart with DB data (returns BytesIO)
-    ext_chart = monthly_ext_pivot_chart(user_id, data=data, user_currency=user_currency)
+    # Generate chart in a worker thread (returns BytesIO)
+    ext_chart = await asyncio.to_thread(
+        monthly_ext_pivot_chart, user_id, data=data, user_currency=user_currency
+    )
 
     if ext_chart:
         await context.bot.send_photo(chat_id=update.effective_chat.id, photo=ext_chart)
@@ -87,8 +97,10 @@ async def send_yearly_piechart(update: Update, context: CallbackContext) -> None
     repos = get_repos(context)
     data, user_currency = await load_chart_data(user_id, repos, months=36)  # 3 years
 
-    # This function now returns a list of BytesIO objects (no files saved to disk)
-    all_charts = make_yearly_pie_chart(user_id, data=data, user_currency=user_currency)
+    # Render in a worker thread; returns a list of BytesIO objects
+    all_charts = await asyncio.to_thread(
+        make_yearly_pie_chart, user_id, data=data, user_currency=user_currency
+    )
     log_debug(f"Received {len(all_charts)} charts from make_yearly_pie_chart")
 
     if not all_charts:
