@@ -306,3 +306,32 @@ VOICE_UNKNOWN = (
     "I couldn't map this to an action. You can add a spending like “coffee 4.5”, "
     "ask a question with /ask, or see /help."
 )
+
+# Recurring transactions (T-026)
+RECURRING_BUTTON = "🔁 Recurring"
+RECURRING_USAGE = (
+    "To add a monthly recurring transaction:\n"
+    "/recurring add <name> <amount> <day>\n"
+    "e.g. /recurring add rent 500 1"
+)
+RECURRING_LIST_EMPTY = (
+    "You have no recurring transactions yet.\n\n"
+    "To add a monthly recurring transaction:\n"
+    "/recurring add <name> <amount> <day>\n"
+    "e.g. /recurring add rent 500 1"
+)
+RECURRING_LIST_HEADER = "🔁 Your recurring transactions:"
+RECURRING_PAUSED_LABEL = "paused"
+RECURRING_DAY_WORD = "day"
+RECURRING_ADDED = "Recurring transaction saved: {name} — {amount} {currency}, every month on day {day}."
+RECURRING_DAY_CLAMP_NOTE = "In shorter months it will be added on the last day of the month."
+RECURRING_INVALID_NAME = "Invalid name: 1-60 characters, cannot start with '/'."
+RECURRING_INVALID_AMOUNT = "Invalid amount: must be a positive number."
+RECURRING_INVALID_DAY = "Invalid day: must be a number from 1 to 31."
+RECURRING_CONFIRM_DELETE = "Delete recurring transaction '{name}'? This cannot be undone."
+RECURRING_POSTED = "🔁 Recurring transaction added: {name} — {amount} {currency} (for {date})."
+RECURRING_PAUSE_BTN = "⏸ {}"
+RECURRING_RESUME_BTN = "▶️ {}"
+RECURRING_DELETE_BTN = "🗑"
+RECURRING_CONFIRM_DELETE_BTN = "🗑 Delete"
+RECURRING_BACK_BTN = "◀️ Back"

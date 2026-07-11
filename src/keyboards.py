@@ -146,6 +146,9 @@ def create_main_menu_keyboard(texts):
             InlineKeyboardButton(texts.EDIT_TRANSACTIONS_BUTTON, callback_data="menu_edit_transactions")
         ],
         [
+            InlineKeyboardButton(texts.RECURRING_BUTTON, callback_data="menu_recurring")
+        ],
+        [
             InlineKeyboardButton(texts.SETTINGS_BUTTON, callback_data="menu_settings"),
 
             InlineKeyboardButton(texts.HELP_BUTTON, callback_data="menu_help")

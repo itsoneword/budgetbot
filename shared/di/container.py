@@ -11,6 +11,7 @@ from infrastructure.repositories import (
     UserRepository,
     CategoryRepository,
     EntitlementRepository,
+    RecurringRepository,
 )
 from infrastructure.external.currency_service import CurrencyService
 
@@ -28,6 +29,7 @@ class Container:
         self._user_repo: Optional[UserRepository] = None
         self._category_repo: Optional[CategoryRepository] = None
         self._entitlement_repo: Optional[EntitlementRepository] = None
+        self._recurring_repo: Optional[RecurringRepository] = None
         self._currency_service: Optional[CurrencyService] = None
         self._initialized = False
     
@@ -45,6 +47,7 @@ class Container:
         self._user_repo = UserRepository(self._pool)
         self._category_repo = CategoryRepository(self._pool)
         self._entitlement_repo = EntitlementRepository(self._pool)
+        self._recurring_repo = RecurringRepository(self._pool)
 
         # Initialize services
         self._currency_service = CurrencyService(self._pool)
@@ -96,6 +99,11 @@ class Container:
         if not self._entitlement_repo:
             raise RuntimeError("Container not initialized. Call init() first.")
         return self._entitlement_repo
+    def recurring(self) -> RecurringRepository:
+        """Get recurring rules repository."""
+        if not self._recurring_repo:
+            raise RuntimeError("Container not initialized. Call init() first.")
+        return self._recurring_repo
 
     @property
     def currency(self) -> CurrencyService:

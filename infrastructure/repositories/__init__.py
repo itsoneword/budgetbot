@@ -5,16 +5,19 @@ from .transaction_repository import TransactionRepository, Transaction
 from .user_repository import UserRepository, User, UserConfig
 from .category_repository import CategoryRepository, Category
 from .entitlement_repository import EntitlementRepository, AIEntitlement
+from .recurring_repository import RecurringRepository, RecurringRule
 
 __all__ = [
     'BaseRepository',
     'TransactionRepository',
     'Transaction',
-    'UserRepository', 
+    'UserRepository',
     'User',
     'UserConfig',
     'CategoryRepository',
     'Category',
     'EntitlementRepository',
     'AIEntitlement',
+    'RecurringRepository',
+    'RecurringRule',
 ]

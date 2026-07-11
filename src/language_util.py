@@ -16,6 +16,17 @@ def get_user_language(user_id):
     return language
 
 
+def get_texts_for_language(language):
+    """Return the texts module for a language code ('ru' -> texts_ru, else texts).
+
+    Use when there is no Update to derive the language from (e.g. scheduler
+    notifications, T-026); handlers should keep using check_language.
+    """
+    if language == "ru":
+        return importlib.import_module("src.texts_ru")
+    return importlib.import_module("src.texts")
+
+
 def check_language(update, context):
     """Check the language setting for the current user and return the appropriate texts module.
 
@@ -34,14 +45,10 @@ def check_language(update, context):
         if not language:
             language = get_user_language(user_id)
 
-        # Return appropriate texts module
-        if language == "ru":
-            return importlib.import_module("src.texts_ru")
-        else:
-            return importlib.import_module("src.texts")
+        return get_texts_for_language(language)
     else:
         # Default to English if update or user is None
-        return importlib.import_module("src.texts")
+        return get_texts_for_language("en")
 
 
 async def cache_user_language(context, repos, user_id: int) -> str:

@@ -23,3 +23,7 @@ def is_llm_allowed(user_id: int) -> bool:
     src/ai_access.check_ai_access (DB entitlements); the env allowlist is
     scheduled for removal in the T-023 release."""
     return user_id == ADMIN_USER_ID or user_id in LLM_ALLOWED_USERS
+
+
+# UTC hour at which the daily recurring-transactions job runs (T-026).
+RECURRING_HOUR_UTC = int(os.getenv("RECURRING_HOUR_UTC", "6"))

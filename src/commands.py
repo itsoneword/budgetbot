@@ -109,6 +109,11 @@ COMMANDS: Tuple[CommandSpec, ...] = (
         "Добавить, переименовать или удалить категории",
     ),
     CommandSpec(
+        "recurring", "recurring_command",
+        "Monthly recurring transactions: list, pause, delete; add with /recurring add rent 500 1",
+        "Регулярные месячные транзакции: список, пауза, удаление; добавить: /recurring add аренда 500 1",
+    ),
+    CommandSpec(
         "ask", "ask",
         "Ask AI a question about your spendings",
         "Задать ИИ вопрос о ваших расходах",
