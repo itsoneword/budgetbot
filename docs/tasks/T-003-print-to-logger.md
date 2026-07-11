@@ -1,7 +1,7 @@
 ---
 id: T-003
 title: Replace print() with logger in runtime code
-status: todo
+status: review
 type: ops
 area: bot
 priority: p1
@@ -9,15 +9,40 @@ deps: []
 tags: []
 blocked: 
 created: 2026-07-07
-updated: 2026-07-07
+updated: 2026-07-11
 ---
 
 ## Context
 shared/di/bot_integration.py:29,40 and some scripts print to stdout, bypassing logging config (no timestamps, no levels, can't be silenced).
 
 ## Acceptance
-- [ ] No print() in runtime code paths (shared/, src/, domain/, infrastructure/)
-- [ ] Replaced with logger calls at appropriate levels
+- [x] No print() in runtime code paths (shared/, src/, domain/, infrastructure/)
+- [x] Replaced with logger calls at appropriate levels
 
 ## Log
 - 2026-07-07 created from production-readiness B3
+- 2026-07-11 started
+- 2026-07-11 converted bot_integration.py (2 info), handlers/transactions.py (2 exception), detailed_transactions.py (21 debug); save_transaction.py next
+- 2026-07-11 save_transaction.py converted (57 debug, 2 exception); all 4 files compile and import clean; zero active prints in runtime paths
+- 2026-07-11 moved to review
+
+## Testing
+
+Change is log-plumbing only (84 print() -> logger calls in 4 files); no user-visible copy, states, or data mutations changed. Testing = exercise the touched code paths and check log output.
+
+### Critical
+- [ ] Bot starts: "Database container initialized" appears in user_data/app.log with timestamp/level (was bare stdout print)
+- [ ] Save a transaction via short format (e.g. "coffee 5") — flow works end to end, no crash from logger calls in save_transaction.py
+- [ ] Save a multi-line transaction (two lines in one message) — process_next_transaction path works
+- [ ] Detailed transactions view: select categories -> period -> browse list -> open a transaction — full flow works (detailed_transactions.py touched throughout)
+- [ ] Edit and delete a transaction from recent entries (handlers/transactions.py) — works
+
+### Important
+- [ ] With DEBUG mode ON, the converted traces appear in console/app.log at DEBUG level; with INFO, they are silent (previously always printed)
+- [ ] Force a delete error (e.g. stale callback / already-deleted tx): user sees ERROR_DELETING_TRANSACTION message and app.log shows "Error deleting transaction" with full traceback (logger.exception)
+- [ ] Invalid amount format ("coffee abc"): user gets the invalid-format reply; logged at DEBUG, not ERROR
+- [ ] Limit-warning path after saving with a monthly limit set: warning still shows; any calc failure logs "Exception calculating limit" with traceback and does not break the save
+
+### Nice-to-have
+- [ ] Bot shutdown logs "Database container closed"
+- [ ] Confirm no stray "DEBUG: " / "[OK]" prefixes remain in log lines from these modules

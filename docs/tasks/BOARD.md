@@ -2,16 +2,15 @@
 
 # Task Board
 
-Updated: 2026-07-08 · see docs/ROADMAP.md for milestones
+Updated: 2026-07-11 · see docs/ROADMAP.md for milestones
 
 ## Doing (0)
 _empty_
 
-## Review (0)
-_empty_
+## Review (1)
+- **T-003** `p1/ops/bot` Replace print() with logger in runtime code — last: 2026-07-11 moved to review
 
-## Todo (7)
-- **T-003** `p1/ops/bot` Replace print() with logger in runtime code
+## Todo (6)
 - **T-004** `p1/refactor/bot` Move chart rendering off the event loop
 - **T-005** `p1/ops/db` Adopt alembic for schema migrations
 - **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating

@@ -2,6 +2,7 @@
 Detailed transactions view - browse and filter transactions by category and period.
 Converted to use batch fetch + memory filter architecture (Phase 3.1).
 """
+import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import CallbackContext
@@ -35,10 +36,12 @@ from shared.di import get_repos
 # Import states from central file
 from src.states import *
 
+logger = logging.getLogger(__name__)
+
 
 async def start_detailed_transactions(update: Update, context: CallbackContext):
     """Start the detailed transactions flow by showing category selection"""
-    print(f"DEBUG: Fn start_detailed_transactions")
+    logger.debug(f"Fn start_detailed_transactions")
     user_id = update.effective_user.id  # int, not str
     texts = check_language(update, context)
     query = update.callback_query
@@ -76,7 +79,7 @@ async def start_detailed_transactions(update: Update, context: CallbackContext):
         reply_markup=reply_markup,
         parse_mode=ParseMode.HTML
     )
-    print(f"DEBUG: Returning state SELECT_CATEGORIES after start_detailed_transactions")
+    logger.debug(f"Returning state SELECT_CATEGORIES after start_detailed_transactions")
     return SELECT_CATEGORIES
 
 
@@ -100,7 +103,7 @@ async def handle_category_selection(update: Update, context: CallbackContext):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
-        print(f"DEBUG: Returning state SELECT_CATEGORIES after handle_category_selection")
+        logger.debug(f"Returning state SELECT_CATEGORIES after handle_category_selection")
         return SELECT_CATEGORIES
 
     elif action == "selcatpage_next":
@@ -116,7 +119,7 @@ async def handle_category_selection(update: Update, context: CallbackContext):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
-        print(f"DEBUG: Returning state SELECT_CATEGORIES after handle_category_selection")
+        logger.debug(f"Returning state SELECT_CATEGORIES after handle_category_selection")
         return SELECT_CATEGORIES
 
     # Select all categories
@@ -133,7 +136,7 @@ async def handle_category_selection(update: Update, context: CallbackContext):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
-        print(f"DEBUG: Returning state SELECT_CATEGORIES after selcat_all")
+        logger.debug(f"Returning state SELECT_CATEGORIES after selcat_all")
         return SELECT_CATEGORIES
 
     # Continue to time period selection
@@ -149,12 +152,12 @@ async def handle_category_selection(update: Update, context: CallbackContext):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
-        print(f"DEBUG: Returning state SELECT_TIME_PERIOD after selcat_continue")
+        logger.debug(f"Returning state SELECT_TIME_PERIOD after selcat_continue")
         return SELECT_TIME_PERIOD
 
     # Go back to transactions menu
     elif action == "back_to_transactions":
-        print(f"DEBUG: Returning state SELECT_CATEGORIES after back_to_transactions")
+        logger.debug(f"Returning state SELECT_CATEGORIES after back_to_transactions")
         return await back_to_transactions_menu(update, context)
 
     # Select individual category
@@ -183,13 +186,13 @@ async def handle_category_selection(update: Update, context: CallbackContext):
 
     # Handle unexpected action
     await query.answer("Unexpected option")
-    print(f"DEBUG: Returning state SELECT_CATEGORIES after handle_category_selection")
+    logger.debug(f"Returning state SELECT_CATEGORIES after handle_category_selection")
     return SELECT_CATEGORIES
 
 
 async def handle_time_period_selection(update: Update, context: CallbackContext):
     """Handle selection of time period"""
-    print(f"DEBUG: Fn handle_time_period_selection")
+    logger.debug(f"Fn handle_time_period_selection")
     user_id = update.effective_user.id
     texts = check_language(update, context)
     query = update.callback_query
@@ -276,7 +279,7 @@ async def handle_time_period_selection(update: Update, context: CallbackContext)
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
-        print("Message edited, SHOW_SUMMARY returned", SHOW_SUMMARY)
+        logger.debug(f"Message edited, SHOW_SUMMARY returned {SHOW_SUMMARY}")
         return SHOW_SUMMARY
 
     # Handle unexpected action
@@ -320,7 +323,7 @@ async def handle_summary_action(update: Update, context: CallbackContext):
 
 async def show_filtered_transactions(update: Update, context: CallbackContext):
     """Show transactions filtered by selected categories and period"""
-    print(f"DEBUG: Fn show_filtered_transactions")
+    logger.debug(f"Fn show_filtered_transactions")
     texts = check_language(update, context)
     query = update.callback_query
 
@@ -350,7 +353,7 @@ async def show_filtered_transactions(update: Update, context: CallbackContext):
     # Create mapping from display number to transaction ID
     tx_mapping = create_tx_display_mapping(transactions, page, page_size)
     context.user_data['tx_display_mapping'] = tx_mapping
-    print(f"DEBUG: Created tx_display_mapping: {tx_mapping}")
+    logger.debug(f"Created tx_display_mapping: {tx_mapping}")
 
     # Format transactions for display
     transaction_lines = []
@@ -388,13 +391,13 @@ async def show_filtered_transactions(update: Update, context: CallbackContext):
         parse_mode=ParseMode.HTML
     )
 
-    print(f"DEBUG: Returning state SHOW_TRANSACTIONS after show_filtered_transactions", SHOW_TRANSACTIONS)
+    logger.debug(f"Returning state SHOW_TRANSACTIONS after show_filtered_transactions {SHOW_TRANSACTIONS}")
     return SHOW_TRANSACTIONS
 
 
 async def handle_transaction_navigation(update: Update, context: CallbackContext):
     """Handle transaction navigation (next/prev page) and transaction selection"""
-    print(f"DEBUG: Fn handle_transaction_navigation with callback data")
+    logger.debug(f"Fn handle_transaction_navigation with callback data")
     query = update.callback_query
     action = query.data
 
@@ -412,30 +415,30 @@ async def handle_transaction_navigation(update: Update, context: CallbackContext
     elif action.startswith("dtx_display_"):
         # Extract the display number from the callback data
         display_num = int(action.replace("dtx_display_", ""))
-        print(f"DEBUG: dtx_display_ handler with display_num={display_num}")
+        logger.debug(f"dtx_display_ handler with display_num={display_num}")
 
         # Use the mapping to get the actual transaction ID
         tx_mapping = context.user_data.get('tx_display_mapping', {})
-        print(f"DEBUG: tx_mapping = {tx_mapping}")
+        logger.debug(f"tx_mapping = {tx_mapping}")
 
         if display_num in tx_mapping:
             tx_id = tx_mapping[display_num]
-            print(f"DEBUG: Found mapping for display {display_num} -> tx_id={tx_id}")
+            logger.debug(f"Found mapping for display {display_num} -> tx_id={tx_id}")
 
             # Store the transaction ID for handle_transaction_selection
             context.user_data['selected_tx_index'] = tx_id
             context.user_data['return_to_detailed'] = True
 
-            print(f"DEBUG: Using stored tx_id={tx_id} for handle_transaction_selection")
+            logger.debug(f"Using stored tx_id={tx_id} for handle_transaction_selection")
             return await handle_transaction_selection(update, context)
         else:
-            print(f"DEBUG: No mapping found for display_num={display_num}")
+            logger.debug(f"No mapping found for display_num={display_num}")
             await query.answer("Transaction not found. Please try again.")
             return SHOW_TRANSACTIONS
 
     elif action.startswith("tx_"):
         context.user_data['return_to_detailed'] = True
-        print(f"DEBUG: action.startswith(tx_) after handle_transaction_selection")
+        logger.debug(f"action.startswith(tx_) after handle_transaction_selection")
         return await handle_transaction_selection(update, context)
 
     elif action == "back_to_main_menu":
@@ -451,7 +454,7 @@ async def handle_transaction_navigation(update: Update, context: CallbackContext
     # Handle unexpected action
     await query.answer("Unexpected option")
     await asyncio.sleep(1)
-    print(f"DEBUG: Returning state SHOW_TRANSACTIONS after handle_transaction_navigation", SHOW_TRANSACTIONS)
+    logger.debug(f"Returning state SHOW_TRANSACTIONS after handle_transaction_navigation {SHOW_TRANSACTIONS}")
     return SHOW_TRANSACTIONS
 
 

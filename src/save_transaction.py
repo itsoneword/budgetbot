@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Dict, Optional
 from decimal import Decimal
 
@@ -28,6 +29,8 @@ from src.keyboards import (
 # pandas_ops imports removed - using language_util and domain.filters instead
 # Import states from central states file
 from src.states import *
+
+logger = logging.getLogger(__name__)
 
 
 async def _save_transaction_to_db(context: CallbackContext, user_id: int, transaction_data: dict) -> int:
@@ -238,12 +241,12 @@ async def _check_and_show_limit_warning(update_or_query, context: CallbackContex
                 parse_mode=ParseMode.HTML
             )
     except Exception as e:
-        print(f"DEBUG: Exception calculating limit: {e}")
+        logger.exception("Exception calculating limit")
 
 
 async def save_transaction(update: Update, context):
     """Process a transaction from a user's text input"""
-    print(f"DEBUG: Fn save_transaction")
+    logger.debug(f"Fn save_transaction")
     user_id =update.effective_user.id
     texts = check_language(update, context)
     
@@ -258,14 +261,14 @@ async def save_transaction(update: Update, context):
     
     # Store the transactions in context for later processing
     if len(lines) > 1:
-        print(f"DEBUG: Condition multi-line transaction input")
+        logger.debug(f"Condition multi-line transaction input")
         # This is a multi-line transaction input
         context.user_data["all_transactions"] = lines
         context.user_data["current_transaction_index"] = 0
         await update.message.reply_text(
             texts.MULTI_TRANSACTION_START.format(len(lines))
         )
-        print(f"DEBUG: Return process_next_transaction")
+        logger.debug(f"Return process_next_transaction")
         return await process_next_transaction(update, context)
     
     # Single transaction processing
@@ -282,9 +285,9 @@ async def save_transaction(update: Update, context):
     try:
         amount = float(parts[-1])
     except ValueError:
-        print(f"DEBUG: Condition invalid amount format")
+        logger.debug(f"Condition invalid amount format")
         await update.message.reply_text(texts.TRANSACTION_ERROR_TEXT)
-        print(f"DEBUG: Return TRANSACTION")
+        logger.debug(f"Return TRANSACTION")
         return TRANSACTION
     
     # Check if this is a short format input (only subcategory and amount)
@@ -306,7 +309,7 @@ async def save_transaction(update: Update, context):
     
     # If category is known and it's not a short format input, save directly
     if not unknown_cat and not is_short_format:
-        print(f"DEBUG: Condition category known and not short format")
+        logger.debug(f"Condition category known and not short format")
         transaction_data["category"] = category
         await _save_transaction_to_db(context, int(user_id), transaction_data)
         
@@ -321,12 +324,12 @@ async def save_transaction(update: Update, context):
         #     parse_mode=ParseMode.HTML
         # )
         
-        print(f"DEBUG: Return TRANSACTION (single transaction saved directly)")
+        logger.debug(f"Return TRANSACTION (single transaction saved directly)")
         return TRANSACTION
     
     # Handle short format inputs with different behavior based on category matches
     if is_short_format:
-        print(f"DEBUG: Condition short format input")
+        logger.debug(f"Condition short format input")
         # Get all categories where this subcategory exists from PostgreSQL
         repos = get_repos(context)
         language = context.user_data.get('language', 'en')
@@ -345,7 +348,7 @@ async def save_transaction(update: Update, context):
         
         # Case 1: Subcategory not found in any category
         if len(matching_categories) == 0:
-            print(f"DEBUG: Condition subcategory not found in any category")
+            logger.debug(f"Condition subcategory not found in any category")
             # Create an inline keyboard with pagination for all categories
             reply_markup = create_category_keyboard(all_categories, 0, texts)
             
@@ -354,12 +357,12 @@ async def save_transaction(update: Update, context):
                 reply_markup=reply_markup,
                 parse_mode=ParseMode.HTML
             )
-            print(f"DEBUG: Return TX_CHOOSE_CATEGORY (showing category selection)")
+            logger.debug(f"Return TX_CHOOSE_CATEGORY (showing category selection)")
             return TX_CHOOSE_CATEGORY
         
         # Case 2: Subcategory found in exactly one category
         elif len(matching_categories) == 1:
-            print(f"DEBUG: Condition subcategory found in exactly one category")
+            logger.debug(f"Condition subcategory found in exactly one category")
             found_category = matching_categories[0]
             context.user_data["found_category"] = found_category
             
@@ -371,12 +374,12 @@ async def save_transaction(update: Update, context):
                 reply_markup=reply_markup,
                 parse_mode=ParseMode.HTML
             )
-            print(f"DEBUG: Return TX_CHOOSE_CATEGORY (showing found category)")
+            logger.debug(f"Return TX_CHOOSE_CATEGORY (showing found category)")
             return TX_CHOOSE_CATEGORY
         
         # Case 3: Subcategory found in multiple categories
         else:
-            print(f"DEBUG: Condition subcategory found in multiple categories")
+            logger.debug(f"Condition subcategory found in multiple categories")
             # Create keyboard with the matching categories
             reply_markup = create_multiple_categories_keyboard(matching_categories, texts)
             
@@ -388,11 +391,11 @@ async def save_transaction(update: Update, context):
                 reply_markup=reply_markup,
                 parse_mode=ParseMode.HTML
             )
-            print(f"DEBUG: Return TX_CHOOSE_CATEGORY (showing multiple categories)")
+            logger.debug(f"Return TX_CHOOSE_CATEGORY (showing multiple categories)")
             return TX_CHOOSE_CATEGORY
     
     # For unknown subcategories (should not reach here with our new logic but kept for safety)
-    print(f"DEBUG: Condition handling unknown subcategory case")
+    logger.debug(f"Condition handling unknown subcategory case")
     reply_markup = create_category_keyboard(context.user_data.get("all_categories", []), context.user_data.get("current_page", 0), texts)
     
     await update.message.reply_text(
@@ -401,12 +404,12 @@ async def save_transaction(update: Update, context):
         parse_mode=ParseMode.HTML
     )
     
-    print(f"DEBUG: Return TX_CHOOSE_CATEGORY (showing category selection)")
+    logger.debug(f"Return TX_CHOOSE_CATEGORY (showing category selection)")
     return TX_CHOOSE_CATEGORY
 
 async def process_next_transaction(update: Update, context: CallbackContext) -> int:
     """Process the next transaction in a multi-transaction sequence or show main menu"""
-    print(f"DEBUG: Fn process_next_transaction")
+    logger.debug(f"Fn process_next_transaction")
     user_id =update.effective_user.id
     texts = check_language(update, context)
     
@@ -416,7 +419,7 @@ async def process_next_transaction(update: Update, context: CallbackContext) -> 
     
     # Check if we've processed all transactions
     if current_index >= len(all_transactions):
-        print(f"DEBUG: Condition all transactions processed")
+        logger.debug(f"Condition all transactions processed")
         # All transactions processed, show main menu
         reply_markup = create_main_menu_keyboard(texts)
         
@@ -433,7 +436,7 @@ async def process_next_transaction(update: Update, context: CallbackContext) -> 
                 reply_markup=reply_markup,
                 parse_mode=ParseMode.HTML
             )
-        print(f"DEBUG: Return TRANSACTION (all transactions processed)")
+        logger.debug(f"Return TRANSACTION (all transactions processed)")
         return TRANSACTION
     
     # Get the current transaction to process
@@ -442,16 +445,16 @@ async def process_next_transaction(update: Update, context: CallbackContext) -> 
     
     # Skip empty transactions
     if not parts:
-        print(f"DEBUG: Condition empty transaction")
+        logger.debug(f"Condition empty transaction")
         # Increment the index and process the next transaction
         context.user_data["current_transaction_index"] = current_index + 1
-        print(f"DEBUG: Return process_next_transaction (skipping empty transaction)")
+        logger.debug(f"Return process_next_transaction (skipping empty transaction)")
         return await process_next_transaction(update, context)
     
     try:
         amount = float(parts[-1])
     except ValueError:
-        print(f"DEBUG: Condition invalid transaction format")
+        logger.debug(f"Condition invalid transaction format")
         # Invalid transaction format, skip it
         context.user_data["current_transaction_index"] = current_index + 1
         
@@ -461,7 +464,7 @@ async def process_next_transaction(update: Update, context: CallbackContext) -> 
         else:
             await update.message.reply_text(texts.TRANSACTION_ERROR_TEXT)
         
-        print(f"DEBUG: Return process_next_transaction (skipping invalid transaction)")
+        logger.debug(f"Return process_next_transaction (skipping invalid transaction)")
         return await process_next_transaction(update, context)
     
     # Process the current transaction (async with PostgreSQL lookup)
@@ -492,7 +495,7 @@ async def process_next_transaction(update: Update, context: CallbackContext) -> 
     
     # If category is known and it's not a short format input, save directly and move to next
     if not unknown_cat and not is_short_format:
-        print(f"DEBUG: Condition category known and not short format in multi-transaction")
+        logger.debug(f"Condition category known and not short format in multi-transaction")
         transaction_data["category"] = category
         await _save_transaction_to_db(context, int(user_id), transaction_data)
         
@@ -507,12 +510,12 @@ async def process_next_transaction(update: Update, context: CallbackContext) -> 
             await update.message.reply_text(progress_msg)
         
         # Process the next transaction
-        print(f"DEBUG: Return process_next_transaction (moving to next transaction)")
+        logger.debug(f"Return process_next_transaction (moving to next transaction)")
         return await process_next_transaction(update, context)
     
     # Handle short format inputs with different behavior based on category matches
     if is_short_format:
-        print(f"DEBUG: Condition short format input in multi-transaction")
+        logger.debug(f"Condition short format input in multi-transaction")
         # Get all categories where this subcategory exists from PostgreSQL
         repos = get_repos(context)
         language = context.user_data.get('language', 'en')
@@ -536,7 +539,7 @@ async def process_next_transaction(update: Update, context: CallbackContext) -> 
         
         # Case 1: Subcategory not found in any category
         if len(matching_categories) == 0:
-            print(f"DEBUG: Condition subcategory not found in any category in multi-transaction")
+            logger.debug(f"Condition subcategory not found in any category in multi-transaction")
             # Create an inline keyboard with pagination for all categories
             reply_markup = create_category_keyboard(all_categories, context.user_data["current_page"], texts)
             
@@ -552,12 +555,12 @@ async def process_next_transaction(update: Update, context: CallbackContext) -> 
                     reply_markup=reply_markup,
                     parse_mode=ParseMode.HTML
                 )
-            print(f"DEBUG: Return TRANSACTION (showing category selection in multi-transaction)")
+            logger.debug(f"Return TRANSACTION (showing category selection in multi-transaction)")
             return TX_CHOOSE_CATEGORY
         
         # Case 2: Subcategory found in exactly one category
         elif len(matching_categories) == 1:
-            print(f"DEBUG: Condition subcategory found in exactly one category in multi-transaction")
+            logger.debug(f"Condition subcategory found in exactly one category in multi-transaction")
             found_category = matching_categories[0]
             context.user_data["found_category"] = found_category
             
@@ -576,12 +579,12 @@ async def process_next_transaction(update: Update, context: CallbackContext) -> 
                     reply_markup=reply_markup,
                     parse_mode=ParseMode.HTML
                 )
-            print(f"DEBUG: Return TRANSACTION (showing found category in multi-transaction)")
+            logger.debug(f"Return TRANSACTION (showing found category in multi-transaction)")
             return TRANSACTION
         
         # Case 3: Subcategory found in multiple categories
         else:
-            print(f"DEBUG: Condition subcategory found in multiple categories in multi-transaction")
+            logger.debug(f"Condition subcategory found in multiple categories in multi-transaction")
             # Create keyboard with the matching categories
             reply_markup = create_multiple_categories_keyboard(matching_categories, texts)
             
@@ -600,11 +603,11 @@ async def process_next_transaction(update: Update, context: CallbackContext) -> 
                     reply_markup=reply_markup,
                     parse_mode=ParseMode.HTML
                 )
-            print(f"DEBUG: Return TRANSACTION (showing multiple categories in multi-transaction)")
+            logger.debug(f"Return TRANSACTION (showing multiple categories in multi-transaction)")
             return TRANSACTION
     
     # For unknown subcategories
-    print(f"DEBUG: Condition unknown subcategory in multi-transaction")
+    logger.debug(f"Condition unknown subcategory in multi-transaction")
     reply_markup = create_category_keyboard(context.user_data.get("all_categories", []), context.user_data.get("current_page", 0), texts)
     
     transaction_number_msg = f"Transaction {current_index+1}/{len(all_transactions)}: "
@@ -621,12 +624,12 @@ async def process_next_transaction(update: Update, context: CallbackContext) -> 
             parse_mode=ParseMode.HTML
         )
     
-    print(f"DEBUG: Return TRANSACTION (showing category selection for unknown subcategory)")
+    logger.debug(f"Return TRANSACTION (showing category selection for unknown subcategory)")
     return TRANSACTION
 
 async def create_new_category_transaction(update: Update, context: CallbackContext) -> int:
     """Handle creating a new category during transaction input flow"""
-    print(f"DEBUG: Fn create_new_category_transaction")
+    logger.debug(f"Fn create_new_category_transaction")
     user_id =update.effective_user.id
     texts = check_language(update, context)
     
@@ -636,9 +639,9 @@ async def create_new_category_transaction(update: Update, context: CallbackConte
     transaction_data = context.user_data.get("transaction_data")
     
     if not subcategory or not transaction_data:
-        print(f"DEBUG: Condition missing transaction data")
+        logger.debug(f"Condition missing transaction data")
         await update.message.reply_text("Error: transaction data not found.")
-        print(f"DEBUG: Return TRANSACTION (missing transaction data)")
+        logger.debug(f"Return TRANSACTION (missing transaction data)")
         return TRANSACTION
     
     # Update the transaction data with the new category
@@ -656,11 +659,11 @@ async def create_new_category_transaction(update: Update, context: CallbackConte
     
     # Check if this is part of a multi-transaction process
     if context.user_data.get("is_multi_transaction", False):
-        print(f"DEBUG: Condition multi-transaction process")
+        logger.debug(f"Condition multi-transaction process")
         # Increment the index and move to the next transaction
         context.user_data["current_transaction_index"] = context.user_data.get("current_transaction_index", 0) + 1
         await asyncio.sleep(1)  # Small delay for user to read confirmation
-        print(f"DEBUG: Return process_next_transaction (moving to next transaction)")
+        logger.debug(f"Return process_next_transaction (moving to next transaction)")
         return await process_next_transaction(update, context)
     
     # For single transactions, show main menu
@@ -674,7 +677,7 @@ async def create_new_category_transaction(update: Update, context: CallbackConte
     # Check if we need to show limit warnings
     await _check_and_show_limit_warning(update, context, int(user_id), texts)
     
-    print(f"DEBUG: Return TRANSACTION (single transaction completed)")
+    logger.debug(f"Return TRANSACTION (single transaction completed)")
     return TRANSACTION
 
 async def select_category_for_transaction(update: Update, context: CallbackContext) -> int:
@@ -728,15 +731,15 @@ async def select_category_for_transaction(update: Update, context: CallbackConte
     
     # Handle "use the found category" button
     elif query.data.startswith("use_"):
-        print(f"DEBUG: Condition use_found_category")
+        logger.debug(f"Condition use_found_category")
         category = query.data[4:]  # Remove "use_" prefix
         subcategory = context.user_data.get("subcategory")
         transaction_data = context.user_data.get("transaction_data")
         
         if not subcategory or not transaction_data:
-            print(f"DEBUG: Condition missing transaction data")
+            logger.debug(f"Condition missing transaction data")
             await query.edit_message_text("Error: transaction data not found.")
-            print(f"DEBUG: Return TRANSACTION (missing transaction data)")
+            logger.debug(f"Return TRANSACTION (missing transaction data)")
             return TRANSACTION
         
         # Update the transaction data with the selected category
@@ -753,11 +756,11 @@ async def select_category_for_transaction(update: Update, context: CallbackConte
         
         # Check if this is part of a multi-transaction process
         if context.user_data.get("is_multi_transaction", False):
-            print(f"DEBUG: Condition multi-transaction process")
+            logger.debug(f"Condition multi-transaction process")
             # Increment the index and move to the next transaction
             context.user_data["current_transaction_index"] = context.user_data.get("current_transaction_index", 0) + 1
             await asyncio.sleep(1)  # Small delay for user to read confirmation
-            print(f"DEBUG: Return process_next_transaction (moving to next transaction)")
+            logger.debug(f"Return process_next_transaction (moving to next transaction)")
             return await process_next_transaction(update, context)
         
         # For single transactions, show main menu
@@ -772,20 +775,20 @@ async def select_category_for_transaction(update: Update, context: CallbackConte
         # Check if we need to show limit warnings
         await _check_and_show_limit_warning(query, context, int(user_id), texts)
         
-        print(f"DEBUG: Return TRANSACTION (single transaction completed)")
+        logger.debug(f"Return TRANSACTION (single transaction completed)")
         return TRANSACTION
     
     # Extract the category from the callback data (standard cat_[category] button)
     elif query.data.startswith("cat_"):
-        print(f"DEBUG: Condition cat_category_selection")
+        logger.debug(f"Condition cat_category_selection")
         category = query.data.replace("cat_", "")
         subcategory = context.user_data.get("subcategory")
         transaction_data = context.user_data.get("transaction_data")
         
         if not subcategory or not transaction_data:
-            print(f"DEBUG: Condition missing transaction data")
+            logger.debug(f"Condition missing transaction data")
             await query.edit_message_text("Error: transaction data not found.")
-            print(f"DEBUG: Return TRANSACTION (missing transaction data)")
+            logger.debug(f"Return TRANSACTION (missing transaction data)")
             return TRANSACTION
         
         # Update the transaction data with the selected category
@@ -802,11 +805,11 @@ async def select_category_for_transaction(update: Update, context: CallbackConte
         
         # Check if this is part of a multi-transaction process
         if context.user_data.get("is_multi_transaction", False):
-            print(f"DEBUG: Condition multi-transaction process")
+            logger.debug(f"Condition multi-transaction process")
             # Increment the index and move to the next transaction
             context.user_data["current_transaction_index"] = context.user_data.get("current_transaction_index", 0) + 1
             await asyncio.sleep(1)  # Small delay for user to read confirmation
-            print(f"DEBUG: Return process_next_transaction (moving to next transaction)")
+            logger.debug(f"Return process_next_transaction (moving to next transaction)")
             return await process_next_transaction(update, context)
         
         # For single transactions, show main menu
@@ -821,23 +824,23 @@ async def select_category_for_transaction(update: Update, context: CallbackConte
         # Check if we need to show limit warnings
         await _check_and_show_limit_warning(query, context, int(user_id), texts)
         
-        print(f"DEBUG: Return TRANSACTION (single transaction completed)")
+        logger.debug(f"Return TRANSACTION (single transaction completed)")
         return TRANSACTION
         
     else:
-        print(f"DEBUG: Condition unexpected callback data")
+        logger.debug(f"Condition unexpected callback data")
         # Unexpected callback data
         await query.edit_message_text(
             "Error: Unexpected callback data received. Please try again.",
             parse_mode=ParseMode.HTML
         )
-        print(f"DEBUG: Return TRANSACTION (error handling)", TRANSACTION)
+        logger.debug(f"Return TRANSACTION (error handling) {TRANSACTION}")
 
         return TRANSACTION 
 
 async def handle_transaction_category(update: Update, context: CallbackContext):
     """Handle category selection for transaction entry"""
-    print(f"DEBUG: Fn handle_transaction_category")
+    logger.debug(f"Fn handle_transaction_category")
     user_id = update.effective_user.id
     texts = check_language(update, context)
     query = update.callback_query
@@ -849,7 +852,7 @@ async def handle_transaction_category(update: Update, context: CallbackContext):
     language = context.user_data.get('language', 'en')
 
     if action == "txpage_prev":
-        print(f"DEBUG: Condition txpage_prev")
+        logger.debug(f"Condition txpage_prev")
         context.user_data["tx_page"] -= 1
         categories = await repos.categories.get_all_categories(user_id, language)
         reply_markup = create_tx_categories_keyboard(categories, texts, context.user_data["tx_page"])
@@ -914,7 +917,7 @@ async def handle_transaction_category(update: Update, context: CallbackContext):
                 texts.NO_SUBCATEGORIES_FOUND,
                 parse_mode=ParseMode.HTML
             )
-        print("Debug: Returning state SELECT_TRANSACTION_SUBCATEGORY")
+        logger.debug("Returning state SELECT_TRANSACTION_SUBCATEGORY")
         return SELECT_TRANSACTION_SUBCATEGORY
     
     # Handle unexpected callback data
@@ -1233,7 +1236,7 @@ async def handle_transaction_confirmation(update: Update, context: CallbackConte
                         parse_mode=ParseMode.HTML
                     )
             except Exception as e:
-                print(f"Exception calculating limit: {e}")
+                logger.exception("Exception calculating limit")
         
         return TRANSACTION
     

@@ -2,10 +2,13 @@
 Bot integration helpers for accessing repositories from handlers.
 Provides convenient functions to get repositories from context.
 """
+import logging
 from typing import TYPE_CHECKING
 from telegram.ext import Application, ContextTypes
 
 from .container import Container, init_container, close_container
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from infrastructure.repositories import (
@@ -26,7 +29,7 @@ async def setup_container(application: Application) -> None:
     """
     container = await init_container()
     application.bot_data[CONTAINER_KEY] = container
-    print("[OK] Database container initialized")
+    logger.info("Database container initialized")
 
 
 async def cleanup_container(application: Application) -> None:
@@ -37,7 +40,7 @@ async def cleanup_container(application: Application) -> None:
     container = application.bot_data.get(CONTAINER_KEY)
     if container:
         await container.close()
-        print("[OK] Database container closed")
+        logger.info("Database container closed")
     await close_container()
 
 
