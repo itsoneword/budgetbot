@@ -16,7 +16,7 @@ _empty_
 - **T-029** `p1/docs/bot` Docs catch-up: changelog, roadmap M4, README; enforce changelog on task done — last: 2026-07-11 moved to review
 - **T-021** `p2/feature/bot` Sync bot menu commands with code (set_my_commands on startup) — last: 2026-07-11 acceptance boxes checked (static verification); Testing checklist appended; moved to review
 
-## Todo (8)
+## Todo (10)
 - **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating
 - **T-022** `p1/feature/db` AI access control: DB-backed entitlements + admin grant/revoke
 - **T-023** `p1/feature/bot` Paywall: buy AI access via Telegram Stars _(waiting: T-022)_
@@ -25,6 +25,8 @@ _empty_
 - **T-010** `p2/ops/infra` Currency API circuit breaker
 - **T-011** `p2/ops/obs` Observability: structured logs, Sentry, health check
 - **T-025** `p2/feature/bot` Admin panel commands: user data export + activity monitoring
+- **T-031** `p2/bug/bot` Fix /about panel: stale version, raw limit sentinel, dead settings buttons
+- **T-032** `p3/feature/bot` Restore emojis/visual polish in generated /help and menu command descriptions
 
 ## Backlog (9)
 - **T-008** `p2/feature/deploy` Webhook mode + horizontal scaling path _(waiting: T-009)_
