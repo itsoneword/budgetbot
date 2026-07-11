@@ -81,35 +81,12 @@ INVALID_RECORD_NUM = "Invalid record number. Please enter a valid number."
 NO_RECORDS_TO_DELETE = "No records to delete."
 RECORD_DELETED = "Deleted record number {}."
 NOT_ENOUGH_RECORDS = "There are less than {} records."
-HELP_TEXT = """
-About☝🏼 New Major release 0.2.3 from 18.10.25. 👌🏼 
-New features were added. 🎉
-Interactive menu system for easier navigation. Try /menu to access it!
+LANG = "en"
+HELP_INTRO = """BudgetBot helps you track spendings and income right in Telegram.
+Try /menu — most features are available through the interactive menu.
+Noticed a problem or want a new feature? Contact @dy0r2
 
-Bellow the list of available commands. We are constantly working on the product, so if you have noticed any problems or 
-want to have additional functionality, contact @dy0r2 
-
-/menu - Open the interactive menu for intuitive navigation
-/start - Create profile or re-write current settings. Dictionary language, currency, monthly limit will be asked
-/show - Show current month spendings, per category and average.
-----Since 0.3 most of the direct commands will be available through the menu only. Command based interactions will be depricated.
-
-/show_last N - Show N latest transactions saved(default 5) or transactions for dedicated category (/show_last transport)
-/show_ext - Detailed spendings list with top3 subcategories
-/income - Add your income. 🆕
-/show_income - Show current month income, per category and average.🆕
-/monthly_stat - Show monthly chart and heatmap based on your spendings.🆕
-/monthly_ext_stat - Show monthly based heatmap for current year per Subcategory.🆕
-/show_cat - Show currently used dictionary.
-/change_cat - Modify existing dictionary, add or delete category.  
-/delete N - Delete transaction with number = N. Number is shown in /show_last command. 1 is default value.
-/cancel - Return to main menu, expecting /start command or transaction record.
-/download - Download current spendings file.
-/upload - Upload new spendings file.
-/help - Show this menu.
-/leave - Deleting your profile! Please, be accurate as this action cannot be reversed.
-
-"""
+Available commands:"""
 UPLOAD_FILE_TEXT = "Please upload your spendings file. It should be in CSV format."
 UPLOADING_FINISHED = "Spendings file updated!"
 INCOME_TYPE1 = "income"

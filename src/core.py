@@ -7,6 +7,9 @@ from shared.di import setup_container, cleanup_container, get_repos
 
 from src.config import ADMIN_USER_ID
 
+# Command registry: single source for handler registration, /help and menu sync
+from src.commands import COMMANDS, build_help_text, sync_bot_commands
+
 # Domain layer - batch fetch + filter
 from domain.session_loader import load_user_session
 from domain.filters import (
@@ -704,7 +707,9 @@ async def handle_text(update: Update, context):
         return TRANSACTION
 
     if action == "menu_help":
-        await query.edit_message_text(texts.HELP_TEXT)
+        await query.edit_message_text(
+            build_help_text(texts, is_admin=query.from_user.id == ADMIN_USER_ID)
+        )
         reply_markup = create_main_menu_keyboard(texts)
         await query.message.reply_text(
             texts.BACK_TO_MAIN_MENU,
@@ -854,33 +859,35 @@ async def global_error_handler(update: object, context) -> None:
             logging.exception("Failed to notify user about the error")
 
 
+async def on_post_init(application: Application) -> None:
+    """PTB accepts a single post_init callable: DB container first, then menu sync."""
+    await setup_container(application)
+    await sync_bot_commands(application)
+
+
 def main():
     # Build application with database container lifecycle hooks
     application = (
         Application.builder()
         .token(token)
-        .post_init(setup_container)
+        .post_init(on_post_init)
         .post_shutdown(cleanup_container)
         .build()
     )
 
-    application.add_handler(CommandHandler("show", show_records))
-    application.add_handler(CommandHandler("show_ext", show_detailed))
-    application.add_handler(CommandHandler("show_income", show_records))
-    application.add_handler(CommandHandler("show_cat", show_cat))
-    application.add_handler(CommandHandler("show_last", latest_records))
-    application.add_handler(CommandHandler("delete", delete_records))
-    application.add_handler(CommandHandler("delete_income", delete_records))
-    application.add_handler(CommandHandler("about", about))
-    application.add_handler(CommandHandler("help", help))
-    application.add_handler(CommandHandler("download", download_spendings))
-    application.add_handler(CommandHandler("cancel", cancel))
-    application.add_handler(CommandHandler("monthly_stat", send_chart))
-    application.add_handler(CommandHandler("monthly_ext_stat", send_ext_chart))
-    application.add_handler(CommandHandler("yearly_stat", send_yearly_piechart))
-    application.add_handler(CommandHandler("show_log_chart", show_log_chart))
-    application.add_handler(CommandHandler("debug", toggle_debug))
-    application.add_handler(CommandHandler("ask", ask))
+    # Register plain commands from the registry (src/commands.py).
+    # spec.handler is None for ConversationHandler entry points (leave, income,
+    # upload, start, menu, change_cat) — registering those here too would make
+    # them dispatch twice.
+    for spec in COMMANDS:
+        if spec.handler is None:
+            continue
+        handler_fn = globals().get(spec.handler)
+        if handler_fn is None:
+            raise RuntimeError(
+                f"Command /{spec.name}: handler '{spec.handler}' not found in src.core"
+            )
+        application.add_handler(CommandHandler(spec.name, handler_fn))
 
     # Handler for the leave command to archive user profile
     leave_handler = ConversationHandler(

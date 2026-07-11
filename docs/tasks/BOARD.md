@@ -4,8 +4,8 @@
 
 Updated: 2026-07-11 · see docs/ROADMAP.md for milestones
 
-## Doing (0)
-_empty_
+## Doing (1)
+- **T-021** `p2/feature/bot` Sync bot menu commands with code (set_my_commands on startup) — last: 2026-07-11 started
 
 ## Review (1)
 - **T-020** `p0/bug/bot` Fix show_last: Transaction attribute mismatch (tx.category vs category_name) — last: 2026-07-09 moved to review
@@ -24,11 +24,10 @@ _empty_
 - **T-011** `p2/ops/obs` Observability: structured logs, Sentry, health check
 - **T-025** `p2/feature/bot` Admin panel commands: user data export + activity monitoring
 
-## Backlog (9)
+## Backlog (8)
 - **T-008** `p2/feature/deploy` Webhook mode + horizontal scaling path _(waiting: T-009)_
 - **T-009** `p2/refactor/bot` Durable conversation state
 - **T-012** `p2/ops/deploy` Deploy hardening: prod compose overlay + secrets
-- **T-021** `p2/feature/bot` Sync bot menu commands with code (set_my_commands on startup)
 - **T-013** `p3/feature/db` Soft delete and recovery
 - **T-014** `p3/refactor/db` Data-model cleanups (limit sentinel, timezone, enums, category language)
 - **T-015** `p3/feature/bot` CSV download/upload restore

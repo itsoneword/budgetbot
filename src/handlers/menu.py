@@ -12,6 +12,8 @@ from telegram.ext import CallbackContext
 
 from src.language_util import check_language
 from shared.di import get_repos
+from src.commands import build_help_text
+from src.config import ADMIN_USER_ID
 from src.logger import log_debug, log_function_call, log_state_transition, log_user_interaction
 from src.keyboards import (
     create_main_menu_keyboard,
@@ -184,7 +186,9 @@ async def menu_call(update: Update, context: CallbackContext):
         return TRANSACTION
 
     if action == "menu_help":
-        await query.edit_message_text(texts.HELP_TEXT)
+        await query.edit_message_text(
+            build_help_text(texts, is_admin=query.from_user.id == ADMIN_USER_ID)
+        )
         return await _return_to_main_menu(query, texts)
 
     if action == "back_to_main_menu":

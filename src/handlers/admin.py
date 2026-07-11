@@ -10,6 +10,7 @@ from telegram.ext import CallbackContext, ConversationHandler
 
 from src.language_util import check_language
 from shared.di import get_repos
+from src.commands import build_help_text
 from src.config import ADMIN_USER_ID
 from src.logger import log_user_interaction
 from src.keyboards import create_settings_keyboard
@@ -25,7 +26,10 @@ async def help(update: Update, context: CallbackContext):
         update.effective_user.username,
     )
     texts = check_language(update, context)
-    await update.message.reply_text(texts.HELP_TEXT, parse_mode=ParseMode.HTML)
+    help_text = build_help_text(
+        texts, is_admin=update.effective_user.id == ADMIN_USER_ID
+    )
+    await update.message.reply_text(help_text, parse_mode=ParseMode.HTML)
     return TRANSACTION
 
 
