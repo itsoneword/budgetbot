@@ -1,7 +1,7 @@
 ---
 id: T-005
 title: Adopt alembic for schema migrations
-status: doing
+status: review
 type: ops
 area: db
 priority: p1
@@ -24,3 +24,39 @@ Single 001_initial_schema.sql applied only via Postgres initdb on first boot —
 - 2026-07-07 created from production-readiness P6
 - 2026-07-11 started
 - 2026-07-11 alembic scaffold (async asyncpg env.py, baseline 0001 from idempotent SQL, sample 0002); entrypoint runs upgrade head; initdb.d mount removed; apply_schema.py stubbed; verified fresh-DB, existing-DB, downgrade, scheme-rewrite against throwaway pg15
+- 2026-07-11 moved to review
+
+## Testing
+
+Automated verification already done against a throwaway PG15 container (see Log):
+fresh-DB upgrade, existing-DB upgrade (idempotent baseline no-op + stamp, data preserved),
+`downgrade -1` reversal of 0002, and the `postgresql://` scheme rewrite in env.py.
+
+### Manual checklist (dev stack, NOT production)
+
+Critical
+- [ ] `docker compose build` succeeds (alembic + SQLAlchemy install on py3.9-slim; alembic.ini copied)
+- [ ] Fresh dev stack (`docker compose up -d --build` with an EMPTY postgres volume): bot container logs show "Applying database migrations" then both revisions applied, bot starts and answers `/start`
+- [ ] Restart the bot container: `alembic upgrade head` no-ops ("Context impl PostgresqlImpl" then nothing to do), bot starts normally
+- [ ] Log a transaction and read it back (`/show`) — repositories work on the alembic-created schema
+- [ ] Bad DATABASE_URL / DB down: container exits (set -e) instead of starting the bot on a missing schema
+
+Important
+- [ ] `python3 scripts/apply_schema.py` prints the deprecation message and exits 1
+- [ ] `alembic downgrade -1 && alembic upgrade head` on the dev DB round-trips cleanly
+- [ ] New-revision workflow: `alembic revision -m "test" --rev-id 0003` creates a file from script.py.mako; delete it afterwards
+
+Nice-to-have
+- [ ] `alembic upgrade head --sql` (offline mode) emits SQL without connecting
+
+### Production cutover runbook (owner-run, manual)
+
+The live ./pgdata volume already carries the schema; the baseline is idempotent, so
+cutover is just deploy + first migrated start. Order matters:
+
+1. Backup first: `docker exec budgetbot-postgres pg_dump -U budgetbot -d budgetbot -Fc > backup_pre_alembic_$(date +%F).dump`
+2. Pull/merge this branch on the server; `docker compose build budgetbot`
+3. `docker compose up -d` (postgres config change is only a removed mount — postgres container may recreate; data volume is untouched)
+4. Watch `docker logs -f budgetbot-container`: expect "Running upgrade -> 0001" (no-ops through existing schema), "0001 -> 0002", then bot start
+5. Verify: `docker exec budgetbot-postgres psql -U budgetbot -d budgetbot -c "SELECT version_num FROM alembic_version;"` → `0002`; spot-check row counts vs. backup
+6. Rollback if broken: restore image to previous tag; schema-wise nothing destructive ran (baseline is additive/idempotent; 0002 is one index) — `alembic downgrade base` is NOT part of rollback

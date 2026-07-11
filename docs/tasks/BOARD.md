@@ -4,11 +4,11 @@
 
 Updated: 2026-07-11 · see docs/ROADMAP.md for milestones
 
-## Doing (1)
-- **T-005** `p1/ops/db` Adopt alembic for schema migrations — last: 2026-07-11 alembic scaffold (async asyncpg env.py, baseline 0001 from idempotent SQL, sample 0002); entrypoint runs upgrade head; initdb.d mount removed; apply_schema.py stubbed; verified fresh-DB, existing-DB, downgrade, scheme-rewrite against throwaway pg15
-
-## Review (0)
+## Doing (0)
 _empty_
+
+## Review (1)
+- **T-005** `p1/ops/db` Adopt alembic for schema migrations — last: 2026-07-11 moved to review
 
 ## Todo (6)
 - **T-003** `p1/ops/bot` Replace print() with logger in runtime code
