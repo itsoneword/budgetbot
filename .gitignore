@@ -9,7 +9,6 @@ global_log.txt
 user_list.csv
 /budgetbot/
 /back/
-/tests
 .DS_Store
 /userdatabot
 .secrets
@@ -23,3 +22,4 @@ deploy.sh
 .claude/hooks-state/
 .serena/
 /pgdata
+.coverage

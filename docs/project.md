@@ -75,6 +75,24 @@ python3 scripts/verify_postgres.py             # connectivity
 python3 scripts/test_repositories.py           # CRUD round-trip
 ```
 
+### Unit tests
+
+No database or Telegram needed — the suite covers `domain/` (pure functions)
+plus the `src/save_transaction.py` input parsers, using hand-written fakes
+(`tests/conftest.py`) instead of a mock library:
+
+```bash
+pip install -r requirements-dev.txt
+pytest                                         # config in pytest.ini
+```
+
+Discovery is limited to `tests/` (`testpaths` in `pytest.ini`) — don't run
+bare `pytest scripts/`; `scripts/test_repositories.py` needs a live DB.
+CI runs the suite on every push and on PRs to main
+(`.github/workflows/tests.yml`) and prints `--cov=domain` coverage; there is
+no coverage gate yet. Pin all clocks in new tests: pass
+`reference_date`/`now`/`today` where signatures allow, freezegun otherwise.
+
 ## Bot commands
 
 | Command | What it does |
