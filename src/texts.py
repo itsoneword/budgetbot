@@ -351,3 +351,5 @@ ADMIN_USER_NOT_FOUND = "User {user_id} not found."
 ADMIN_NO_TRANSACTIONS = "User {user_id} has no transactions."
 ADMIN_NO_USERS = "No users found."
 ADMIN_USERS_HEADER = "Active users: {count} of {total} registered (sorted by last activity; /admin_users all for everyone)"
+
+RATES_STALE_NOTE = "⚠️ Exchange rates are {hours}h old — converted amounts may be slightly off."

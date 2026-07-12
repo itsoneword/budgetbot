@@ -7,7 +7,7 @@ Updated: 2026-07-12 · see docs/ROADMAP.md for milestones
 ## Doing (0)
 _empty_
 
-## Review (14)
+## Review (15)
 - **T-020** `p0/bug/bot` Fix show_last: Transaction attribute mismatch (tx.category vs category_name) — last: 2026-07-09 moved to review
 - **T-003** `p1/ops/bot` Replace print() with logger in runtime code — last: 2026-07-11 moved to review
 - **T-004** `p1/refactor/bot` Move chart rendering off the event loop — last: 2026-07-11 moved to review
@@ -18,18 +18,18 @@ _empty_
 - **T-029** `p1/docs/bot` Docs catch-up: changelog, roadmap M4, README; enforce changelog on task done — last: 2026-07-11 moved to review
 - **T-033** `p1/bug/bot` Date prefix dd.mm assumes current year, creates future-dated transactions — last: 2026-07-11 moved to review
 - **T-036** `p1/bug/bot` Main-menu Recurring button dead; relocate into Add-transaction section — last: 2026-07-12 Recurring button relocated from main menu into new Add-transaction submenu (menu_add_transaction now opens spending/income/recurring section) — taps now always route via active-conversation menu_call
+- **T-010** `p2/ops/infra` Currency API circuit breaker — last: 2026-07-07 created from production-readiness P4
 - **T-021** `p2/feature/bot` Sync bot menu commands with code (set_my_commands on startup) — last: 2026-07-11 acceptance boxes checked (static verification); Testing checklist appended; moved to review
 - **T-025** `p2/feature/bot` Admin panel commands: user data export + activity monitoring — last: 2026-07-11 created
 - **T-031** `p2/bug/bot` Fix /about panel: stale version, raw limit sentinel, dead settings buttons — last: 2026-07-11 moved to review
 - **T-032** `p3/feature/bot` Restore emojis/visual polish in generated /help and menu command descriptions — last: 2026-07-11 moved to review
 
-## Todo (8)
+## Todo (7)
 - **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating
 - **T-023** `p1/feature/bot` Paywall: buy AI access via Telegram Stars _(waiting: T-022)_
 - **T-027** `p1/feature/bot` AI channel: manage recurring spendings by voice//ask _(waiting: T-026)_
 - **T-034** `p1/feature/bot` Daily reminder to add transactions (menu + voice), per-user timezone
 - **T-038** `p1/bug/infra` LLM auth: dedicated token for container, stop sharing host OAuth credentials
-- **T-010** `p2/ops/infra` Currency API circuit breaker
 - **T-011** `p2/ops/obs` Observability: structured logs, Sentry, health check
 - **T-037** `p2/feature/bot` Income in Edit-recent-entries menu: list, edit, delete income records
 
