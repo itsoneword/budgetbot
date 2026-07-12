@@ -94,10 +94,25 @@ def build_offset_candidates(now_utc: datetime) -> List[Tuple[int, str]]:
     """(offset_min, current local time 'HH:MM') for every real UTC offset.
 
     The picker shows these as buttons — the user taps whichever matches
-    their clock, which pins the offset without lists or typing. Offsets 30/45
-    minutes apart yield distinct labels, so every real zone is selectable.
+    their clock, which pins the offset without lists or typing. Offsets 24h
+    apart (e.g. UTC-11 vs UTC+13) share a wall-clock time, so those few
+    labels additionally carry the offset ("01:07 (+13)") to stay unambiguous;
+    every other zone gets a clean time label.
     """
-    return [
+    labels = [
         (offset, format_reminder_time(local_now(now_utc, offset).time()))
         for offset in REAL_UTC_OFFSETS_MIN
     ]
+    counts = {}
+    for _, label in labels:
+        counts[label] = counts.get(label, 0) + 1
+
+    def _disambiguated(offset: int, label: str) -> str:
+        if counts[label] == 1:
+            return label
+        suffix = format_utc_offset(offset)
+        if suffix.endswith(":00"):
+            suffix = suffix[:-3]
+        return f"{label} ({suffix})"
+
+    return [(offset, _disambiguated(offset, label)) for offset, label in labels]
