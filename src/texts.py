@@ -40,11 +40,11 @@ Please, <b>avoid spending for the next {days_zero_spending} days</b>✋🏼 or d
 TRANSACTION_ERROR_TEXT = "You need to enter an amount. e.g. 'category amount' or 'date category amount'. Please try again."
 UNKNOWN_TEXT_FORMAT = "I couldn't recognize that format. Please use /help to review supported commands."
 
-INCOME_HELP = """This module allows to add income and track it. Expected formats:\n
-<code>date category amount</code>
+INCOME_HELP = """💵 Add income directly: <code>/income salary 2000</code> — or send the details as the next message. Expected formats:\n
+<code>date category amount</code> (date as dd.mm)
 <code>category amount</code>
-<code>amount</code> \n
-To see overal month statistic use /show_income. If you accidently entered incorrect value, use /delete_income to delete latest transaction.
+<code>amount</code>\n
+To see the monthly income statistic use /show_income. Entered a wrong value? /delete_income removes the latest income record.
  """
 
 RECORDS_NOT_FOUND_TEXT = "No records found."
@@ -80,7 +80,10 @@ RECORD_LINE = "{}: {}"
 INVALID_RECORD_NUM = "Invalid record number. Please enter a valid number."
 NO_RECORDS_TO_DELETE = "No records to delete."
 RECORD_DELETED = "Deleted record number {}."
+RECORD_DELETED_DETAILS = "🗑 Deleted record {record_id}: {date}, {category}{subcategory}, {amount} {currency}"
+DELETE_TYPE_MISMATCH = "Record {record_id} is a {tx_type} — use the matching command: /delete for spendings, /delete_income for income."
 NOT_ENOUGH_RECORDS = "There are less than {} records."
+INCOME_SAVED = "💵 Income saved: {category}, {amount} {currency} ({date})"
 LANG = "en"
 HELP_INTRO = """👋 BudgetBot helps you track spendings and income right in Telegram.
 💬 Add a spending by simply typing it, e.g. "coffee 4" — or "31.12 coffee 4" to backdate it.
@@ -301,6 +304,8 @@ VOICE_TX_CONFIRM_BTN = "✅ Add"
 VOICE_TX_CANCEL_BTN = "❌ Cancel"
 VOICE_TX_ACCEPTED = "Adding: {transaction}"
 VOICE_TX_CANCELLED = "Cancelled — nothing saved."
+VOICE_CONFIRM_INCOME = "🎙 Heard: “{transcript}”\n\n💵 Add INCOME: {income}?"
+VOICE_INCOME_ACCEPTED = "Adding income: {income}"
 VOICE_UNKNOWN = (
     "🎙 Heard: “{transcript}”\n\n"
     "I couldn't map this to an action. You can add a spending like “coffee 4.5”, "

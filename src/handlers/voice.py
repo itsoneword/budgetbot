@@ -31,6 +31,7 @@ from telegram import (
 from telegram.ext import CallbackContext
 
 from domain.intent import (
+    INTENT_ADD_INCOME,
     INTENT_ADD_TRANSACTION,
     INTENT_QUESTION,
     INTENT_SHOW_STAT,
@@ -117,6 +118,22 @@ async def _route_intent(
             texts.VOICE_CONFIRM_TX.format(transcript=transcript, transaction=intent.payload),
             reply_markup=keyboard,
         )
+    elif intent.kind == INTENT_ADD_INCOME:
+        # Distinct user_data key + vinc_ callbacks: a pending spending confirm
+        # (voice_tx_text/vtx_) must not cross-talk with an income one (T-035).
+        context.user_data["voice_income_text"] = intent.payload
+        keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(texts.VOICE_TX_CONFIRM_BTN, callback_data="vinc_yes"),
+                    InlineKeyboardButton(texts.VOICE_TX_CANCEL_BTN, callback_data="vinc_no"),
+                ]
+            ]
+        )
+        await status.edit_text(
+            texts.VOICE_CONFIRM_INCOME.format(transcript=transcript, income=intent.payload),
+            reply_markup=keyboard,
+        )
     elif intent.kind == INTENT_SHOW_STAT:
         await status.edit_text(texts.VOICE_HEARD.format(transcript=transcript))
         await _inject_text(update, context, "/" + intent.payload)
@@ -137,6 +154,26 @@ async def handle_voice_tx_confirmation(update: Update, context: CallbackContext)
     if query.data == "vtx_yes" and tx_text:
         await query.edit_message_text(texts.VOICE_TX_ACCEPTED.format(transaction=tx_text))
         await _inject_text(update, context, tx_text)
+    else:
+        await query.edit_message_text(texts.VOICE_TX_CANCELLED)
+
+
+async def handle_voice_income_confirmation(update: Update, context: CallbackContext):
+    """vinc_yes/vinc_no taps on the voice-income confirm keyboard.
+
+    Saves through save_income_text() directly — injecting the payload as
+    plain text would save it as a spending (T-035)."""
+    query = update.callback_query
+    texts = check_language(update, context)
+    await query.answer()
+
+    income_text = context.user_data.pop("voice_income_text", None)
+    if query.data == "vinc_yes" and income_text:
+        from src.handlers.records import save_income_text
+
+        await query.edit_message_text(texts.VOICE_INCOME_ACCEPTED.format(income=income_text))
+        if not await save_income_text(update, context, income_text):
+            await query.message.reply_text(texts.TRANSACTION_ERROR_TEXT)
     else:
         await query.edit_message_text(texts.VOICE_TX_CANCELLED)
 

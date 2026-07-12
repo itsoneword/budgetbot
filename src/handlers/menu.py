@@ -125,8 +125,8 @@ async def menu_call(update: Update, context: CallbackContext):
     if action == "show_income_stats":
         await query.answer()
         await query.edit_message_text(texts.LOADING_INCOME_STATS)
-        update.effective_message.text = "/show_income"
-        await show_records(update, context)
+        # PTB Message objects are immutable — pass the type, don't mutate .text
+        await show_records(update, context, tx_type='income')
         return await _return_to_main_menu(query, texts)
 
     # =========================================================================

@@ -177,9 +177,8 @@ def create_show_transactions_keyboard(texts):
 
         ],
         [
-            InlineKeyboardButton(texts.LAST_TRANSACTIONS_BUTTON, callback_data="show_last_transactions")
-
-            # InlineKeyboardButton(texts.INCOME_STATS_BUTTON, callback_data="show_income_stats")
+            InlineKeyboardButton(texts.LAST_TRANSACTIONS_BUTTON, callback_data="show_last_transactions"),
+            InlineKeyboardButton(texts.INCOME_STATS_BUTTON, callback_data="show_income_stats")
         ],
         [
             InlineKeyboardButton(texts.BACK_TO_MAIN_MENU_BUTTON, callback_data="back_to_main_menu")

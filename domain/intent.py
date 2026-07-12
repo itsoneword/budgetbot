@@ -13,6 +13,7 @@ import re
 from dataclasses import dataclass
 
 INTENT_ADD_TRANSACTION = "add_transaction"
+INTENT_ADD_INCOME = "add_income"
 INTENT_SHOW_STAT = "show_stat"
 INTENT_QUESTION = "question"
 INTENT_UNKNOWN = "unknown"
@@ -57,6 +58,13 @@ def build_intent_system_prompt() -> str:
         'computed from today\'s date given with the message: "09.07 пиво 10, 09.07 продукты 8". '
         "No date prefix when the spending is for today. Never invent an amount; if none is "
         'stated, use "unknown".\n'
+        '- "add_income" — the user reports RECEIVING money (salary, got paid, "мне заплатили", '
+        'income from trading, a client paid an invoice). payload: exactly ONE item as '
+        '"<source> <amount>": the income source in the user\'s own words, then the amount as a '
+        "plain number (convert number words to digits, drop currency symbols). If the user names "
+        'a day, prefix it with "dd.mm " computed from today\'s date. Never invent an amount; '
+        'if none is stated, use intent "unknown". Money SPENT is add_transaction, money RECEIVED '
+        "is add_income.\n"
         '- "show_stat" — the user asks to see their records, stats or charts. payload: exactly one of: '
         "show (current month records), show_last (recent transactions), show_ext (detailed stats), "
         "monthly_stat (monthly chart), yearly_stat (yearly chart).\n"
@@ -105,6 +113,20 @@ def parse_intent_response(raw: str) -> Intent:
             if not 0 < amount <= MAX_AMOUNT:
                 return Intent(INTENT_UNKNOWN)
         return Intent(INTENT_ADD_TRANSACTION, ", ".join(items))
+
+    if kind == INTENT_ADD_INCOME:
+        # ONE item only — no comma lists for income (T-035)
+        match = _TX_ITEM_RE.match(payload)
+        if not match or "," in payload:
+            return Intent(INTENT_UNKNOWN)
+        if match.group(1):  # dd.mm prefix present — check it's a real date
+            day, month = int(match.group(2)), int(match.group(3))
+            if not (1 <= day <= 31 and 1 <= month <= 12):
+                return Intent(INTENT_UNKNOWN)
+        amount = float(match.group(4))
+        if not 0 < amount <= MAX_AMOUNT:
+            return Intent(INTENT_UNKNOWN)
+        return Intent(INTENT_ADD_INCOME, payload)
 
     if kind == INTENT_SHOW_STAT:
         if payload not in ALLOWED_STAT_COMMANDS:

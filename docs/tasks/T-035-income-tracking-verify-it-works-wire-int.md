@@ -1,7 +1,7 @@
 ---
 id: T-035
 title: Income tracking: verify it works, wire into voice/AI intents, income-vs-outcome analysis in /ask
-status: todo
+status: doing
 type: feature
 area: bot
 priority: p1
@@ -9,7 +9,7 @@ deps: []
 tags: []
 blocked: 
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-12
 ---
 
 ## Context
@@ -61,3 +61,6 @@ Risks: confirm-gate cross-talk (mitigated by vinc_ separation); delete_records b
 - Verify the two-step flow (/income → next-message "trading 300") actually saves post-T-033 — owner stopped at the help text, so the happy path is still UNVERIFIED on live.
 - 2026-07-11 owner test: /income inline args ignored (help shown instead of saving); /ask write-refusal should redirect; two-step flow still unverified live
 - 2026-07-11 owner verified on live: two-step /income flow saves correctly post-T-033 — remaining income work is inline args, delete_income type-safety, intent + /ask context
+- 2026-07-12 started
+- 2026-07-12 root-caused owner screenshot: /income trading 300 fell through active income conversation to spendings regex entry (no ~COMMAND filter), saved as spending cat=/income; DB row 4739
+- 2026-07-12 Phase 1-3 implemented: /income inline args + shared save_income_text, ~COMMAND on spendings regex entry + income allow_reentry (root cause of spending-mislog), type-aware /delete vs /delete_income, dead 174-line block removed from core.py, Income-stats button re-enabled with immutable-safe tx_type param, add_income voice/text intent with vinc_ confirm gate, /ask income section + write-refusal redirect; DB rows 4739/8140 repaired; deployed

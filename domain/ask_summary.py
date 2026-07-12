@@ -56,6 +56,16 @@ def build_finance_summary(session: UserSession) -> str:
     for cat, total in sorted(cat_totals.items(), key=lambda x: -x[1]):
         lines.append(f"  {cat}: {total:.2f}")
 
+    # Income per category over the whole period (T-035) — income volume is
+    # tiny next to spendings, so the prompt-size cost is negligible.
+    if incomes:
+        income_totals: dict = defaultdict(Decimal)
+        for t in incomes:
+            income_totals[t.category] += t.amount
+        lines.append("\nIncome per category (whole period):")
+        for cat, total in sorted(income_totals.items(), key=lambda x: -x[1]):
+            lines.append(f"  {cat}: {total:.2f}")
+
     # Per-month per-category totals for the last 6 months — needed for questions
     # like "how much did I spend on X last month?"
     months_sorted = sorted(set(monthly_spend))
@@ -103,7 +113,13 @@ def build_ask_system_prompt(language: str) -> str:
         "You are a personal finance assistant inside a Telegram budget bot. "
         "You are given a summary of the user's own spending and income data, "
         "then their question. Answer using only the provided data; if the data "
-        "is insufficient, say what is missing. Be concise — a few short "
+        "is insufficient, say what is missing. The data contains both income "
+        "and spending — compare them when relevant (savings rate, income vs "
+        "outcome, suggestions). You are read-only: you cannot add, edit or "
+        "delete records. If the user asks you to record something, say so and "
+        "point them to the working paths: /income (e.g. /income salary 2000) "
+        "for income, plain text like 'coffee 4.5' or a voice message for "
+        "spendings. Be concise — a few short "
         "sentences or a small list; this is a chat message, not a report. "
         "Round amounts sensibly and always mention the currency. "
         "Write plain text only — no markdown, no asterisks, no headers. "

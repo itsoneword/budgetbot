@@ -445,14 +445,17 @@ async def latest_records(update: Update, context):
 
 
 async def delete_records(update: Update, context: CallbackContext):
+    """/delete and /delete_income. Type-aware (T-035): each command only
+    touches its own transaction type. No argument deletes the latest record
+    of that type and echoes it; an ID must belong to that type."""
     user_id = update.effective_user.id
     texts = check_language(update, context)
     log_user_interaction(
         str(user_id), update.effective_user.first_name, update.effective_user.username
     )
-    # Remove the leading '/' from the command
     command = update.effective_message.text.split()[0][1:]
-    record_id = 1  # Default value (transaction ID)
+    tx_type = 'income' if "income" in command else 'spending'
+    repos = get_repos(context)
 
     if context.args:
         try:
@@ -460,20 +463,39 @@ async def delete_records(update: Update, context: CallbackContext):
         except ValueError:
             await update.message.reply_text(texts.INVALID_RECORD_NUM)
             return
-
-    # Use PostgreSQL repository
-    repos = get_repos(context)
-    count = await repos.transactions.count_for_user(user_id)
-    
-    if count == 0:
-        await update.message.reply_text(texts.NO_RECORDS_TO_DELETE)
-    else:
-        # Delete by transaction ID (not position)
-        deleted = await repos.transactions.delete(record_id, user_id)
-        if deleted:
-            await update.message.reply_text(texts.RECORD_DELETED.format(record_id))
-        else:
+        tx = await repos.transactions.get_by_id(record_id, user_id)
+        if tx is None:
             await update.message.reply_text(texts.NOT_ENOUGH_RECORDS.format(record_id))
+            return
+        if tx.transaction_type != tx_type:
+            await update.message.reply_text(
+                texts.DELETE_TYPE_MISMATCH.format(record_id=record_id, tx_type=tx.transaction_type)
+            )
+            return
+    else:
+        # No ID: delete the latest record of this command's type
+        latest = await repos.transactions.get_latest(user_id, limit=1, transaction_type=tx_type)
+        if not latest:
+            await update.message.reply_text(texts.NO_RECORDS_TO_DELETE)
+            return
+        tx = latest[0]
+        record_id = tx.id
+
+    deleted = await repos.transactions.delete(record_id, user_id)
+    if deleted:
+        await update.message.reply_text(
+            texts.RECORD_DELETED_DETAILS.format(
+                record_id=record_id,
+                date=tx.timestamp.strftime("%Y-%m-%d"),
+                category=tx.category_name,
+                subcategory=f" {tx.subcategory_name}" if tx.subcategory_name else "",
+                amount=tx.amount,
+                currency=tx.currency,
+            ),
+            parse_mode=ParseMode.HTML,
+        )
+    else:
+        await update.message.reply_text(texts.NOT_ENOUGH_RECORDS.format(record_id))
 
 
 async def cancel(update: Update, context):
@@ -611,178 +633,6 @@ async def handle_text(update: Update, context):
     return TRANSACTION
 
 
-    # =========================================================================
-    # Special show actions (need custom handling)
-    # =========================================================================
-    if action == "show_last_month_extended_stats":
-        await query.answer()
-        await query.edit_message_text(texts.LOADING_LAST_MONTH_EXTENDED_STATS)
-        await show_detailed(update, context, period='last_month')
-        return TRANSACTION
-
-    if action == "show_income_stats":
-        await query.answer()
-        await query.edit_message_text(texts.LOADING_INCOME_STATS)
-        update.effective_message.text = "/show_income"
-        await show_records(update, context)
-        
-        reply_markup = create_main_menu_keyboard(texts)
-        await query.message.reply_text(
-            texts.BACK_TO_MAIN_MENU,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        log_state_transition(TRANSACTION)
-        return TRANSACTION
-
-    if action == "show_last_transactions":
-        await query.answer()
-        return await start_detailed_transactions(update, context)
-
-    # =========================================================================
-    # Category management actions
-    # =========================================================================
-    if action == "edit_show_categories":
-        await query.answer()
-        return await show_categories(update, context)
-
-    if action == "menu_edit_transactions":
-        await query.answer()
-        return await show_recent_entries(update, context)
-
-    if action == "menu_edit_categories":
-        await query.answer()
-        context.user_data["current_page"] = 0
-        return await show_categories(update, context)
-
-    # =========================================================================
-    # Main menu navigation
-    # =========================================================================
-    if action in ("menu_add_transaction", "back_to_categories"):
-        log_function_call()
-        repos = get_repos(context)
-        language = context.user_data.get('language', 'en')
-        categories = await repos.categories.get_all_categories(user_id, language)
-        
-        context.user_data["tx_categories"] = categories
-        context.user_data["tx_page"] = 0
-        
-        reply_markup = create_tx_categories_keyboard(categories, texts, context.user_data["tx_page"])
-        await query.edit_message_text(
-            texts.SELECT_TRANSACTION_CATEGORY,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        log_state_transition(SELECT_TRANSACTION_CATEGORY)
-        return SELECT_TRANSACTION_CATEGORY
-
-    if action == "menu_show_transactions":
-        reply_markup = create_show_transactions_keyboard(texts)
-        await query.edit_message_text(
-            texts.SHOW_TRANSACTIONS_MENU_TEXT,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        log_state_transition(TRANSACTION)
-        return TRANSACTION
-
-    if action == "menu_settings":
-        reply_markup = create_settings_keyboard_menu(texts)
-        await query.edit_message_text(
-            texts.SETTINGS_MENU_TEXT,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        log_state_transition(TRANSACTION)
-        return TRANSACTION
-
-    if action == "menu_help":
-        await query.edit_message_text(
-            build_help_text(texts, is_admin=query.from_user.id == ADMIN_USER_ID)
-        )
-        reply_markup = create_main_menu_keyboard(texts)
-        await query.message.reply_text(
-            texts.BACK_TO_MAIN_MENU,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        log_state_transition(TRANSACTION)
-        return TRANSACTION
-
-    if action == "back_to_main_menu":
-        reply_markup = create_main_menu_keyboard(texts)
-        await query.edit_message_text(
-            texts.MAIN_MENU_TEXT,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        log_state_transition(TRANSACTION)
-        return TRANSACTION
-
-    # =========================================================================
-    # Settings submenu
-    # =========================================================================
-    if action == "settings_change_language":
-        reply_markup = create_settings_language_keyboard()
-        await query.edit_message_text(
-            texts.SELECT_LANGUAGE,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        log_state_transition(SETTINGS_LANGUAGE)
-        return SETTINGS_LANGUAGE
-
-    if action == "settings_change_currency":
-        reply_markup = create_settings_currency_keyboard()
-        await query.edit_message_text(
-            texts.CHOOSE_CURRENCY_TEXT,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        log_state_transition(SETTINGS_CURRENCY)
-        return SETTINGS_CURRENCY
-
-    if action == "settings_change_limit":
-        context.user_data['awaiting_limit'] = True
-        await query.edit_message_text(texts.CHOOSE_LIMIT_TEXT)
-        log_state_transition(SETTINGS_LIMIT)
-        return SETTINGS_LIMIT
-
-    if action == "settings_about":
-        return await _handle_settings_about(query, context, texts, user_id)
-
-    # =========================================================================
-    # Transaction actions
-    # =========================================================================
-    if action == "cancel_transaction":
-        log_function_call()
-        await query.edit_message_text(
-            texts.TRANSACTION_CANCELED,
-            parse_mode=ParseMode.HTML
-        )
-        await asyncio.sleep(1)
-        reply_markup = create_main_menu_keyboard(texts)
-        await query.message.reply_text(
-            texts.MAIN_MENU_TEXT,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        log_state_transition(TRANSACTION)
-        return TRANSACTION
-
-    if action == "edit_add_remove_category":
-        await query.edit_message_text(
-            texts.ADD_CAT_PROMPT,
-            parse_mode="MarkdownV2"
-        )
-        log_state_transition(ADD_CATEGORY)
-        return ADD_CATEGORY
-
-    # Default fallback
-    log_state_transition(TRANSACTION)
-    return TRANSACTION
-
-
 async def ask(update: Update, context: CallbackContext):
     """AI Q&A over the user's spendings (T-018). Data is aggregated in memory
     and packed into the prompt; the model never touches the DB."""
@@ -899,6 +749,9 @@ def main():
             ],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
+        # A repeated /income while the prompt is pending must re-enter instead
+        # of falling through to other handlers (T-035).
+        allow_reentry=True,
     )
     application.add_handler(income_handler)
 
@@ -920,7 +773,10 @@ def main():
             CommandHandler("menu", show_menu),
             CommandHandler("change_cat", show_menu),
             # This regex catches strings that contain a word followed by a space and then a number at the end of the string.
-            MessageHandler(filters.Regex(r"\b\w+\s+\d+$"), handle_text),
+            # ~COMMAND: without it "/income trading 300" falling out of the
+            # income conversation was swallowed here and saved as a spending
+            # with category "/income" (T-035).
+            MessageHandler(filters.Regex(r"\b\w+\s+\d+$") & ~filters.COMMAND, handle_text),
         ],
         states={
             LANGUAGE: [CallbackQueryHandler(save_language)],
@@ -1052,10 +908,17 @@ def main():
     # Voice input + intent routing (T-019). Registered before spendings_handler
     # so the vtx_ confirm callback isn't swallowed by its pattern-less
     # menu_callback fallback while a conversation is active.
-    from src.handlers.voice import handle_voice, handle_voice_tx_confirmation
+    from src.handlers.voice import (
+        handle_voice,
+        handle_voice_tx_confirmation,
+        handle_voice_income_confirmation,
+    )
     application.add_handler(MessageHandler(filters.VOICE, handle_voice))
     application.add_handler(
         CallbackQueryHandler(handle_voice_tx_confirmation, pattern="^vtx_")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_voice_income_confirmation, pattern="^vinc_")
     )
     # Recurring rules inline buttons (T-026): same ordering requirement as vtx_.
     application.add_handler(

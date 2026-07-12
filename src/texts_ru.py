@@ -39,11 +39,11 @@ LIMIT_EXCEEDED = """
 """
 TRANSACTION_ERROR_TEXT = "Необходимо ввести сумму. Например, 'категория сумма' или 'дата категория сумма'. Пожалуйста, попробуйте снова."
 
-INCOME_HELP = """Этот модуль позволяет добавлять доход и отслеживать его. Ожидаемые форматы:\n
-<code>дата категория сумма</code>
+INCOME_HELP = """💵 Добавьте доход сразу: <code>/income зарплата 2000</code> — или отправьте данные следующим сообщением. Ожидаемые форматы:\n
+<code>дата категория сумма</code> (дата как дд.мм)
 <code>категория сумма</code>
-<code>сумма</code> \n
-Чтобы увидеть общую месячную статистику, используйте /show_income. Если вы случайно ввели неверное значение, используйте /delete_income, чтобы удалить последнюю транзакцию.
+<code>сумма</code>\n
+Месячная статистика дохода — /show_income. Ввели неверное значение? /delete_income удалит последнюю запись дохода.
  """
 
 RECORDS_NOT_FOUND_TEXT = "Записи не найдены."
@@ -77,7 +77,10 @@ RECORD_LINE = "{}: {}"
 INVALID_RECORD_NUM = "Неверный номер записи. Пожалуйста, введите действительный номер."
 NO_RECORDS_TO_DELETE = "Нет записей для удаления."
 RECORD_DELETED = "Запись номер {} удалена."
+RECORD_DELETED_DETAILS = "🗑 Удалена запись {record_id}: {date}, {category}{subcategory}, {amount} {currency}"
+DELETE_TYPE_MISMATCH = "Запись {record_id} — это {tx_type}. Используйте нужную команду: /delete для расходов, /delete_income для доходов."
 NOT_ENOUGH_RECORDS = "Записей меньше, чем {}."
+INCOME_SAVED = "💵 Доход сохранён: {category}, {amount} {currency} ({date})"
 LANG = "ru"
 HELP_INTRO = """👋 BudgetBot помогает отслеживать расходы и доходы прямо в Telegram.
 💬 Добавьте расход обычным сообщением, например «кофе 4» — или «31.12 кофе 4», чтобы записать задним числом.
@@ -295,6 +298,8 @@ VOICE_TX_CONFIRM_BTN = "✅ Добавить"
 VOICE_TX_CANCEL_BTN = "❌ Отмена"
 VOICE_TX_ACCEPTED = "Добавляю: {transaction}"
 VOICE_TX_CANCELLED = "Отменено — ничего не сохранено."
+VOICE_CONFIRM_INCOME = "🎙 Услышал: «{transcript}»\n\n💵 Добавить ДОХОД: {income}?"
+VOICE_INCOME_ACCEPTED = "Добавляю доход: {income}"
 VOICE_UNKNOWN = (
     "🎙 Услышал: «{transcript}»\n\n"
     "Не понял, что нужно сделать. Можно добавить трату («кофе 4.5»), "

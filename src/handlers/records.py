@@ -19,8 +19,21 @@ from src.save_transaction import process_income_input
 from src.states import TRANSACTION, PROCESS_INCOME
 
 
-async def show_records(update: Update, context: CallbackContext):
-    """Show monthly spending/income summary (from PostgreSQL via domain layer)."""
+def _command_from_update(update: Update) -> str:
+    """First word of the triggering command, '' when the update has no text
+    (callback queries carry the edited message text, not a command)."""
+    message = update.effective_message
+    if message and message.text and message.text.startswith("/"):
+        return message.text.split()[0][1:]
+    return ""
+
+
+async def show_records(update: Update, context: CallbackContext, tx_type: str = None):
+    """Show monthly spending/income summary (from PostgreSQL via domain layer).
+
+    tx_type: 'spending' | 'income'; derived from the command text when not
+    given (menu buttons must pass it explicitly — PTB Messages are immutable).
+    """
     user_id = update.effective_user.id
 
     # Get repos and cache language from DB
@@ -32,15 +45,14 @@ async def show_records(update: Update, context: CallbackContext):
         str(user_id), update.effective_user.first_name, update.effective_user.username
     )
 
-    command = update.effective_message.text.split()[0][1:]
+    transaction_type = tx_type or (
+        'income' if "income" in _command_from_update(update) else 'spending'
+    )
     record_type, record_type2 = (
         (texts.INCOME_TYPE1, texts.INCOME_TYPE2)
-        if "income" in command
+        if transaction_type == 'income'
         else (texts.SPENDINGS_TYPE1, texts.SPENDINGS_TYPE2)
     )
-
-    # Determine transaction type
-    transaction_type = 'income' if "income" in command else 'spending'
 
     # Load user session (batch fetch from DB)
     session = await load_user_session(user_id, repos, transactions_months=2)
@@ -49,8 +61,9 @@ async def show_records(update: Update, context: CallbackContext):
     # Get records summary using pure Python filters
     records = get_records_summary(session.transactions, transaction_type)
     if records is None:
-        await update.message.reply_text(texts.RECORDS_NOT_FOUND_TEXT)
-        return
+        # effective_message: update.message is None for callback queries
+        await update.effective_message.reply_text(texts.RECORDS_NOT_FOUND_TEXT)
+        return TRANSACTION
 
     sum_per_cat = records['sum_per_cat']
     av_per_day = records['av_per_day']
@@ -94,7 +107,7 @@ async def show_records(update: Update, context: CallbackContext):
             )
 
             if limit_data['exceeded']:
-                await update.message.reply_text(
+                await update.effective_message.reply_text(
                     texts.LIMIT_EXCEEDED.format(
                         percent_difference=limit_data['percent_difference'],
                         current_daily_average=limit_data['current_daily_average'],
@@ -111,7 +124,7 @@ async def show_records(update: Update, context: CallbackContext):
     return TRANSACTION
 
 
-async def show_last_month_records(update: Update, context: CallbackContext):
+async def show_last_month_records(update: Update, context: CallbackContext, tx_type: str = None):
     """Show last month's spending/income summary (from PostgreSQL)."""
     user_id = update.effective_user.id
     texts = check_language(update, context)
@@ -123,12 +136,8 @@ async def show_last_month_records(update: Update, context: CallbackContext):
     repos = get_repos(context)
     await ensure_user_config_cached(context, repos, int(user_id))
 
-    command = "show"  # Default to showing spendings for last month
-    if hasattr(update.effective_message, 'text') and update.effective_message.text:
-        command = update.effective_message.text.split()[0][1:]
-
-    # Determine transaction type
-    tx_type = 'income' if "income" in command else 'spending'
+    if tx_type is None:
+        tx_type = 'income' if "income" in _command_from_update(update) else 'spending'
     record_type, record_type2 = (
         (texts.INCOME_TYPE1, texts.INCOME_TYPE2)
         if tx_type == 'income'
@@ -153,8 +162,9 @@ async def show_last_month_records(update: Update, context: CallbackContext):
     # Get last month summary
     records = get_last_month_summary(session.transactions, tx_type)
     if records is None:
-        await update.message.reply_text(texts.RECORDS_NOT_FOUND_TEXT)
-        return
+        # effective_message: update.message is None for callback queries
+        await update.effective_message.reply_text(texts.RECORDS_NOT_FOUND_TEXT)
+        return TRANSACTION
 
     sum_per_cat = records['sum_per_cat']
     av_per_day = records['av_per_day']
@@ -195,46 +205,29 @@ async def show_last_month_records(update: Update, context: CallbackContext):
     return TRANSACTION
 
 
-async def start_income(update: Update, context: CallbackContext) -> None:
-    """Start income entry flow."""
-    log_user_interaction(
-        update.effective_user.id,
-        update.effective_user.first_name,
-        update.effective_user.username,
-    )
-    texts = check_language(update, context)
-    await update.effective_message.reply_text(
-        texts.INCOME_HELP, parse_mode=ParseMode.HTML
-    )
-    return PROCESS_INCOME
+async def save_income_text(update: Update, context: CallbackContext, text: str) -> bool:
+    """Parse and save one income entry ("[dd.mm] [category] amount").
 
-
-async def process_income(update: Update, context: CallbackContext):
-    """Process and save income entry."""
-    log_user_interaction(
-        update.effective_user.id,
-        update.effective_user.first_name,
-        update.effective_user.username,
-    )
+    The single income write path — used by the /income conversation, /income
+    inline args and the voice/free-text add_income intent (T-035). Returns
+    False when no amount could be parsed; the caller decides how to reprompt.
+    Replies with the saved confirmation on success.
+    """
     user_id = update.effective_user.id
     texts = check_language(update, context)
 
-    # Ensure user config is cached (for get_cached_currency)
     repos = get_repos(context)
     await ensure_user_config_cached(context, repos, int(user_id))
-
-    income_info = update.effective_message.text  # Get the income info from the message
     currency = get_cached_currency(context)
-    parts = income_info.lower().split()
+
+    parts = text.lower().split()
     try:
         amount = float(parts[-1])
-    except ValueError:
-        await update.message.reply_text(texts.TRANSACTION_ERROR_TEXT)
-        return PROCESS_INCOME
+    except (ValueError, IndexError):
+        return False
 
     timestamp, category = process_income_input(user_id, parts)
 
-    # Save income to PostgreSQL
     await repos.transactions.save_income(
         user_id=int(user_id),
         category=category,
@@ -244,5 +237,49 @@ async def process_income(update: Update, context: CallbackContext):
         timestamp=timestamp,
     )
 
-    await update.effective_message.reply_text(texts.TRANSACTION_SAVED_TEXT)
+    await update.effective_message.reply_text(
+        texts.INCOME_SAVED.format(
+            category=category,
+            amount=amount,
+            currency=currency,
+            date=timestamp.strftime("%Y-%m-%d"),
+        ),
+        parse_mode=ParseMode.HTML,
+    )
+    return True
+
+
+async def start_income(update: Update, context: CallbackContext):
+    """/income entry: save inline args directly, else prompt for input."""
+    log_user_interaction(
+        update.effective_user.id,
+        update.effective_user.first_name,
+        update.effective_user.username,
+    )
+    texts = check_language(update, context)
+
+    # "/income trading 300" — save immediately, no conversation (T-035)
+    if context.args:
+        if await save_income_text(update, context, " ".join(context.args)):
+            return ConversationHandler.END
+        await update.effective_message.reply_text(texts.TRANSACTION_ERROR_TEXT)
+
+    await update.effective_message.reply_text(
+        texts.INCOME_HELP, parse_mode=ParseMode.HTML
+    )
+    return PROCESS_INCOME
+
+
+async def process_income(update: Update, context: CallbackContext):
+    """Process and save income entry (conversation step after /income)."""
+    log_user_interaction(
+        update.effective_user.id,
+        update.effective_user.first_name,
+        update.effective_user.username,
+    )
+    texts = check_language(update, context)
+
+    if not await save_income_text(update, context, update.effective_message.text):
+        await update.effective_message.reply_text(texts.TRANSACTION_ERROR_TEXT)
+        return PROCESS_INCOME
     return ConversationHandler.END
