@@ -36,6 +36,7 @@ from src.states import (
 
 # Import handlers used by menu_call
 from src.handlers.recurring import build_rules_view, list_rules
+from src.handlers.reminders import build_reminder_view, build_tz_keyboard, get_reminder
 from src.handlers.records import show_records, show_last_month_records
 from src.handlers.charts import send_chart, send_yearly_piechart
 from src.handlers.categories import show_categories
@@ -209,6 +210,18 @@ async def menu_call(update: Update, context: CallbackContext):
         log_state_transition(TRANSACTION)
         return TRANSACTION
 
+    if action == "menu_reminder":
+        # Daily reminder (T-034). Button presses (rem_*/tzpick_*) are handled
+        # by standalone CallbackQueryHandlers registered before
+        # spendings_handler in core.py, like ^rr.
+        await query.answer()
+        repos = get_repos(context)
+        reminder = await get_reminder(repos, user_id)
+        text, reply_markup = build_reminder_view(reminder, texts)
+        await query.edit_message_text(text, reply_markup=reply_markup)
+        log_state_transition(TRANSACTION)
+        return TRANSACTION
+
     if action == "menu_settings":
         reply_markup = create_settings_keyboard_menu(texts)
         await query.edit_message_text(
@@ -263,6 +276,16 @@ async def menu_call(update: Update, context: CallbackContext):
         await query.edit_message_text(texts.CHOOSE_LIMIT_TEXT)
         log_state_transition(SETTINGS_LIMIT)
         return SETTINGS_LIMIT
+
+    if action == "settings_timezone":
+        # One-tap timezone picker (T-034); tzpick_ taps are handled by the
+        # standalone handler registered before spendings_handler in core.py.
+        await query.answer()
+        await query.edit_message_text(
+            texts.TZ_PICK_PROMPT, reply_markup=build_tz_keyboard()
+        )
+        log_state_transition(TRANSACTION)
+        return TRANSACTION
 
     if action == "settings_about":
         repos = get_repos(context)

@@ -6,7 +6,7 @@ from src.language_util import check_language, cache_user_language, get_cached_cu
 # Database integration
 from shared.di import setup_container, cleanup_container, get_repos
 
-from src.config import ADMIN_USER_ID, RECURRING_HOUR_UTC, is_admin
+from src.config import ADMIN_USER_ID, RECURRING_HOUR_UTC, REMINDER_SWEEP_SECONDS, is_admin
 
 # Command registry: single source for handler registration, /help and menu sync
 from src.commands import COMMANDS, build_help_text, sync_bot_commands
@@ -14,7 +14,13 @@ from src.commands import COMMANDS, build_help_text, sync_bot_commands
 # Recurring transactions (T-026): recurring_command must be importable here —
 # the registry loop resolves CommandSpec.handler names from this module's globals.
 from src.handlers.recurring import recurring_command, handle_recurring_callback
-from src.scheduler import run_recurring_rules
+# Daily reminders (T-034): reminder_command resolved by the registry loop.
+from src.handlers.reminders import (
+    reminder_command,
+    handle_reminder_callback,
+    handle_tzpick_callback,
+)
+from src.scheduler import run_recurring_rules, run_reminders
 
 # Domain layer - batch fetch + filter
 from domain.session_loader import load_user_session
@@ -939,6 +945,13 @@ def main():
     application.add_handler(
         CallbackQueryHandler(handle_recurring_callback, pattern="^rr")
     )
+    # Reminder presets + timezone picker (T-034): same ordering requirement.
+    application.add_handler(
+        CallbackQueryHandler(handle_reminder_callback, pattern="^rem_")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_tzpick_callback, pattern="^tzpick_")
+    )
 
     application.add_handler(spendings_handler)
     # Settings buttons attached by /about (T-031). While a spendings_handler
@@ -973,6 +986,15 @@ def main():
         name="recurring_rules_daily",
     )
     application.job_queue.run_once(run_recurring_rules, 60, name="recurring_rules_catchup")
+    # Daily-reminder sweep (T-034): every REMINDER_SWEEP_SECONDS over DB rows;
+    # claim_send makes replays no-ops, so no separate catch-up job is needed —
+    # the repeating sweep is its own catch-up.
+    application.job_queue.run_repeating(
+        run_reminders,
+        interval=REMINDER_SWEEP_SECONDS,
+        first=90,
+        name="reminders_sweep",
+    )
 
     application.run_polling()
 

@@ -344,6 +344,43 @@ RECURRING_RESUME_BTN = "▶️ {}"
 RECURRING_DELETE_BTN = "🗑"
 RECURRING_CONFIRM_DELETE_BTN = "🗑 Delete"
 RECURRING_BACK_BTN = "◀️ Back"
+
+# Daily reminder + timezone (T-034)
+REMINDER_BUTTON = "⏰ Daily reminder"
+TIMEZONE_BUTTON = "🕒 Time zone"
+# Sent by the scheduler sweep without parse_mode — keep it HTML-free.
+REMINDER_TEXT = "⏰ Time to log today's spendings! Just type it, e.g. coffee 4.5 — or use /menu."
+REMINDER_STATUS_OFF = (
+    "⏰ Daily reminder is off.\n"
+    "Pick a time (your local time) and I'll nudge you once a day to log your transactions. "
+    "If you've already logged something that day, I'll stay quiet.\n\n"
+    "You can also type /reminder 17:00 or /reminder off."
+)
+REMINDER_STATUS_ACTIVE = (
+    "⏰ Daily reminder is set for {time} (your local time).\n"
+    "Pick a new time or turn it off:"
+)
+REMINDER_SET = (
+    "⏰ Done — I'll remind you every day at {time} (your local time) to log your transactions. "
+    "On days you've already logged something, I'll stay quiet.\n"
+    "Turn off anytime with /reminder off."
+)
+REMINDER_DISABLED = "🔕 Daily reminder turned off."
+REMINDER_INVALID_TIME = "Invalid time — use HH:MM, e.g. 17:00."
+REMINDER_USAGE = (
+    "/reminder — reminder settings\n"
+    "/reminder 17:00 — remind me daily at 17:00\n"
+    "/reminder off — turn the reminder off"
+)
+REMINDER_OFF_BTN = "🔕 Turn off"
+TZ_PICK_PROMPT = (
+    "🕒 What time is it for you right now?\n"
+    "Tap the button matching your clock — that's how I learn your time zone:"
+)
+TZ_SAVED = (
+    "🕒 Time zone saved (UTC{offset}). "
+    "If your clocks change (daylight saving), re-pick it in Settings → Time zone."
+)
 # Admin panel commands (T-025)
 ADMIN_ONLY = "This command is restricted to the bot owner."
 ADMIN_EXPORT_USAGE = "Usage: /admin_export <user_id>"

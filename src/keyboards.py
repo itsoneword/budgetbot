@@ -151,6 +151,9 @@ def create_main_menu_keyboard(texts):
         ],
         # Recurring moved into the Add-transaction submenu (T-036)
         [
+            InlineKeyboardButton(texts.REMINDER_BUTTON, callback_data="menu_reminder")
+        ],
+        [
             InlineKeyboardButton(texts.SETTINGS_BUTTON, callback_data="menu_settings"),
 
             InlineKeyboardButton(texts.HELP_BUTTON, callback_data="menu_help")
@@ -211,6 +214,9 @@ def create_settings_keyboard_menu(texts):
         [
             InlineKeyboardButton(texts.CHANGE_LIMIT_BUTTON, callback_data="settings_change_limit"),
             InlineKeyboardButton(texts.ABOUT_BUTTON, callback_data="settings_about")
+        ],
+        [
+            InlineKeyboardButton(texts.TIMEZONE_BUTTON, callback_data="settings_timezone")
         ],
         [
             InlineKeyboardButton(texts.BACK_TO_MAIN_MENU_BUTTON, callback_data="back_to_main_menu")

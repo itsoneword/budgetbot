@@ -134,6 +134,11 @@ COMMANDS: Tuple[CommandSpec, ...] = (
         "🔁 Регулярные месячные транзакции: список, пауза, удаление; добавить: /recurring add аренда 500 1",
     ),
     CommandSpec(
+        "reminder", "reminder_command",
+        "⏰ Daily reminder to log transactions: /reminder 17:00 to set, /reminder off to disable",
+        "⏰ Ежедневное напоминание записать траты: /reminder 17:00 — включить, /reminder off — выключить",
+    ),
+    CommandSpec(
         "ask", "ask",
         "🤖 Ask AI a question about your spendings",
         "🤖 Задать ИИ вопрос о ваших расходах",
