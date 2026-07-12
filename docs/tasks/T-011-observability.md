@@ -1,7 +1,7 @@
 ---
 id: T-011
 title: Observability: structured logs, Sentry, health check
-status: todo
+status: review
 type: ops
 area: obs
 priority: p2
@@ -16,9 +16,9 @@ updated: 2026-07-12
 File logs only (app.log + user_log.csv); structlog is in requirements but unwired; no error aggregation; no liveness signal for Docker.
 
 ## Acceptance
-- [ ] structlog JSON to stdout wired through src/logger
-- [ ] Sentry (or equivalent) receives handler exceptions
-- [ ] Health endpoint returns 200 when DB pool reachable; wired into docker-compose healthcheck
+- [x] structlog JSON to stdout wired through src/logger
+- [x] Sentry (or equivalent) receives handler exceptions — env-gated via SENTRY_DSN, ships dark per owner 2026-07-12; LoggingIntegration turns global_error_handler ERRORs into events
+- [x] Heartbeat job (SELECT 1 on DB pool + touch /tmp/budgetbot-heartbeat every 60s) wired into docker-compose healthcheck; stale file (>180s) = unhealthy (amended 2026-07-12 from "health endpoint returns 200" — no HTTP server, per approved plan Q1)
 
 ## Log
 - 2026-07-07 created from production-readiness O1
@@ -50,5 +50,32 @@ Open questions (recommended defaults):
 
 **Owner decisions 2026-07-12:** Sentry INCLUDED despite 07-09 deferral — env-gated, ships dark (no DSN = disabled, owner creates DSN later). All other defaults accepted (heartbeat-file healthcheck replaces HTTP-endpoint acceptance line; JSON stdout always; daily/7-day rotation fix; ERROR threshold; auto-restart deferred to T-012).
 
+## Testing
+
+Automated (already verified during implementation, structlog 24.1.0 + sentry-sdk 2.64.0):
+- stdout lines are valid one-line JSON (json.loads) with timestamp/level/logger/event keys; `extra=` fields (user_id, user_input, callback, job) and tracebacks (`exception` key) surface as JSON keys; app.log stays human-readable text; repeated setup_logging (the /debug path) leaves exactly one console handler; rotation is when="D"/backupCount=7; init_sentry() with no DSN returns False and `sentry_sdk` never enters sys.modules; with a fake DSN init succeeds (release=budgetbot@0.3.0, pii off, traces 0.0); heartbeat touches the file on pool success and leaves it untouched on pool failure; `docker compose config -q` passes.
+
+Manual checklist (after `docker compose up -d --build`):
+
+### Critical
+- [ ] `docker logs budgetbot-container` shows one JSON object per line (no plain-text lines except pre-Python entrypoint output); startup line "Sentry disabled (no SENTRY_DSN)" present
+- [ ] `docker ps` shows budgetbot healthy within ~3 min of boot (start_period 180s; heartbeat first run at +10s)
+- [ ] Send a normal spending ("coffee 5") — transaction saves; its log lines on stdout are JSON
+- [ ] Force a handler error — stdout JSON line has level=error, user_id, user_input/callback keys and an `exception` traceback string; user still gets the localized error reply
+- [ ] `docker stop budgetbot-postgres` → within ~3 min `docker ps` shows budgetbot unhealthy and stdout shows "Heartbeat failed: DB unreachable" JSON errors; `docker start budgetbot-postgres` → container returns to healthy without a bot restart
+
+### Important
+- [ ] /debug (admin) toggles: reply "Debug mode is now ON", stdout STAYS JSON (now with debug-level lines), app.log flips to verbose; /debug again returns to INFO — no duplicate log lines after several toggles
+- [ ] app.log in ./user_data is human-readable text (timestamp - LEVEL - message), not JSON
+- [ ] With a real SENTRY_DSN in .env: startup logs "Sentry enabled (environment=prod)" and a forced handler error appears as a Sentry event with user_id/user_input extras
+
+### Regression
+- [ ] Recurring-rules jobs (T-026) still run (catchup job at +60s logs normally)
+- [ ] /show, /show_last, voice input unaffected (logging-layer change only)
+- [ ] Usage chart (/show_log_chart) still renders — user_interactions logger untouched
+
 Risks: `restart: unless-stopped` ignores health status — unhealthy is a visible signal (`docker ps`, deploy checks), not a self-heal, hence Q5; heartbeat proves loop+JobQueue+DB but not Telegram connectivity (a dead getUpdates keeps the container "healthy" — accepted, PTB retry logs + Sentry cover it); anything blocking the event loop >180s flips unhealthy — that is signal, not noise, but verify chart generation (T-004 still open) stays well under it; `LoggingIntegration` will Sentry-fy every pre-existing `logger.error` including expected ones (e.g. `/ask` LLM failures) — acceptable noise at this scale, tune with `ignore_logger` later; T-034's sweep must keep the per-item `logger.exception` pattern (a bare `except: pass` would still vanish — call this out in its review); stdout volume grows (WARNING→INFO at ~72 users: trivial); `setup_logging` runs at core.py import time before `main()` — Sentry init lands in `main()` after it, so the handful of import-time log lines predate Sentry (fine, they're INFO).
 - 2026-07-12 Implementation plan proposed (JSON stdout via ProcessorFormatter, env-gated Sentry, heartbeat-file healthcheck); 6 open questions pending owner batch
+- 2026-07-12 started
+- 2026-07-12 JSON stdout via ProcessorFormatter (verified: one-line JSON parses, extras+tracebacks as keys, app.log human-readable, /debug idempotent); daily/7d rotation fix; env-gated Sentry verified dark (no import) and lit (fake DSN); heartbeat job + compose healthcheck (compose config valid)
+- 2026-07-12 moved to review
