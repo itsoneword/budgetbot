@@ -13,10 +13,33 @@ updated: 2026-07-12
 ---
 
 ## Context
-Container mounts owner's ~/.claude/.credentials.json (read-only) for claude-agent-sdk; the container CLI's OAuth refresh rotates the token server-side but cannot persist it, invalidating the host's copy and killing the owner's local Claude login. Fix: dedicated token via env (candidate: claude setup-token -> CLAUDE_CODE_OAUTH_TOKEN, or ANTHROPIC_API_KEY = API billing), drop the credentials mount from docker-compose. Owner to supply the int_perp project's rotating-token pattern before implementation. Code change near zero (infrastructure/llm/claude_agent.py reads env only); mostly compose/env.
+Container mounts owner's ~/.claude/.credentials.json (read-only) for claude-agent-sdk. The container CLI's OAuth refresh rotates the token server-side but cannot persist it (ro mount), and — worse — because the container *holds the refresh token and attempts refreshes*, it participates in refresh-token reuse races with the other host processes that share the same credential (owner's interactive Claude Code, Devvybot). That reuse detection has caused full logouts of the owner's Claude login ~3x in the past week. Root cause is architectural: **multiple independent clients holding & refreshing one subscription OAuth.**
+
+Decision (owner, 2026-07-12): for the current *testing* phase we stay on the Max subscription but adopt the **int_prep access-token-only pattern**, which is the safe way to share it — a service that only ever holds the short-lived access token can never trigger a refresh race. (Long-term, once real users arrive, migrate off subscription to OpenRouter/API billing — separate task.)
+
+**Scope correction:** the earlier "code change near zero, reads env only" estimate is wrong. budgetbot's LLM backend is `claude-agent-sdk`, which spawns the `claude` CLI and *requires the full credentials.json*. Consuming only an access token means the CLI can't be used — the backend must be **rewritten to raw HTTP** (like int_prep), authenticating with the mirrored OAuth access token and impersonating Claude Code. This is a real backend rewrite, not a config tweak.
+
+## int_prep pattern to copy (reference, already working in that project)
+- Host script `~/.claude/cv-agent-secrets/refresh-token.sh` samples only the `accessToken` out of `~/.claude/.credentials.json` and atomically writes it to `~/.claude/cv-agent-secrets/anthropic-access-token` (mode 600) every ~5 min. **Reuse the existing script — do not duplicate it.** The refresh token never leaves the host.
+- Compose mounts that secrets **directory** (not a single file — atomic rename must be visible) read-only into the container, int_prep uses `/run/cv-secrets:ro`.
+- `_get_token()` reads the token file **on every call** (fallback to `ANTHROPIC_AUTH_TOKEN` env), so rotation needs no restart.
+- If the token starts with `sk-ant-oat` → OAuth/subscription path: requests MUST impersonate Claude Code or Anthropic 429/400s them out of the subscription pool. Required: `claude-cli` user-agent, the OAuth beta header, system prompt exactly `You are Claude Code, Anthropic's official CLI for Claude.`, and the *real* system prompt smuggled inside `<instructions>…</instructions>` in the first human message. Reference impl: int_prep `src/llm/anthropic_client.py`.
+
+## Approach
+1. New raw-HTTP Anthropic backend in `infrastructure/llm/` (e.g. `oauth_http.py`) modeled on int_prep's `anthropic_client.py`: reads access token from `$LLM_TOKEN_FILE` (default `/run/cv-secrets/anthropic-access-token`) per call, fallback `ANTHROPIC_AUTH_TOKEN`; applies the Claude-Code impersonation headers + system-prompt smuggling when token is `sk-ant-oat*`. Must set an explicit model (CLI default resolution goes away) — add `LLM_MODEL` (int_prep uses a `claude-sonnet-4-x`).
+2. Point `get_llm_client()` (`infrastructure/llm/__init__.py`) at the new backend; retire/relegate `claude_agent.py` (keep behind a flag if convenient, but it must no longer be the default and the creds mount goes away).
+3. docker-compose: **remove** the `~/.claude` directory mount, the `claude` binary mount, and the `entrypoint.sh` credentials-symlink step. **Add** `- /home/cleversol/.claude/cv-agent-secrets:/run/cv-secrets:ro`.
+4. Preserve usage telemetry: the T-0xx `usage_meter.record(...)` hook currently reads `ResultMessage.usage` from the SDK; move it to read token usage off the new HTTP response (`response.usage`) so budgetbot keeps appearing in the host LLM digest.
+5. Verify both call sites still work: `/ask` (core.py) and voice intent classification (handlers/voice.py, haiku).
 
 ## Acceptance
-- [ ] TODO
+- [ ] budgetbot makes runtime LLM calls using **only** the mirrored access token; no refresh token or `credentials.json` is present in the container.
+- [ ] docker-compose no longer mounts `~/.claude` or the `claude` binary; mounts `cv-agent-secrets` ro instead.
+- [ ] Token rotation is picked up without a container restart (token re-read per call).
+- [ ] `/ask` and voice intent classification both return correct answers (impersonation headers correct — no 429/400 out of the subscription pool).
+- [ ] `usage_meter` still records per-call tokens to `user_data/llm-usage.jsonl` from the new backend.
+- [ ] Owner confirms no more host-login logouts after budgetbot + Devvybot both stop holding the refresh token.
 
 ## Log
 - 2026-07-12 created
+- 2026-07-12 owner supplied the int_prep access-token-only pattern; scoped as a raw-HTTP backend rewrite (not a config tweak) + compose mount swap. Long-term OpenRouter/API migration deferred to a separate task. Ready for implementation.

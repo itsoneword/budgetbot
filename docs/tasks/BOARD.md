@@ -27,11 +27,13 @@ _empty_
 - **T-031** `p2/bug/bot` Fix /about panel: stale version, raw limit sentinel, dead settings buttons — last: 2026-07-11 moved to review
 - **T-032** `p3/feature/bot` Restore emojis/visual polish in generated /help and menu command descriptions — last: 2026-07-11 moved to review
 
-## Todo (4)
+## Todo (6)
 - **T-023** `p1/feature/bot` Paywall: buy AI access via Telegram Stars _(waiting: T-022)_
 - **T-027** `p1/feature/bot` AI channel: manage recurring spendings by voice//ask _(waiting: T-026)_
 - **T-038** `p1/bug/infra` LLM auth: dedicated token for container, stop sharing host OAuth credentials
 - **T-037** `p2/feature/bot` Income in Edit-recent-entries menu: list, edit, delete income records
+- **T-039** `p2/bug/bot` Chart handlers reference undefined texts.NO_DATA (latent AttributeError on empty-data path)
+- **T-040** `p2/bug/bot` Income date parser accepts garbage: 99.99 backdates to 1999, 29.02 non-leap reinterpreted
 
 ## Backlog (9)
 - **T-008** `p2/feature/deploy` Webhook mode + horizontal scaling path _(waiting: T-009)_

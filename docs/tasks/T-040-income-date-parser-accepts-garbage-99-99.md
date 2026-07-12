@@ -1,0 +1,22 @@
+---
+id: T-040
+title: Income date parser accepts garbage: 99.99 backdates to 1999, 29.02 non-leap reinterpreted
+status: todo
+type: bug
+area: bot
+priority: p2
+deps: []
+tags: []
+blocked: 
+created: 2026-07-12
+updated: 2026-07-12
+---
+
+## Context
+Found during T-006 (bugs documented in tests/src/test_save_transaction_parsing.py with comments, current behavior pinned): (1) _parse_income_date falls back to dateutil for '99.99' and reads 99 as year 1999 — income like '99.99 1000' silently backdated 27 years; (2) '29.02' in a non-leap year fails strict dd.mm parse, dateutil reinterprets as day 29 of the CURRENT month, then backdating heuristic shifts a year back. Fix: reject the dateutil fallback when the token matched dd.mm shape but failed strict validation; update the pinned tests to the corrected behavior.
+
+## Acceptance
+- [ ] TODO
+
+## Log
+- 2026-07-12 created
