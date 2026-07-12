@@ -7,11 +7,12 @@ Updated: 2026-07-12 · see docs/ROADMAP.md for milestones
 ## Doing (0)
 _empty_
 
-## Review (17)
+## Review (18)
 - **T-020** `p0/bug/bot` Fix show_last: Transaction attribute mismatch (tx.category vs category_name) — last: 2026-07-09 moved to review
 - **T-003** `p1/ops/bot` Replace print() with logger in runtime code — last: 2026-07-11 moved to review
 - **T-004** `p1/refactor/bot` Move chart rendering off the event loop — last: 2026-07-11 moved to review
 - **T-005** `p1/ops/db` Adopt alembic for schema migrations — last: 2026-07-11 moved to review
+- **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating — last: 2026-07-07 created from production-readiness T1 + O2
 - **T-022** `p1/feature/db` AI access control: DB-backed entitlements + admin grant/revoke — last: 2026-07-11 created
 - **T-026** `p1/feature/bot` Recurring transactions: rules engine, daily scheduler, manual management — last: 2026-07-11 created
 - **T-028** `p1/bug/bot` Fix /download: export transactions from PostgreSQL, not stale user_data CSV — last: 2026-07-11 created
@@ -26,8 +27,7 @@ _empty_
 - **T-031** `p2/bug/bot` Fix /about panel: stale version, raw limit sentinel, dead settings buttons — last: 2026-07-11 moved to review
 - **T-032** `p3/feature/bot` Restore emojis/visual polish in generated /help and menu command descriptions — last: 2026-07-11 moved to review
 
-## Todo (5)
-- **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating
+## Todo (4)
 - **T-023** `p1/feature/bot` Paywall: buy AI access via Telegram Stars _(waiting: T-022)_
 - **T-027** `p1/feature/bot` AI channel: manage recurring spendings by voice//ask _(waiting: T-026)_
 - **T-038** `p1/bug/infra` LLM auth: dedicated token for container, stop sharing host OAuth credentials

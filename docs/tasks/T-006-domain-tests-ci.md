@@ -1,7 +1,7 @@
 ---
 id: T-006
 title: Unit tests for domain/ + CI gating
-status: todo
+status: review
 type: ops
 area: infra
 priority: p1
@@ -16,9 +16,9 @@ updated: 2026-07-12
 Only integration smoke script exists (scripts/test_repositories.py). domain/ is pure functions — ideal for pytest. CI should gate on tests.
 
 ## Acceptance
-- [ ] pytest + pytest-asyncio set up; tests/domain/ covers filters.py aggregations and session_loader (mocked repos)
-- [ ] Parser tests for save_transaction multi-line/ambiguous input
-- [ ] GitHub workflow runs the suite on push
+- [x] pytest + pytest-asyncio set up; tests/domain/ covers filters.py aggregations and session_loader (mocked repos)
+- [x] Parser tests for save_transaction multi-line/ambiguous input
+- [x] GitHub workflow runs the suite on push
 
 ## Log
 - 2026-07-07 created from production-readiness T1 + O2
@@ -64,3 +64,24 @@ Open questions (recommended defaults):
 
 Risks: clock-dependent tests are the main flake source — every domain function that accepts `reference_date`/`now`/`today` gets it pinned, and the only `datetime.now()`-internal code under test (income date parsing) is frozen with freezegun, so boundary flakes are designed out rather than tolerated; CI installing the full requirements set means an upstream wheel/pin breakage (e.g. `faster-whisper`, `claude-agent-sdk`) fails the tests job for non-test reasons — arguably early warning, but it can block unrelated merges (fallback: flip to the curated-subset install, open question 2); importing `src.save_transaction` executes module-level code (`from src.states import *`, keyboards, DI module) — it currently imports clean without env vars, but if that ever grows import-time config reads the parser tests break first (which is also the T-030 extraction signal); pytest discovery must not collect `scripts/test_repositories.py` (needs a live DB) — `testpaths = tests` handles it, don't run bare `pytest scripts/`; committed `__pycache__/` dirs can shadow moved modules in local runs — CI's clean checkout is the source of truth.
 - 2026-07-12 Implementation plan proposed (pytest+pytest-asyncio, pytest.ini, fake repos, parser tests in place, tests.yml workflow); 6 open questions with defaults pending owner batch
+- 2026-07-12 started
+- 2026-07-12 pytest+pytest-asyncio suite landed: 164 tests green (tests/domain + tests/src parser tests), 96% coverage on domain/, tests.yml CI workflow, docs updated
+- 2026-07-12 acceptance boxes verified: 164 tests pass locally (pytest -q), discovery limited to tests/, workflow file in place (green CI run pending first push)
+
+## Testing
+
+Ops/infra task — the deliverable is the test suite itself; no bot-facing behavior changed. Verification is running the suite, not clicking through Telegram.
+
+### Critical
+- [x] Local suite green: `pip install -r requirements-dev.txt && pytest` → 164 passed (verified 2026-07-12, Python 3.12)
+- [x] Coverage printed: `pytest --cov=domain --cov-report=term` → 96% on domain/
+- [x] Discovery limited to tests/: `pytest --collect-only -q` collects nothing from scripts/ (scripts/test_repositories.py needs a live DB)
+- [ ] CI run goes green on first push to GitHub (tests job in .github/workflows/tests.yml)
+
+### Important
+- [ ] CI tests job runs on a PR to main (pull_request trigger)
+- [ ] Owner: after first green run, mark the `tests` job a required status check on main (branch protection — plan step 10, not a repo-file change)
+
+### Nice-to-have
+- [ ] Confirm pip cache hit on the second CI run (setup-python cache: pip)
+- 2026-07-12 moved to review
