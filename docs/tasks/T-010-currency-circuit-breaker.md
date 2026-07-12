@@ -43,5 +43,7 @@ Open questions (recommended defaults):
 4. Breaker location → `shared/utils/circuit_breaker.py` (shared is the stated utils home; llm/stt clients can adopt it later).
 5. Seed the pytest file now even though T-006 (harness+CI) is still todo → yes (pure module, runs standalone with bare pytest).
 
+**Owner decisions 2026-07-12:** all planner defaults accepted (drop aiohttp/requests paths for httpx; 2-failure/15-min breaker; 48h stale caption; breaker in shared/utils; seed pytest file now).
+
 Risks: the flight lock is held across the 3s fetch, serializing all `get_rates()` callers during a fetch — bounded at 3s and followers then hit warm cache, acceptable; `convert()` silently defaults missing rates to 1.0 (wrong conversions rather than errors) — pre-existing, out of scope, worth a follow-up task; the unused module-level `get_currency_service` singleton bypasses the DI container — left alone, but the breaker must live on the container instance (it does, single `CurrencyService` per process); per-process breaker under a future T-008 multi-replica topology means each replica probes independently — harmless (DB cache is shared; N replicas = N probes per cooldown), noted so T-008 doesn't rediscover it; `_get_default_rates()` does blocking file I/O on the event loop — pre-existing, tiny file, untouched.
 - 2026-07-12 Implementation plan proposed (shared CircuitBreaker util, single-flight lock, httpx 3s fetch, rates_as_of staleness fix); found 2 pre-existing bugs (dead aiohttp branch, stale-marked-fresh cache)
