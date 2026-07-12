@@ -43,7 +43,7 @@ INCOME_HELP = """💵 Добавьте доход сразу: <code>/income за
 <code>дата категория сумма</code> (дата как дд.мм)
 <code>категория сумма</code>
 <code>сумма</code>\n
-Месячная статистика дохода — /show_income. Ввели неверное значение? /delete_income удалит последнюю запись дохода.
+Месячная статистика дохода — /show_income; список записей с ID — <code>/show_last доход</code>. Ввели неверное значение? /delete_income удалит последнюю запись дохода, а <code>/delete_income id</code> — конкретную.
  """
 
 RECORDS_NOT_FOUND_TEXT = "Записи не найдены."
@@ -207,6 +207,9 @@ USE_CATEGORY_BUTTON = "✅ Использовать '{}'"
 CHOOSE_OTHER_CATEGORY_BUTTON = "🔄 Выбрать другую категорию"
 SHOW_ALL_CATEGORIES_BUTTON = "🔄 Показать все категории"
 ADD_TRANSACTION_BUTTON = "💰 Добавить транзакцию"
+ADD_SPENDING_BUTTON = "💸 Добавить расход"
+ADD_INCOME_BUTTON = "💵 Добавить доход"
+ADD_TX_MENU_TEXT = "💰 <b>Добавить транзакцию</b>\nЧто добавить? Можно также просто написать расход, например <code>кофе 4.5</code>, или <code>/income зарплата 2000</code>."
 SHOW_TRANSACTIONS_BUTTON = "📊 Показать транзакции"
 SETTINGS_BUTTON = "⚙️ Настройки"
 EDIT_CATEGORIES_BUTTON = "📝 Редактировать категории"

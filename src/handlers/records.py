@@ -283,3 +283,29 @@ async def process_income(update: Update, context: CallbackContext):
         await update.effective_message.reply_text(texts.TRANSACTION_ERROR_TEXT)
         return PROCESS_INCOME
     return ConversationHandler.END
+
+
+async def process_income_menu(update: Update, context: CallbackContext):
+    """PROCESS_INCOME step of the main-menu conversation (Add income button).
+
+    Same write path as /income but returns to the menu instead of ending the
+    conversation — ending would kill the menu's callback routing (T-035)."""
+    from src.keyboards import create_main_menu_keyboard
+
+    log_user_interaction(
+        update.effective_user.id,
+        update.effective_user.first_name,
+        update.effective_user.username,
+    )
+    texts = check_language(update, context)
+
+    if not await save_income_text(update, context, update.effective_message.text):
+        await update.effective_message.reply_text(texts.TRANSACTION_ERROR_TEXT)
+        return PROCESS_INCOME
+
+    await update.effective_message.reply_text(
+        texts.BACK_TO_MAIN_MENU,
+        reply_markup=create_main_menu_keyboard(texts),
+        parse_mode=ParseMode.HTML,
+    )
+    return TRANSACTION

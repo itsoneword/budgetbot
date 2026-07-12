@@ -4,8 +4,8 @@
 
 Updated: 2026-07-12 · see docs/ROADMAP.md for milestones
 
-## Doing (0)
-_empty_
+## Doing (1)
+- **T-036** `p1/bug/bot` Main-menu Recurring button dead; relocate into Add-transaction section — last: 2026-07-12 Recurring button relocated from main menu into new Add-transaction submenu (menu_add_transaction now opens spending/income/recurring section) — taps now always route via active-conversation menu_call
 
 ## Review (14)
 - **T-020** `p0/bug/bot` Fix show_last: Transaction attribute mismatch (tx.category vs category_name) — last: 2026-07-09 moved to review
@@ -23,12 +23,11 @@ _empty_
 - **T-031** `p2/bug/bot` Fix /about panel: stale version, raw limit sentinel, dead settings buttons — last: 2026-07-11 moved to review
 - **T-032** `p3/feature/bot` Restore emojis/visual polish in generated /help and menu command descriptions — last: 2026-07-11 moved to review
 
-## Todo (7)
+## Todo (6)
 - **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating
 - **T-023** `p1/feature/bot` Paywall: buy AI access via Telegram Stars _(waiting: T-022)_
 - **T-027** `p1/feature/bot` AI channel: manage recurring spendings by voice//ask _(waiting: T-026)_
 - **T-034** `p1/feature/bot` Daily reminder to add transactions (menu + voice), per-user timezone
-- **T-036** `p1/bug/bot` Main-menu Recurring button dead; relocate into Add-transaction section
 - **T-010** `p2/ops/infra` Currency API circuit breaker
 - **T-011** `p2/ops/obs` Observability: structured logs, Sentry, health check
 

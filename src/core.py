@@ -81,6 +81,7 @@ from src.handlers import (
     show_last_month_records,
     start_income,
     process_income,
+    process_income_menu,
     # Menu
     show_menu,
     menu_call,
@@ -405,16 +406,24 @@ async def latest_records(update: Update, context):
     await ensure_user_config_cached(context, repos, user_id)
     currency = get_cached_currency(context)
     
-    record_num_or_category = "5"  # Default value
-    if context.args:
-        record_num_or_category = context.args[0]
+    # "/show_last income [N]" lists income records with their IDs — the way to
+    # find an ID for /delete_income (T-035).
+    tx_type = 'spending'
+    args = list(context.args or [])
+    for word in ("income", "доход", "доходы"):
+        if word in args:
+            tx_type = 'income'
+            args.remove(word)
+            break
+
+    record_num_or_category = args[0] if args else "5"
 
     # Determine if argument is a number or category name
     try:
         limit = int(record_num_or_category)
         # Get latest N transactions (convert to domain model for .category/.subcategory)
         from domain.models.user_session import Transaction as DomainTransaction
-        repo_transactions = await repos.transactions.get_latest(user_id, limit=limit, transaction_type='spending')
+        repo_transactions = await repos.transactions.get_latest(user_id, limit=limit, transaction_type=tx_type)
         transactions = [DomainTransaction.from_repo(tx) for tx in repo_transactions]
     except ValueError:
         # It's a category name - load more and filter
@@ -828,6 +837,11 @@ def main():
             ],
             SETTINGS_LIMIT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_settings_limit)
+            ],
+            # Add-income via the menu button (T-035); the /income command has
+            # its own ConversationHandler — this state only serves menu taps.
+            PROCESS_INCOME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, process_income_menu)
             ],
             SELECT_RECORDS_COUNT: [
                 CallbackQueryHandler(handle_records_count, pattern="^(count_|back_to_transactions)"),

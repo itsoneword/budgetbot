@@ -103,3 +103,4 @@ Risks: confirm-gate cross-talk (mitigated by vinc_ separation); delete_records b
 - [ ] `/ask покажи доход и расход за последний месяц` now reports the 300 EUR as INCOME, no "logged as spending" note
 - [ ] `/ask add 300 eur income from trading` refusal now points to /income and text/voice entry
 - 2026-07-12 moved to review
+- 2026-07-12 owner-requested menu integration: Add-income button in Add-transaction submenu (PROCESS_INCOME state in main conversation), /show_last income for income IDs, INCOME_HELP updated

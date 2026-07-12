@@ -44,7 +44,7 @@ INCOME_HELP = """💵 Add income directly: <code>/income salary 2000</code> — 
 <code>date category amount</code> (date as dd.mm)
 <code>category amount</code>
 <code>amount</code>\n
-To see the monthly income statistic use /show_income. Entered a wrong value? /delete_income removes the latest income record.
+To see the monthly income statistic use /show_income; list records with IDs via <code>/show_last income</code>. Entered a wrong value? /delete_income removes the latest income record, or <code>/delete_income id</code> a specific one.
  """
 
 RECORDS_NOT_FOUND_TEXT = "No records found."
@@ -225,6 +225,9 @@ USE_CATEGORY_BUTTON = "✅ Use '{}'"
 CHOOSE_OTHER_CATEGORY_BUTTON = "🔄 Choose another category"
 SHOW_ALL_CATEGORIES_BUTTON = "🔄 Show all categories"
 ADD_TRANSACTION_BUTTON = "💰 Add transaction"
+ADD_SPENDING_BUTTON = "💸 Add spending"
+ADD_INCOME_BUTTON = "💵 Add income"
+ADD_TX_MENU_TEXT = "💰 <b>Add transaction</b>\nWhat would you like to add? You can also just type a spending like <code>coffee 4.5</code>, or use <code>/income salary 2000</code>."
 SHOW_TRANSACTIONS_BUTTON = "📊 Show transactions"
 SETTINGS_BUTTON = "⚙️ Settings"
 EDIT_CATEGORIES_BUTTON = "📝 Edit categories"

@@ -149,13 +149,28 @@ def create_main_menu_keyboard(texts):
             InlineKeyboardButton(texts.EDIT_CATEGORIES_BUTTON, callback_data="menu_edit_categories"),
             InlineKeyboardButton(texts.EDIT_TRANSACTIONS_BUTTON, callback_data="menu_edit_transactions")
         ],
-        [
-            InlineKeyboardButton(texts.RECURRING_BUTTON, callback_data="menu_recurring")
-        ],
+        # Recurring moved into the Add-transaction submenu (T-036)
         [
             InlineKeyboardButton(texts.SETTINGS_BUTTON, callback_data="menu_settings"),
 
             InlineKeyboardButton(texts.HELP_BUTTON, callback_data="menu_help")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def create_add_transaction_keyboard(texts):
+    """Add-transaction section (T-035/T-036): spending, income, recurring."""
+    keyboard = [
+        [
+            InlineKeyboardButton(texts.ADD_SPENDING_BUTTON, callback_data="menu_add_spending"),
+            InlineKeyboardButton(texts.ADD_INCOME_BUTTON, callback_data="menu_add_income"),
+        ],
+        [
+            InlineKeyboardButton(texts.RECURRING_BUTTON, callback_data="menu_recurring")
+        ],
+        [
+            InlineKeyboardButton(texts.BACK_TO_MAIN_MENU_BUTTON, callback_data="back_to_main_menu")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)

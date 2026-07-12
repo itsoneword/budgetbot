@@ -22,6 +22,7 @@ from src.keyboards import (
     create_settings_language_keyboard,
     create_settings_currency_keyboard,
     create_tx_categories_keyboard,
+    create_add_transaction_keyboard,
 )
 from src.states import (
     TRANSACTION,
@@ -30,6 +31,7 @@ from src.states import (
     SETTINGS_CURRENCY,
     SETTINGS_LIMIT,
     ADD_CATEGORY,
+    PROCESS_INCOME,
 )
 
 # Import handlers used by menu_call
@@ -148,7 +150,26 @@ async def menu_call(update: Update, context: CallbackContext):
     # =========================================================================
     # Main menu navigation
     # =========================================================================
-    if action in ("menu_add_transaction", "back_to_categories"):
+    if action == "menu_add_transaction":
+        # Add-transaction section (T-035/T-036): spending / income / recurring
+        reply_markup = create_add_transaction_keyboard(texts)
+        await query.edit_message_text(
+            texts.ADD_TX_MENU_TEXT,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML
+        )
+        log_state_transition(TRANSACTION)
+        return TRANSACTION
+
+    if action == "menu_add_income":
+        # Prompt for income input; the PROCESS_INCOME state of the main
+        # conversation catches the next message (save_income_text path).
+        await query.answer()
+        await query.edit_message_text(texts.INCOME_HELP, parse_mode=ParseMode.HTML)
+        log_state_transition(PROCESS_INCOME)
+        return PROCESS_INCOME
+
+    if action in ("menu_add_spending", "back_to_categories"):
         log_function_call()
         repos = get_repos(context)
         language = context.user_data.get('language', 'en')

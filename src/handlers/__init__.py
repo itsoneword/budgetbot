@@ -51,6 +51,7 @@ from src.handlers.records import (
     show_last_month_records,
     start_income,
     process_income,
+    process_income_menu,
 )
 
 from src.handlers.menu import (
@@ -121,6 +122,7 @@ __all__ = [
     'show_last_month_records',
     'start_income',
     'process_income',
+    'process_income_menu',
     # Menu
     'show_menu',
     'menu_call',

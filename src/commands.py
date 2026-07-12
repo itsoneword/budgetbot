@@ -67,8 +67,8 @@ COMMANDS: Tuple[CommandSpec, ...] = (
     ),
     CommandSpec(
         "show_last", "latest_records",
-        "📋 Show last transactions, e.g. /show_last 10 or /show_last transport",
-        "📋 Показать последние транзакции, например /show_last 10 или /show_last транспорт",
+        "📋 Show last transactions, e.g. /show_last 10, /show_last transport or /show_last income",
+        "📋 Показать последние транзакции, например /show_last 10, /show_last транспорт или /show_last доход",
         section="stats",
     ),
     CommandSpec(
