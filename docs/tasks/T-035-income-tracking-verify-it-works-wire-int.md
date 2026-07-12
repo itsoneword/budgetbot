@@ -104,3 +104,11 @@ Risks: confirm-gate cross-talk (mitigated by vinc_ separation); delete_records b
 - [ ] `/ask add 300 eur income from trading` refusal now points to /income and text/voice entry
 - 2026-07-12 moved to review
 - 2026-07-12 owner-requested menu integration: Add-income button in Add-transaction submenu (PROCESS_INCOME state in main conversation), /show_last income for income IDs, INCOME_HELP updated
+
+### Menu integration (added 2026-07-12)
+- [ ] /menu → "💰 Add transaction" opens the section with Add spending / Add income / Recurring / Back
+- [ ] "💸 Add spending" opens the old category picker (unchanged flow)
+- [ ] "💵 Add income" shows the income prompt → typing `trading 300` saves income and returns to main menu
+- [ ] "🔁 Recurring" opens the rules view and its buttons work
+- [ ] Main menu no longer has a standalone Recurring row
+- [ ] `/show_last income` (and `/show_last доход`) lists income records with IDs; `/delete_income <that id>` works

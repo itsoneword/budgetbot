@@ -1,7 +1,7 @@
 ---
 id: T-036
 title: Main-menu Recurring button dead; relocate into Add-transaction section
-status: doing
+status: review
 type: bug
 area: bot
 priority: p1
@@ -22,3 +22,12 @@ Owner report 2026-07-11 (screenshot: full-width Recurring button in main menu, t
 - 2026-07-11 created
 - 2026-07-12 started
 - 2026-07-12 Recurring button relocated from main menu into new Add-transaction submenu (menu_add_transaction now opens spending/income/recurring section) — taps now always route via active-conversation menu_call
+
+## Testing
+
+- [ ] /menu main keyboard has no Recurring row anymore
+- [ ] "💰 Add transaction" → submenu shows Add spending / Add income / 🔁 Recurring / Back
+- [ ] Recurring button in the submenu opens the rules view (was dead in the main menu outside a conversation)
+- [ ] Back button returns to the main menu
+- [ ] Add-spending path is unchanged: categories → subcategories → amount → confirm
+- 2026-07-12 moved to review

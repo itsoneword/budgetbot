@@ -4,10 +4,10 @@
 
 Updated: 2026-07-12 · see docs/ROADMAP.md for milestones
 
-## Doing (1)
-- **T-036** `p1/bug/bot` Main-menu Recurring button dead; relocate into Add-transaction section — last: 2026-07-12 Recurring button relocated from main menu into new Add-transaction submenu (menu_add_transaction now opens spending/income/recurring section) — taps now always route via active-conversation menu_call
+## Doing (0)
+_empty_
 
-## Review (14)
+## Review (15)
 - **T-020** `p0/bug/bot` Fix show_last: Transaction attribute mismatch (tx.category vs category_name) — last: 2026-07-09 moved to review
 - **T-003** `p1/ops/bot` Replace print() with logger in runtime code — last: 2026-07-11 moved to review
 - **T-004** `p1/refactor/bot` Move chart rendering off the event loop — last: 2026-07-11 moved to review
@@ -18,6 +18,7 @@ Updated: 2026-07-12 · see docs/ROADMAP.md for milestones
 - **T-029** `p1/docs/bot` Docs catch-up: changelog, roadmap M4, README; enforce changelog on task done — last: 2026-07-11 moved to review
 - **T-033** `p1/bug/bot` Date prefix dd.mm assumes current year, creates future-dated transactions — last: 2026-07-11 moved to review
 - **T-035** `p1/feature/bot` Income tracking: verify it works, wire into voice/AI intents, income-vs-outcome analysis in /ask — last: 2026-07-11 created
+- **T-036** `p1/bug/bot` Main-menu Recurring button dead; relocate into Add-transaction section — last: 2026-07-12 Recurring button relocated from main menu into new Add-transaction submenu (menu_add_transaction now opens spending/income/recurring section) — taps now always route via active-conversation menu_call
 - **T-021** `p2/feature/bot` Sync bot menu commands with code (set_my_commands on startup) — last: 2026-07-11 acceptance boxes checked (static verification); Testing checklist appended; moved to review
 - **T-025** `p2/feature/bot` Admin panel commands: user data export + activity monitoring — last: 2026-07-11 created
 - **T-031** `p2/bug/bot` Fix /about panel: stale version, raw limit sentinel, dead settings buttons — last: 2026-07-11 moved to review
