@@ -9,7 +9,7 @@ deps: []
 tags: []
 blocked: 
 created: 2026-07-07
-updated: 2026-07-07
+updated: 2026-07-12
 ---
 
 ## Context
@@ -22,3 +22,43 @@ Only integration smoke script exists (scripts/test_repositories.py). domain/ is 
 
 ## Log
 - 2026-07-07 created from production-readiness T1 + O2
+
+## Implementation plan (proposed 2026-07-12)
+
+Design: pytest + pytest-asyncio, config in a root `pytest.ini` (repo has no pyproject.toml — don't introduce one for this), `testpaths = tests` + `pythonpath = .` (pytest 7+ built-in; matches `run.py`'s sys.path-root convention and keeps discovery away from `scripts/test_repositories.py`, `.venv/`, `pgdata/`, and `.claude/worktrees/`). Tests run with no PostgreSQL and no Telegram: `domain/` imports only stdlib + `domain.models`, so domain tests need literally nothing beyond pytest; `session_loader` gets hand-written async fake repos (plain classes, not MagicMock — the repo container is just `repos.users.get_config` / `repos.categories.get_dictionary` / transactions fetchers). CI is a new GitHub Actions workflow (remote is GitHub and Actions is already in use for deploy) gating PRs to main alongside the existing `deploy-test.yml` docker smoke.
+
+Domain modules ranked by test value (what exists today):
+1. `domain/filters.py` (607 lines, ~23 functions) — feeds every report, chart, and limit warning. Highest value: `filter_by_period` window edges for all six periods (`3m/6m/12m/ytd/current_month/last_month`, month boundaries, tz-aware timestamps), Decimal aggregation (`get_total`, `get_sum_per_category/_subcategory`), `calculate_limit_usage`, `calculate_prediction`, `calculate_daily_average*`, `get_period_summary`/`get_last_month_summary`, `create_tx_display_mapping`.
+2. `domain/validation.py` — `resolve_backdated_year` / `clamp_future_timestamp`: the T-033 regression surface; Dec-31/Jan-1 rollover, leap day, explicit-future-year passthrough.
+3. `domain/recurring.py` — `due_date_for` (day-31-in-Feb clamping via calendar), `is_due` (once-per-month semantics), `validate_rule_input`. Bugs here double-post money.
+4. `domain/intent.py` — `parse_intent_response` over messy LLM output: fenced JSON, surrounding prose, unknown intent names, malformed JSON → fallback intent.
+5. `domain/session_loader.py` — async orchestration: default `UserConfig` when `get_config` returns None, months→`transactions_since` arithmetic, `transaction_type` passthrough, `Transaction.from_repo` conversion, `load_minimal_session` / `refresh_transactions`.
+6. `domain/export.py` — `render_transactions_csv`: column order is a contract with `scripts/migrate_csv_to_postgres.py` re-import; quoting, Decimal formatting.
+7. `domain/admin_stats.py` — `chunk_lines` at the 4096 Telegram boundary, `count_new_users`, `compute_usage_stats`, `latest_names_by_user`.
+8. `domain/ask_summary.py` — `build_finance_summary`: assert key figures/months present, not full-string snapshots (copy churns).
+(`domain/models/user_session.py` gets covered incidentally via a shared `make_tx()` factory; `domain/reminders.py` doesn't exist yet — its tests land with T-034.)
+
+Steps:
+1. `requirements-dev.txt` (new, root): `pytest~=8.3`, `pytest-asyncio~=0.25`, `pytest-cov~=6.0`, `freezegun~=1.5`. Comment header: dev/CI only, never installed in the Docker image.
+2. `pytest.ini` (new, root): `testpaths = tests`, `pythonpath = .`, `asyncio_mode = auto` (kills per-test `@pytest.mark.asyncio` boilerplate), `filterwarnings = error::RuntimeWarning:tests` guard for un-awaited coroutines in fakes.
+3. `tests/conftest.py` (new): `make_tx(**overrides)` factory returning a `Transaction` with sane defaults (Decimal amounts, tz-aware UTC timestamps); `make_session(...)`; `FakeRepos` — plain object with `users`/`categories`/`transactions`/`incomes` stubs whose async methods return canned data and record calls. No mock library.
+4. `tests/domain/test_filters.py` — the bulk of the suite; every `filter_by_period` period pinned with `reference_date` (the function already takes it — no clock patching needed), aggregation/limit/prediction cases per ranking above.
+5. `tests/domain/test_validation.py`, `test_recurring.py`, `test_intent.py`, `test_export.py`, `test_admin_stats.py`, `test_ask_summary.py` — pure-function cases per ranking; all clocks passed explicitly where signatures allow (`resolve_backdated_year(ts, now=...)`, `is_due(rule, today)`).
+6. `tests/domain/test_session_loader.py` — async tests against `FakeRepos`: config-missing default path, window arithmetic, type filter, from_repo mapping, refresh path.
+7. `tests/src/test_save_transaction_parsing.py` — the acceptance's parser tests: `process_income_input` (2/3-part forms, date-vs-category disambiguation), `_parse_income_date` (dd.mm explicit parse, backdated-year rollback, garbage → None), `_parse_date_to_utc`, and `process_transaction_input_async` with a fake `repos.categories` (`find_category_by_subcategory`, `add_subcategory`) covering multi-line-part counts, date-prefix detection, unknown-category → `other`/`unknown_cat=True`. These functions use `datetime.now()` internally — freeze with freezegun. Importing `src.save_transaction` pulls `telegram`+`asyncpg` (import-time only, no connection) — fine, CI installs full requirements.
+8. `.github/workflows/tests.yml` (new): `on: [push, pull_request]` targeting main; ubuntu-latest, `actions/setup-python@v5` python 3.12 (matches Dockerfile) with `cache: pip`; `pip install -r requirements.txt -r requirements-dev.txt`; `pytest -q --cov=domain --cov-report=term`. No coverage `--cov-fail-under` in v1.
+9. Docs: add a "Unit tests" subsection next to "Smoke tests" in `docs/project.md` (`pip install -r requirements-dev.txt && pytest`); one-liner in `docs/DECISIONS.md` (pytest+Actions, no coverage gate v1 / why / rejected: coverage threshold, tests-in-docker-build).
+10. Owner action (not a file change): after first green run, mark the `tests` job a required status check on main in GitHub branch protection — that's what actually gates merges; `deploy-test.yml` stays as the separate docker smoke.
+
+Touched files: new `requirements-dev.txt`, `pytest.ini`, `tests/conftest.py`, `tests/domain/test_{filters,validation,recurring,intent,export,admin_stats,ask_summary,session_loader}.py`, `tests/src/test_save_transaction_parsing.py`, `.github/workflows/tests.yml`; modified `docs/project.md`, `docs/DECISIONS.md`. No production code changes.
+
+Open questions (recommended defaults):
+1. Coverage gate → none in v1; print `--cov=domain` in CI output, add `--cov-fail-under` later once the suite stabilizes.
+2. CI dependency install → full `requirements.txt` with pip cache (~2–3 min cold, robust) rather than a hand-curated import-closure subset that breaks silently when imports move.
+3. freezegun for `datetime.now()`-dependent parser tests → yes (dev-only dep; alternative is date-relative assertions that flake at month/year boundaries).
+4. Extract pure parsers out of `src/save_transaction.py` into `domain/` first → no; test them in place, extraction belongs to T-030 (module split) and tests will survive the move via updated imports.
+5. Trigger scope for tests.yml → push to any branch + PRs to main (acceptance says "on push"; cheap either way).
+6. Branch protection required check → yes, owner enables after first green run (cannot be set from repo files).
+
+Risks: clock-dependent tests are the main flake source — every domain function that accepts `reference_date`/`now`/`today` gets it pinned, and the only `datetime.now()`-internal code under test (income date parsing) is frozen with freezegun, so boundary flakes are designed out rather than tolerated; CI installing the full requirements set means an upstream wheel/pin breakage (e.g. `faster-whisper`, `claude-agent-sdk`) fails the tests job for non-test reasons — arguably early warning, but it can block unrelated merges (fallback: flip to the curated-subset install, open question 2); importing `src.save_transaction` executes module-level code (`from src.states import *`, keyboards, DI module) — it currently imports clean without env vars, but if that ever grows import-time config reads the parser tests break first (which is also the T-030 extraction signal); pytest discovery must not collect `scripts/test_repositories.py` (needs a live DB) — `testpaths = tests` handles it, don't run bare `pytest scripts/`; committed `__pycache__/` dirs can shadow moved modules in local runs — CI's clean checkout is the source of truth.
+- 2026-07-12 Implementation plan proposed (pytest+pytest-asyncio, pytest.ini, fake repos, parser tests in place, tests.yml workflow); 6 open questions with defaults pending owner batch
