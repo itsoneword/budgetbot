@@ -32,3 +32,8 @@ def is_llm_allowed(user_id: int) -> bool:
 
 # UTC hour at which the daily recurring-transactions job runs (T-026).
 RECURRING_HOUR_UTC = int(os.getenv("RECURRING_HOUR_UTC", "6"))
+
+# Error aggregation (T-011): optional Sentry, opt-in via env. Empty DSN =
+# disabled — src/observability.py then never even imports sentry_sdk.
+SENTRY_DSN = os.getenv("SENTRY_DSN", "")
+SENTRY_ENVIRONMENT = os.getenv("SENTRY_ENVIRONMENT", "prod")
