@@ -56,6 +56,8 @@ docker compose up -d --build
 
 Set `POSTGRES_PASSWORD` in `.env` for anything beyond local testing. Postgres data persists in `./pgdata`. The optional AI features (/ask, voice routing) expect a Claude CLI + credentials mounted into the container — see `docker-compose.yml` comments.
 
+Optional: set `SENTRY_DSN` in `.env` to enable Sentry error reporting (`SENTRY_ENVIRONMENT` defaults to `prod`). Leave it unset to run without Sentry — the SDK is never even imported.
+
 ### Run locally
 
 1. Install dependencies:

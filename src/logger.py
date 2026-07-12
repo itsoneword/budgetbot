@@ -6,6 +6,8 @@ import functools
 import sys
 from logging.handlers import TimedRotatingFileHandler
 
+import structlog
+
 # Global settings
 class LogConfig:
     """Central configuration for all logging functionality"""
@@ -63,6 +65,52 @@ root_logger = logging.getLogger()
 user_logger = logging.getLogger("user_interactions")
 user_logger.propagate = False  # Don't propagate to root logger
 
+
+# Processors applied to stdlib LogRecords before JSON rendering (T-011).
+# Structured logging happens at the formatter layer, so every existing
+# logging.getLogger(__name__) call site keeps working unchanged.
+_FOREIGN_PRE_CHAIN = [
+    structlog.contextvars.merge_contextvars,
+    structlog.stdlib.add_log_level,
+    structlog.processors.TimeStamper(fmt="iso", utc=True),
+    structlog.stdlib.add_logger_name,
+    structlog.stdlib.ExtraAdder(),
+    structlog.processors.format_exc_info,
+]
+
+
+def _build_stdout_json_formatter() -> "structlog.stdlib.ProcessorFormatter":
+    """One JSON object per line on stdout; stdlib records go through _FOREIGN_PRE_CHAIN."""
+    return structlog.stdlib.ProcessorFormatter(
+        processors=[
+            structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+            structlog.processors.JSONRenderer(default=str),
+        ],
+        foreign_pre_chain=_FOREIGN_PRE_CHAIN,
+    )
+
+
+def _configure_structlog_once():
+    """Route future structlog-native calls into the same stdlib handlers.
+
+    Guarded so the /debug toggle (which re-runs setup_logging) doesn't
+    reconfigure structlog on every flip.
+    """
+    if structlog.is_configured():
+        return
+    structlog.configure(
+        processors=[
+            structlog.contextvars.merge_contextvars,
+            structlog.stdlib.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso", utc=True),
+            structlog.stdlib.add_logger_name,
+            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+        ],
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
+    )
+
 def setup_logging(debug_level="INFO"):
     """Set up the logging system with the specified debug level
     
@@ -89,40 +137,44 @@ def setup_logging(debug_level="INFO"):
         user_logger.removeHandler(handler)
     
     # === Configure root logger ===
-    
+
+    # Console handler first — always JSON (T-011): stdout is the primary sink
+    # for `docker logs` and log watchers, so parsers never break, even when
+    # /debug toggles verbosity. Humans read app.log. Added BEFORE the file
+    # handler: the stdlib file Formatter stamps message/asctime attributes on
+    # the shared LogRecord, which ExtraAdder would surface as spurious JSON keys.
+    console_handler = logging.StreamHandler(sys.stdout)
+
+    if LogConfig.DEBUG_MODE:
+        console_handler.setLevel(logging.DEBUG)
+        root_logger.setLevel(logging.DEBUG)
+
+        # Add filter to console handler
+        console_handler.addFilter(DebugFilter())
+    else:
+        console_handler.setLevel(logging.INFO)
+        root_logger.setLevel(logging.INFO)
+
+    console_handler.setFormatter(_build_stdout_json_formatter())
+    root_logger.addHandler(console_handler)
+    _configure_structlog_once()
+
     # Set up file handler for application logging
     app_log_path = os.path.join(LogConfig.LOG_DIR, LogConfig.APP_LOG_FILE)
     file_handler = TimedRotatingFileHandler(
         app_log_path,
-        when="m",
-        interval=10,
-        backupCount=5
+        when="D",
+        backupCount=7
     )
-    
+
     # Set the file handler level - use DEBUG level if in debug mode
     file_handler.setLevel(logging.DEBUG if LogConfig.DEBUG_MODE else logging.INFO)
     file_formatter = logging.Formatter(LogConfig.STANDARD_FORMAT)
     file_handler.setFormatter(file_formatter)
     root_logger.addHandler(file_handler)
-    
-    # Add console handler
-    console_handler = logging.StreamHandler(sys.stdout)
-    
+
     if LogConfig.DEBUG_MODE:
-        console_handler.setLevel(logging.DEBUG)
-        root_logger.setLevel(logging.DEBUG)
-        console_formatter = logging.Formatter(LogConfig.DEBUG_FORMAT)
         logging.info("Debug mode is ON - verbose logging enabled")
-        
-        # Add filter to console handler
-        console_handler.addFilter(DebugFilter())
-    else:
-        console_handler.setLevel(logging.WARNING)
-        root_logger.setLevel(logging.INFO)
-        console_formatter = logging.Formatter(LogConfig.STANDARD_FORMAT)
-    
-    console_handler.setFormatter(console_formatter)
-    root_logger.addHandler(console_handler)
     
     # === Configure user interaction logger ===
     user_log_path = os.path.join(LogConfig.LOG_DIR, LogConfig.USER_LOG_FILE)

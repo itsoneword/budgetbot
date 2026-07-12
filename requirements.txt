@@ -26,6 +26,9 @@ aiofiles==23.2.1
 
 # Logging (Phase 2+)
 structlog==24.1.0
+# Error aggregation (T-011) — dormant unless SENTRY_DSN is set; stdlib
+# LoggingIntegration is built in, no extras needed.
+sentry-sdk~=2.0
 # AI Q&A /ask (T-018) — uses Claude Code subscription OAuth via mounted CLI
 claude-agent-sdk>=0.1.80,<0.2
 mcp>=1.20

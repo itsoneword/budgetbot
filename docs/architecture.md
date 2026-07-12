@@ -180,16 +180,18 @@ The container is stashed in `application.bot_data['di_container']` so every hand
 
 All states live in `src/states.py`. `core.py:main()` wires one big `ConversationHandler` covering ~25 states for: onboarding, transaction entry, category management, task (subcategory) management, settings, detailed-history browsing, and edit/delete flows. Reentry is allowed (`allow_reentry=True`) and `/cancel` is the universal fallback.
 
-## 10. Logging
+## 10. Logging & observability
 
 `src/logger.py` configures three sinks:
-- `app.log` — application logs (TimedRotatingFileHandler).
+- stdout — one JSON object per line (structlog `ProcessorFormatter` on the handler; call sites keep plain `logging.getLogger(__name__)`), INFO and up. Primary sink for `docker logs` and log watchers; stays JSON even in debug mode so parsers never break. `extra=` fields and tracebacks become JSON keys.
+- `app.log` — human-readable text (TimedRotatingFileHandler, daily rotation, 7 days kept).
 - `user_log.csv` — per-interaction CSV row (used to render usage charts).
-- stdout — for container `docker logs`.
 
 A debug flag in `configs/config` toggles verbosity at runtime; `/debug` (admin only) flips it.
 
-Note: `structlog` is in `requirements.txt` but not actually wired up — see production-readiness.md.
+Sentry (`src/observability.py`) is opt-in via the `SENTRY_DSN` env var: when set, stdlib `LoggingIntegration` turns ERROR logs (incl. `global_error_handler`) into Sentry events and INFO+ into breadcrumbs; when unset, `sentry_sdk` is never imported.
+
+Liveness: a JobQueue heartbeat (`src/health.py`) runs `SELECT 1` on the pool and touches `/tmp/budgetbot-heartbeat` every 60s; the docker-compose healthcheck marks the container unhealthy when the file is older than 180s (proves event loop + JobQueue + DB in one signal).
 
 ## 11. Deployment (current)
 

@@ -15,6 +15,8 @@ from src.commands import COMMANDS, build_help_text, sync_bot_commands
 # the registry loop resolves CommandSpec.handler names from this module's globals.
 from src.handlers.recurring import recurring_command, handle_recurring_callback
 from src.scheduler import run_recurring_rules
+from src.observability import init_sentry
+from src.health import heartbeat
 
 # Domain layer - batch fetch + filter
 from domain.session_loader import load_user_session
@@ -691,15 +693,27 @@ async def ask(update: Update, context: CallbackContext):
 
 async def global_error_handler(update: object, context) -> None:
     """Log unhandled handler exceptions with user context; send a short apology to the user."""
-    user_ctx = ""
+    user_id = None
+    user_input = None
+    callback = None
     if isinstance(update, Update) and update.effective_user:
-        user_ctx = f" [user_id={update.effective_user.id}"
+        user_id = update.effective_user.id
         if update.effective_message and update.effective_message.text:
-            user_ctx += f", input={update.effective_message.text!r}"
+            user_input = update.effective_message.text
         elif update.callback_query and update.callback_query.data:
-            user_ctx += f", callback={update.callback_query.data!r}"
-        user_ctx += "]"
-    logging.error(f"Unhandled exception{user_ctx}", exc_info=context.error)
+            callback = update.callback_query.data
+    # Structured fields (T-011): ExtraAdder surfaces them as JSON keys on
+    # stdout and Sentry attaches them as event extras.
+    logging.error(
+        "Unhandled exception",
+        exc_info=context.error,
+        extra={
+            "user_id": user_id,
+            "user_input": user_input,
+            "callback": callback,
+            "job": context.job.name if getattr(context, "job", None) else None,
+        },
+    )
 
     if isinstance(update, Update) and update.effective_message:
         try:
@@ -716,6 +730,9 @@ async def on_post_init(application: Application) -> None:
 
 
 def main():
+    # Error aggregation (T-011): no-op unless SENTRY_DSN is set.
+    init_sentry()
+
     # Build application with database container lifecycle hooks
     application = (
         Application.builder()
@@ -973,6 +990,10 @@ def main():
         name="recurring_rules_daily",
     )
     application.job_queue.run_once(run_recurring_rules, 60, name="recurring_rules_catchup")
+
+    # Liveness heartbeat (T-011): SELECT 1 + touch /tmp/budgetbot-heartbeat
+    # every 60s; the docker-compose healthcheck watches the file's mtime.
+    application.job_queue.run_repeating(heartbeat, interval=60, first=10, name="heartbeat")
 
     application.run_polling()
 
