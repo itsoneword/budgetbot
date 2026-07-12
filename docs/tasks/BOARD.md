@@ -2,21 +2,20 @@
 
 # Task Board
 
-Updated: 2026-07-08 · see docs/ROADMAP.md for milestones
+Updated: 2026-07-12 · see docs/ROADMAP.md for milestones
 
-## Doing (0)
-_empty_
+## Doing (1)
+- **T-010** `p2/ops/infra` Currency API circuit breaker — last: 2026-07-07 created from production-readiness P4
 
 ## Review (0)
 _empty_
 
-## Todo (7)
+## Todo (6)
 - **T-003** `p1/ops/bot` Replace print() with logger in runtime code
 - **T-004** `p1/refactor/bot` Move chart rendering off the event loop
 - **T-005** `p1/ops/db` Adopt alembic for schema migrations
 - **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating
 - **T-007** `p1/ops/db` Automated Postgres backups
-- **T-010** `p2/ops/infra` Currency API circuit breaker
 - **T-011** `p2/ops/obs` Observability: structured logs, Sentry, health check
 
 ## Backlog (10)

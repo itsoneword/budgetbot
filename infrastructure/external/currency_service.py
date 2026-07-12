@@ -8,8 +8,10 @@ import os
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Dict, Optional
+import httpx
 import pandas as pd
 
+from shared.utils.circuit_breaker import CircuitBreaker
 from src.logger import log_debug
 
 # Path to fallback config (relative to project root)
@@ -25,57 +27,98 @@ class CurrencyService:
     # Supported currency pairs (base is always USD)
     SUPPORTED_CURRENCIES = ['EUR', 'RUB', 'AMD', 'USD', 'THB']
     CACHE_TTL_HOURS = 12
+    API_URL = "https://open.er-api.com/v6/latest/USD"
+    API_TIMEOUT_SECONDS = 3
+    BREAKER_FAILURE_THRESHOLD = 2
+    BREAKER_COOLDOWN_SECONDS = 900  # 15 min: failed API stays untouched this long
 
     def __init__(self, db_pool):
         self.db_pool = db_pool
         self._cache: Dict[str, Decimal] = {}
-        self._cache_time: Optional[datetime] = None
+        # Age of the cached data itself (API fetch time, or min(last_updated)
+        # for DB rows). None = nothing cached / config defaults.
+        self._rates_as_of: Optional[datetime] = None
+        self._flight_lock = asyncio.Lock()
+        self._breaker = CircuitBreaker(
+            failure_threshold=self.BREAKER_FAILURE_THRESHOLD,
+            cooldown_seconds=self.BREAKER_COOLDOWN_SECONDS,
+        )
 
     async def get_rates(self) -> Dict[str, Decimal]:
         """
         Get exchange rates, fetching from API if cache is stale.
         Returns dict like {'USDEUR': 0.92, 'USDRUB': 90.0, ...}
+
+        Never raises past the fallback chain:
+        fresh memory -> fresh DB -> API -> stale DB -> stale memory -> config defaults.
         """
-        # Check memory cache first
+        # Check memory cache first (fast path, no lock)
         if self._is_cache_valid():
             return self._cache
 
-        # Try to load from DB
-        rates = await self._load_from_db()
+        # Single-flight: one caller refreshes, followers ride its result
+        async with self._flight_lock:
+            # Re-check after acquiring - the leader may have refreshed already
+            if self._is_cache_valid():
+                return self._cache
 
-        # Check if DB rates are fresh enough
-        if rates and self._is_db_cache_valid(rates.get('_last_updated')):
-            self._update_memory_cache(rates)
-            return self._cache
+            # Try to load from DB
+            rates = await self._load_from_db()
 
-        # Fetch fresh rates from API
-        fresh_rates = await self._fetch_from_api()
-        if fresh_rates:
-            await self._save_to_db(fresh_rates)
-            self._update_memory_cache(fresh_rates)
-            return self._cache
+            # Check if DB rates are fresh enough
+            if rates and self._is_db_cache_valid(rates.get('_last_updated')):
+                self._update_memory_cache(rates, as_of=rates.get('_last_updated'))
+                return self._cache
 
-        # Fallback to whatever we have
-        if rates:
-            self._update_memory_cache(rates)
-            return self._cache
+            # Fetch fresh rates from API unless the breaker is open
+            if self._breaker.allow():
+                fresh_rates = await self._fetch_from_api()
+                if fresh_rates:
+                    self._breaker.record_success()
+                    await self._save_to_db(fresh_rates)
+                    self._update_memory_cache(
+                        fresh_rates, as_of=datetime.now(timezone.utc)
+                    )
+                    return self._cache
+                self._breaker.record_failure()
 
-        # Ultimate fallback - hardcoded defaults
-        return self._get_default_rates()
+            # Fallback to stale DB rows
+            if rates:
+                self._update_memory_cache(rates, as_of=rates.get('_last_updated'))
+                return self._cache
+
+            # Stale memory cache beats config defaults
+            if self._cache:
+                return self._cache
+
+            # Ultimate fallback - config defaults (unknown age)
+            return self._get_default_rates()
+
+    def rates_age(self) -> Optional[timedelta]:
+        """Age of the currently cached rates; None if unknown (config defaults)."""
+        if self._rates_as_of is None:
+            return None
+        return datetime.now(timezone.utc) - self._rates_as_of
+
+    @staticmethod
+    def _ensure_utc(dt: Optional[datetime]) -> Optional[datetime]:
+        """Treat naive DB timestamps as UTC."""
+        if dt is not None and dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt
 
     def _is_cache_valid(self) -> bool:
-        """Check if memory cache is still valid."""
-        if not self._cache or not self._cache_time:
+        """Check if memory cache holds fresh-enough data (keyed off data age)."""
+        if not self._cache or not self._rates_as_of:
             return False
-        age = datetime.now(timezone.utc) - self._cache_time
+        age = datetime.now(timezone.utc) - self._rates_as_of
         return age < timedelta(hours=self.CACHE_TTL_HOURS)
 
     def _is_db_cache_valid(self, last_updated: Optional[datetime]) -> bool:
         """Check if DB cache is fresh enough."""
         if not last_updated:
             return False
-        if last_updated.tzinfo is None:
-            last_updated = last_updated.replace(tzinfo=timezone.utc)
+        last_updated = self._ensure_utc(last_updated)
         age = datetime.now(timezone.utc) - last_updated
         return age < timedelta(hours=self.CACHE_TTL_HOURS)
 
@@ -152,55 +195,33 @@ class CurrencyService:
         return rates
 
     async def _fetch_from_api(self) -> Optional[Dict[str, Decimal]]:
-        """Fetch fresh exchange rates from API."""
+        """Fetch fresh exchange rates from API. Returns None on any failure."""
         try:
-            import aiohttp
-            api_url = "https://open.er-api.com/v6/latest/USD"
+            async with httpx.AsyncClient(timeout=self.API_TIMEOUT_SECONDS) as client:
+                response = await client.get(self.API_URL)
+                if response.status_code != 200:
+                    log_debug(f"API returned status {response.status_code}")
+                    return None
 
-            async with aiohttp.ClientSession() as session:
-                async with session.get(api_url, timeout=10) as response:
-                    if response.status != 200:
-                        log_debug(f"API returned status {response.status}")
-                        return None
+                data = response.json()
+                if data.get("result") != "success":
+                    log_debug(f"API returned error: {data}")
+                    return None
 
-                    data = await response.json()
-                    if data.get("result") != "success":
-                        log_debug(f"API returned error: {data}")
-                        return None
-
-                    api_rates = data.get("rates", {})
-                    rates = self._build_rates_from_api(api_rates)
-                    log_debug(f"Fetched fresh exchange rates from API: {rates}")
-                    return rates
-        except ImportError:
-            # aiohttp not installed, try sync requests
-            return await asyncio.to_thread(self._fetch_from_api_sync)
+                api_rates = data.get("rates", {})
+                rates = self._build_rates_from_api(api_rates)
+                log_debug(f"Fetched fresh exchange rates from API: {rates}")
+                return rates
         except Exception as e:
             log_debug(f"Error fetching exchange rates from API: {e}")
             return None
 
-    def _fetch_from_api_sync(self) -> Optional[Dict[str, Decimal]]:
-        """Synchronous fallback for API fetch."""
-        try:
-            import requests
-            api_url = "https://open.er-api.com/v6/latest/USD"
-            response = requests.get(api_url, timeout=10)
-            response.raise_for_status()
-
-            data = response.json()
-            if data.get("result") != "success":
-                return None
-
-            api_rates = data.get("rates", {})
-            return self._build_rates_from_api(api_rates)
-        except Exception as e:
-            log_debug(f"Error in sync API fetch: {e}")
-            return None
-
-    def _update_memory_cache(self, rates: Dict[str, Decimal]) -> None:
-        """Update the in-memory cache."""
+    def _update_memory_cache(
+        self, rates: Dict[str, Decimal], as_of: Optional[datetime]
+    ) -> None:
+        """Update the in-memory cache, stamping the age of the data itself."""
         self._cache = {k: v for k, v in rates.items() if not k.startswith('_')}
-        self._cache_time = datetime.now(timezone.utc)
+        self._rates_as_of = self._ensure_utc(as_of)
 
     def _get_default_rates(self) -> Dict[str, Decimal]:
         """Load fallback rates from config file (configs/currency_defaults.json)."""

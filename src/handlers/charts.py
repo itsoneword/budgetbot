@@ -4,6 +4,8 @@ Chart handlers for generating and sending transaction visualizations.
 Handles: monthly charts, extended charts, yearly pie charts.
 """
 
+from datetime import timedelta
+
 from telegram import Update, InputMediaPhoto
 from telegram.ext import CallbackContext
 
@@ -17,6 +19,18 @@ from src.charts import (
     monthly_ext_pivot_chart,
     make_yearly_pie_chart,
 )
+
+# Charts get a stale-rates caption when the cached exchange rates are older than this
+STALE_RATES_MAX_AGE_HOURS = 48
+
+
+def _stale_rates_caption(update: Update, context: CallbackContext, repos) -> str | None:
+    """Caption warning about stale exchange rates, or None when rates are fresh."""
+    age = repos.currency.rates_age()
+    if age is None or age <= timedelta(hours=STALE_RATES_MAX_AGE_HOURS):
+        return None
+    texts = check_language(update, context)
+    return texts.RATES_STALE_NOTE.format(hours=int(age.total_seconds() // 3600))
 
 
 async def send_chart(update: Update, context: CallbackContext) -> None:
@@ -36,12 +50,12 @@ async def send_chart(update: Update, context: CallbackContext) -> None:
     pivot_chart = monthly_pivot_chart(user_id, data=data, user_currency=user_currency)
     line_chart = monthly_line_chart(user_id, data=data, user_currency=user_currency)
 
-    # Create media group from BytesIO objects
+    # Create media group from BytesIO objects (stale-rates note on the first photo)
+    stale_note = _stale_rates_caption(update, context, repos)
     media = []
-    if pivot_chart:
-        media.append(InputMediaPhoto(pivot_chart))
-    if line_chart:
-        media.append(InputMediaPhoto(line_chart))
+    for chart in (pivot_chart, line_chart):
+        if chart:
+            media.append(InputMediaPhoto(chart, caption=stale_note if not media else None))
 
     if media:
         await context.bot.send_media_group(chat_id=update.effective_chat.id, media=media)
@@ -67,7 +81,10 @@ async def send_ext_chart(update: Update, context: CallbackContext) -> None:
     ext_chart = monthly_ext_pivot_chart(user_id, data=data, user_currency=user_currency)
 
     if ext_chart:
-        await context.bot.send_photo(chat_id=update.effective_chat.id, photo=ext_chart)
+        stale_note = _stale_rates_caption(update, context, repos)
+        await context.bot.send_photo(
+            chat_id=update.effective_chat.id, photo=ext_chart, caption=stale_note
+        )
     else:
         texts = check_language(update, context)
         await update.message.reply_text(texts.NO_DATA)
@@ -97,11 +114,12 @@ async def send_yearly_piechart(update: Update, context: CallbackContext) -> None
         await update.message.reply_text(texts.NO_YEARLY_DATA)
         return
 
-    # Build media group from BytesIO objects
+    # Build media group from BytesIO objects (stale-rates note on the first photo)
+    stale_note = _stale_rates_caption(update, context, repos)
     media = []
     for i, chart_buf in enumerate(all_charts):
         try:
-            media.append(InputMediaPhoto(chart_buf))
+            media.append(InputMediaPhoto(chart_buf, caption=stale_note if not media else None))
             log_debug(f"Added chart {i+1}/{len(all_charts)} to media group")
         except Exception as e:
             log_debug(f"Error adding chart {i+1} to media group: {e}")

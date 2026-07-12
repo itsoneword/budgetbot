@@ -305,3 +305,5 @@ YEAR_TO_DATE_BUTTON = "Year to date"
 SELECT_ALL_BUTTON = "✅ Select All"
 CONTINUE_BUTTON = "▶️ Continue"
 VIEW_TRANSACTIONS_BUTTON = "📋 View Transactions"
+
+RATES_STALE_NOTE = "⚠️ Exchange rates are {hours}h old — converted amounts may be slightly off."
