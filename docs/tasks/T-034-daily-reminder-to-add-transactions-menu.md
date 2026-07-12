@@ -1,7 +1,7 @@
 ---
 id: T-034
 title: Daily reminder to add transactions (menu + voice), per-user timezone
-status: todo
+status: doing
 type: feature
 area: bot
 priority: p1
@@ -9,14 +9,22 @@ deps: []
 tags: []
 blocked: 
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-12
 ---
 
 ## Context
 Owner request 2026-07-11: 'remind me to add transactions every day at 5 pm' — a per-user daily reminder configured from the main menu AND via the voice/AI channel (new intent). Requires per-user timezone setting (users table column + onboarding/menu setting; relates to T-014 timezone cleanup). Scheduler: reuse the T-026 JobQueue pattern (daily sweep over reminder rows, or per-user jobs). Also relevant to T-027 (AI channel managing scheduled things). Needs planning wave before implementation.
 
 ## Acceptance
-- [ ] TODO
+- [ ] Alembic 0005 (off 0004): user_configs.tz_offset_min SMALLINT CHECK(-720..840) + reminders table (kind, time_local, active, last_sent_on, UNIQUE(user_id, kind)) with partial active index; downgrade reverses
+- [ ] ReminderRepository: upsert (ON CONFLICT DO UPDATE, re-activates), get_for_user, set_active, delete, get_active_with_tz (JOIN user_configs), atomic claim_send (rowcount UPDATE, last_sent_on < local_date); DI property repos.reminders
+- [ ] UserRepository.update_tz_offset + tz_offset_min in UserConfig; TransactionRepository.has_transaction_since(user_id, utc_start)
+- [ ] domain/reminders.py pure: is_due(reminder, tz_offset_min, now_utc) -> Optional[local_date], local_day_start_utc, parse_reminder_time ("HH:MM" or bare "17"), build_offset_candidates(now_utc), no I/O or Telegram types
+- [ ] scheduler.run_reminders: get_active_with_tz -> is_due -> claim_send FIRST -> skip-if-logged -> send in user language, Forbidden caught per user; registered run_repeating(REMINDER_SWEEP_SECONDS default 300, first=90)
+- [ ] /reminder: status view + preset keyboard (09/12/17/20/21 + off), args path (HH:MM | off); ^rem_ and ^tzpick_ callbacks registered BEFORE spendings_handler; lazy one-tap tz picker with pending-time stash; internal action API (set_reminder/disable_reminder/get_reminder)
+- [ ] Menu: reminder button (menu_reminder) in main menu + timezone button (settings_timezone) in settings keyboard, branches in handlers/menu.py
+- [ ] Voice: INTENT_SET_REMINDER, payload "HH:MM"|"off" strictly validated, routed via _inject_text("/reminder <payload>"); no extra gating
+- [ ] Registry row for /reminder; all copy in BOTH texts.py and texts_ru.py; two DECISIONS.md one-liners (sweep-vs-jobs, offset-vs-IANA) dated 2026-07-12
 
 ## Log
 - 2026-07-11 created
@@ -45,3 +53,4 @@ Open questions (recommended defaults):
 Risks: DST drift (fixed offset shifts 1h twice/year — accepted v1, upgrade path to IANA column changes only is_due input; confirm message says "re-set if clocks change"); Forbidden caught per user (claim consumed = correct, no all-day retries of blocked users); ^rem registration order before spendings_handler; sweep fires up to 5 min late (irrelevant for daily nudge).
 
 **Owner decisions 2026-07-11:** all defaults accepted (one-tap offset picker; skip-if-logged on; default 17:00; no extra voice gating). Sequencing: LAST in the intent chain (T-035 → T-027 → T-034).
+- 2026-07-12 started

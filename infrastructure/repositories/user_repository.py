@@ -39,9 +39,11 @@ class UserConfig:
     currency: str = 'EUR'
     monthly_limit: Decimal = Decimal('99999999.00')
     name: Optional[str] = None
+    # Fixed UTC offset in minutes for reminders (T-034); None = UTC/unset.
+    tz_offset_min: Optional[int] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    
+
     @classmethod
     def from_record(cls, record: asyncpg.Record) -> 'UserConfig':
         return cls(
@@ -50,6 +52,7 @@ class UserConfig:
             currency=record.get('currency', 'EUR'),
             monthly_limit=record.get('monthly_limit', Decimal('99999999.00')),
             name=record.get('name'),
+            tz_offset_min=record.get('tz_offset_min'),
             created_at=record.get('created_at'),
             updated_at=record.get('updated_at'),
         )
@@ -232,6 +235,16 @@ class UserRepository(BaseRepository[User]):
         result = await self.execute(query, monthly_limit, user_id)
         return result == "UPDATE 1"
     
+    async def update_tz_offset(self, user_id: int, tz_offset_min: int) -> bool:
+        """Update user's fixed UTC offset in minutes (T-034 reminders)."""
+        query = """
+            UPDATE user_configs
+            SET tz_offset_min = $1, updated_at = NOW()
+            WHERE user_id = $2
+        """
+        result = await self.execute(query, tz_offset_min, user_id)
+        return result == "UPDATE 1"
+
     async def update_name(self, user_id: int, name: str) -> bool:
         """Update user's display name."""
         query = """
