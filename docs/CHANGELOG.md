@@ -7,6 +7,7 @@ under `## Unreleased` by `python3 scripts/tasks.py done T-NNN --changelog "..."`
 
 ## Unreleased
 
+- 2026-07-12 T-035: Income tracking works end-to-end: /income inline args, type-safe /delete_income, voice/text add_income intent with confirm, /ask income-vs-spending analysis, Add-income menu button, /show_last income
 - 2026-07-11 release designation 0.3.0: version now a single constant in src/config.py (VERSION/VERSION_DATE), displayed by /about (T-031).
 
 ## 2026-07 — Task-tracked development

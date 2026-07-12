@@ -446,7 +446,8 @@ async def latest_records(update: Update, context):
             for tx in transactions
         ]
         
-        records_message = texts.LAST_RECORDS.format(total_amount, "\n".join(records))
+        template = texts.LAST_RECORDS_INCOME if tx_type == 'income' else texts.LAST_RECORDS
+        records_message = template.format(total_amount, "\n".join(records))
         if update.callback_query:
             await update.callback_query.message.reply_text(records_message, parse_mode=ParseMode.HTML)
         else:

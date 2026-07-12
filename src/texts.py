@@ -110,6 +110,7 @@ TRANSACTION_CANCELED = """Transaction has been canceled."""
 NOTIFY_OTHER_CAT = """Your transactions for '<code>{}</code>'  were saved under category 'other', because we could not find any match in the dictionary.
 If you know which Category to use, please, add it into the dictionary via /change_cat , or add another transaction in <code>category subcategory amount</code> format, and it will be automatically updated in the database."""
 LAST_RECORDS = "List of transactions with index number.\nThe sum is: <b>{}</b> \n\n{} \n\nTo delete type /delete followed by the transaction index."
+LAST_RECORDS_INCOME = "List of income records with index number.\nThe sum is: <b>{}</b> \n\n{} \n\nTo delete type /delete_income followed by the record index."
 ABOUT = 'Hello, {}!\nYour current Currency is <b>{}</b> Language is <b>{}</b>, and \nMonthly limit is <b>{}</b> \nCurrent version is {} from {}'
 NO_LIMIT = "no limit"
 
