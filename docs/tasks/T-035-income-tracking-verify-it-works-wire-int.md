@@ -1,7 +1,7 @@
 ---
 id: T-035
 title: Income tracking: verify it works, wire into voice/AI intents, income-vs-outcome analysis in /ask
-status: doing
+status: review
 type: feature
 area: bot
 priority: p1
@@ -64,3 +64,42 @@ Risks: confirm-gate cross-talk (mitigated by vinc_ separation); delete_records b
 - 2026-07-12 started
 - 2026-07-12 root-caused owner screenshot: /income trading 300 fell through active income conversation to spendings regex entry (no ~COMMAND filter), saved as spending cat=/income; DB row 4739
 - 2026-07-12 Phase 1-3 implemented: /income inline args + shared save_income_text, ~COMMAND on spendings regex entry + income allow_reentry (root cause of spending-mislog), type-aware /delete vs /delete_income, dead 174-line block removed from core.py, Income-stats button re-enabled with immutable-safe tx_type param, add_income voice/text intent with vinc_ confirm gate, /ask income section + write-refusal redirect; DB rows 4739/8140 repaired; deployed
+
+## Testing
+
+### Income entry — happy paths
+- [ ] `/income trading 300` (inline args) saves immediately: "💵 Income saved: trading, 300.0 EUR (date)" — no help text, no conversation left open
+- [ ] `/income` bare → help text → next message `salary 2000` saves as income
+- [ ] `/income 11.07 trading 300` (dd.mm prefix) saves with 11 July date
+- [ ] `/income 500` (amount only) saves with category "salary"
+- [ ] Repeated `/income` while the prompt is pending re-shows the help (re-entry) instead of doing nothing
+- [ ] `/income trading 300` sent TWICE in a row: second one saves a second income — must NOT save a spending with category "/income" (the original bug)
+
+### Regression: spendings still work
+- [ ] Plain text `coffee 4.5` still saves a spending
+- [ ] `31.12 coffee 4` backdated spending still works
+- [ ] Multi-line / comma spendings still work
+
+### Delete type-safety
+- [ ] `/delete_income` (no arg) deletes the LATEST INCOME and echoes its details
+- [ ] `/delete` (no arg) deletes the LATEST SPENDING and echoes its details
+- [ ] `/delete_income <id-of-a-spending>` refuses with the type-mismatch message
+- [ ] `/delete <id-of-an-income>` refuses with the type-mismatch message
+- [ ] `/delete abc` → invalid-number message
+
+### Voice / free-text income intent
+- [ ] Voice "получил доход 300 от трейдинга" → 💵 income confirm keyboard (must say ДОХОД/INCOME) → ✅ saves an INCOME (check /show_income)
+- [ ] Voice spending "кофе 5" still shows the spending confirm and saves a spending
+- [ ] Income confirm ❌ cancels, nothing saved
+- [ ] Typed free text "got paid 2000 by client today" (no trailing-number pattern, e.g. with trailing words) routes to income confirm
+- [ ] Pending spending confirm + pending income confirm at once: each button saves its own thing (no cross-talk)
+
+### Menu & stats
+- [ ] Menu → Show transactions → "💵 Income stats" button appears and shows income summary (was commented out; also crashed on immutable Message before)
+- [ ] /show_income shows income summary incl. the repaired 300 EUR trading entry under July
+- [ ] /show_ext no longer lists a "/income" spending category (row 4739 converted to income, category dict cleaned)
+
+### /ask income context
+- [ ] `/ask покажи доход и расход за последний месяц` now reports the 300 EUR as INCOME, no "logged as spending" note
+- [ ] `/ask add 300 eur income from trading` refusal now points to /income and text/voice entry
+- 2026-07-12 moved to review
