@@ -1,7 +1,7 @@
 ---
 id: T-010
 title: Currency API circuit breaker
-status: doing
+status: review
 type: ops
 area: infra
 priority: p2
@@ -49,3 +49,23 @@ Risks: the flight lock is held across the 3s fetch, serializing all `get_rates()
 - 2026-07-12 Implementation plan proposed (shared CircuitBreaker util, single-flight lock, httpx 3s fetch, rates_as_of staleness fix); found 2 pre-existing bugs (dead aiohttp branch, stale-marked-fresh cache)
 - 2026-07-12 started
 - 2026-07-12 Implemented: shared CircuitBreaker (2 fail/15min, injectable clock) + single-flight lock + httpx 3s fetch replacing dead aiohttp/requests paths; _rates_as_of data-age tracking + rates_age(); 48h stale caption on all 3 chart handlers (EN+RU); 8 breaker unit tests green; live API fetch verified (USDEUR 0.8755), 5 concurrent calls -> 1 fetch, breaker opens after 2 failures and still serves defaults
+
+## Testing
+
+Automated (already run, green): `pytest tests/shared/test_circuit_breaker.py` (8 tests); live script verified fresh API fetch, single-flight (5 concurrent get_rates -> 1 fetch), breaker opening after 2 failures while still returning a rates dict.
+
+### Critical
+- [ ] /chart renders both monthly charts normally (fresh rates, no caption) — entry: chart command/menu
+- [ ] /ext_chart and yearly piechart render normally with converted amounts matching user currency
+- [ ] Charts still render when DB `exchange_rates` table is empty AND network is blocked (config-defaults path; converted amounts use fallback rates, no crash, no user-facing error)
+- [ ] With network blocked (e.g. `docker network disconnect` or hosts-file block of open.er-api.com) and DB rates older than 12h: first two chart requests each add ~3s max (not 10s), third request is fast (breaker open, no API attempt)
+
+### Important
+- [ ] Stale caption path: set `exchange_rates.last_updated` to 3 days ago (`UPDATE exchange_rates SET last_updated = now() - interval '3 days'`), block network, restart bot; chart arrives with the "rates are Nh old" caption on the first photo, in the user's language (check EN and RU users)
+- [ ] After breaker cooldown (15 min) with network restored: next chart request refreshes rates and the stale caption disappears
+- [ ] Two users requesting charts simultaneously right after bot restart: both get charts, only one API call in logs (single-flight)
+
+### Nice-to-have
+- [ ] Log lines: "Fetched fresh exchange rates from API" on success; "Error fetching exchange rates from API" on blocked network; no tracebacks
+- [ ] Regression: /show_last, stats and detailed reports (other currency consumers, if any) unaffected — only charts call get_rates()
+- 2026-07-12 moved to review

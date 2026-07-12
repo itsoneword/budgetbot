@@ -4,11 +4,11 @@
 
 Updated: 2026-07-12 · see docs/ROADMAP.md for milestones
 
-## Doing (1)
-- **T-010** `p2/ops/infra` Currency API circuit breaker — last: 2026-07-07 created from production-readiness P4
-
-## Review (0)
+## Doing (0)
 _empty_
+
+## Review (1)
+- **T-010** `p2/ops/infra` Currency API circuit breaker — last: 2026-07-07 created from production-readiness P4
 
 ## Todo (6)
 - **T-003** `p1/ops/bot` Replace print() with logger in runtime code
