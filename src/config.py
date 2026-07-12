@@ -37,3 +37,8 @@ RECURRING_HOUR_UTC = int(os.getenv("RECURRING_HOUR_UTC", "6"))
 # disabled — src/observability.py then never even imports sentry_sdk.
 SENTRY_DSN = os.getenv("SENTRY_DSN", "")
 SENTRY_ENVIRONMENT = os.getenv("SENTRY_ENVIRONMENT", "prod")
+
+# Interval of the reminder sweep job (T-034): every N seconds the sweep sends
+# reminders that became due since the last pass, so a reminder fires at most
+# this many seconds late.
+REMINDER_SWEEP_SECONDS = int(os.getenv("REMINDER_SWEEP_SECONDS", "300"))

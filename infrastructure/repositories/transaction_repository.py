@@ -213,7 +213,21 @@ class TransactionRepository(BaseRepository[Transaction]):
             records = await self.fetch_all(query, user_id, limit)
         
         return [Transaction.from_record(r) for r in records]
-    
+
+    async def has_transaction_since(self, user_id: int, utc_start: datetime) -> bool:
+        """True if the user has any transaction dated at/after utc_start.
+
+        Used by the reminder sweep's skip-if-logged check (T-034): a user who
+        already logged something this local day doesn't need the nudge.
+        """
+        query = """
+            SELECT EXISTS(
+                SELECT 1 FROM transactions
+                WHERE user_id = $1 AND timestamp >= $2
+            )
+        """
+        return await self.fetch_val(query, user_id, utc_start)
+
     # ==========================================
     # AGGREGATIONS - REMOVED
     # ==========================================

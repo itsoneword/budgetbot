@@ -14,6 +14,7 @@ from dataclasses import dataclass
 
 INTENT_ADD_TRANSACTION = "add_transaction"
 INTENT_ADD_INCOME = "add_income"
+INTENT_SET_REMINDER = "set_reminder"
 INTENT_SHOW_STAT = "show_stat"
 INTENT_QUESTION = "question"
 INTENT_UNKNOWN = "unknown"
@@ -31,6 +32,10 @@ MAX_AMOUNT = 10_000_000
 # "date item amount" form. No leading "/" (would inject a command).
 _TX_ITEM_RE = re.compile(r"^((\d{1,2})\.(\d{1,2})\s+)?[^/\s,][^,\n]{0,60}\s(\d+(\.\d+)?)$")
 MAX_TX_ITEMS = 5
+
+# Reminder payload (T-034): "HH:MM" 24h or the literal "off". The router
+# injects it as "/reminder <payload>", so nothing else may pass.
+_REMINDER_PAYLOAD_RE = re.compile(r"^([01]?\d|2[0-3]):[0-5]\d$")
 
 
 @dataclass
@@ -65,6 +70,11 @@ def build_intent_system_prompt() -> str:
         'a day, prefix it with "dd.mm " computed from today\'s date. Never invent an amount; '
         'if none is stated, use intent "unknown". Money SPENT is add_transaction, money RECEIVED '
         "is add_income.\n"
+        '- "set_reminder" — the user asks to be reminded (daily) to log/add their transactions, '
+        'or to change or disable that reminder ("напоминай мне записывать траты в 5 вечера", '
+        '"remind me every day at 9pm", "stop reminding me"). payload: the time as 24-hour '
+        '"HH:MM" (convert "5 pm" -> "17:00"; use "17:00" when no time is stated), or "off" to '
+        "disable. Reminders about anything other than logging transactions are NOT this intent.\n"
         '- "show_stat" — the user asks to see their records, stats or charts. payload: exactly one of: '
         "show (current month records), show_last (recent transactions), show_ext (detailed stats), "
         "monthly_stat (monthly chart), yearly_stat (yearly chart).\n"
@@ -127,6 +137,11 @@ def parse_intent_response(raw: str) -> Intent:
         if not 0 < amount <= MAX_AMOUNT:
             return Intent(INTENT_UNKNOWN)
         return Intent(INTENT_ADD_INCOME, payload)
+
+    if kind == INTENT_SET_REMINDER:
+        if payload != "off" and not _REMINDER_PAYLOAD_RE.match(payload):
+            return Intent(INTENT_UNKNOWN)
+        return Intent(INTENT_SET_REMINDER, payload)
 
     if kind == INTENT_SHOW_STAT:
         if payload not in ALLOWED_STAT_COMMANDS:

@@ -34,6 +34,7 @@ from domain.intent import (
     INTENT_ADD_INCOME,
     INTENT_ADD_TRANSACTION,
     INTENT_QUESTION,
+    INTENT_SET_REMINDER,
     INTENT_SHOW_STAT,
     MAX_TRANSCRIPT_CHARS,
     Intent,
@@ -134,6 +135,12 @@ async def _route_intent(
             texts.VOICE_CONFIRM_INCOME.format(transcript=transcript, income=intent.payload),
             reply_markup=keyboard,
         )
+    elif intent.kind == INTENT_SET_REMINDER:
+        # Payload is strictly "HH:MM" | "off" (domain/intent.py) — routed
+        # through the normal /reminder command, no LLM-specific write path
+        # and no extra gating beyond check_ai_access (T-034).
+        await status.edit_text(texts.VOICE_HEARD.format(transcript=transcript))
+        await _inject_text(update, context, "/reminder " + intent.payload)
     elif intent.kind == INTENT_SHOW_STAT:
         await status.edit_text(texts.VOICE_HEARD.format(transcript=transcript))
         await _inject_text(update, context, "/" + intent.payload)

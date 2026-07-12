@@ -6,6 +6,7 @@ from .user_repository import UserRepository, User, UserConfig
 from .category_repository import CategoryRepository, Category
 from .entitlement_repository import EntitlementRepository, AIEntitlement
 from .recurring_repository import RecurringRepository, RecurringRule
+from .reminder_repository import ReminderRepository, Reminder
 
 __all__ = [
     'BaseRepository',
@@ -20,4 +21,6 @@ __all__ = [
     'AIEntitlement',
     'RecurringRepository',
     'RecurringRule',
+    'ReminderRepository',
+    'Reminder',
 ]
