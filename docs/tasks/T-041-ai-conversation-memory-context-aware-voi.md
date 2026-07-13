@@ -9,7 +9,7 @@ deps: []
 tags: []
 blocked: 
 created: 2026-07-12
-updated: 2026-07-12
+updated: 2026-07-13
 ---
 
 ## Context
@@ -35,7 +35,7 @@ Design: fix the screenshot failure with a short **per-user interaction log in Po
 5. `src/handlers/voice.py` `_route_intent`: after classification, `repos.interactions.add(...)` for EVERY message including unknown (a failed turn must still be visible as context to the next one); stash `voice_tx_interaction_id` / `voice_income_interaction_id` in `user_data` next to the payload keys. `handle_voice_tx_confirmation` / `handle_voice_income_confirmation`: pop the id, `set_outcome(confirmed|cancelled)`. Stat/reminder/question routes → `set_outcome('routed')` immediately.
 6. Correction branch in `_route_intent` (when `intent.corrects_previous` and a previous add_* interaction exists): previous outcome `proposed` → `set_outcome(old, 'superseded')`, overwrite the pending `user_data` key, send a fresh confirm keyboard; previous outcome `confirmed` → find the saved row via `repos.transactions.get_latest(user_id, 5)` matched on amount+item words from the recorded payload — exactly one match: stash its tx id + corrected text, show "Replace {old} → {new}?" keyboard (`vfix_yes`/`vfix_no`, new `handle_voice_fix_confirmation`: `repos.transactions.delete(tx_id)` then `_inject_text(corrected_text)`); zero/many matches, or `corrects_previous` with no usable previous: fall back to the normal new-transaction confirm (never guess). Register `^vfix_` in `core.py` next to `vtx_` (before spendings_handler).
 7. `/ask` (`src/core.py` `ask()`, ~line 654): after a successful answer, `repos.interactions.add(user_id, 'ask', question, 'question', answer[:300], outcome='routed')` — so a voice follow-up ("а за июнь?") classifies against the asked question. No context injection into the ask *answer* prompt in v1 (open question 4).
-8. Retention: `src/scheduler.py` `run_interaction_purge(context)` calling `purge_older_than(AI_INTERACTION_RETENTION_DAYS`, default 30, `src/config.py`); registered `run_daily` in `core.py` next to the existing jobs (~line 1000).
+8. Retention (AMENDED per owner 2026-07-13 — size-based, NOT time-based; no 30-day purge): keep all conversations until compaction. (a) Per-message guardrail: truncate stored transcript/payload at 2000 chars each on insert. (b) `src/scheduler.py` `run_interaction_compaction(context)` daily job: for each user whose non-summary rows exceed AI_INTERACTION_COMPACT_CHARS total (default 200_000 chars ≈ 50k tokens, `src/config.py`), summarize all but the newest 20 rows via `get_llm_client("haiku")` — the summary must extract key durable things: confirmed ASR-correction pairs («холм дом»→«дом»), recurring phrasings/preferences, notable Q&A topics — insert one summary row (`channel='system'`, `intent='summary'`, `outcome='routed'`), then DELETE the summarized raw rows. Summaries are never auto-deleted; repeat compactions fold the previous summary row into the new one (hierarchical). LLM failure → skip user, retry next day, log error. (c) `format_recent_context` additionally prepends the user's latest summary row (capped ~800 chars) when present — so learned correction pairs persist into the intent prompt beyond the N=3 window, pulling the most valuable slice of v2 forward.
 9. Copy in BOTH `src/texts.py` and `src/texts_ru.py`: `VOICE_CONFIRM_FIX` (old→new), `VOICE_FIX_DONE`, `VOICE_FIX_CANCELLED`, `VOICE_FIX_NOT_FOUND`. Two `docs/DECISIONS.md` one-liners: re-parse-vs-correction-intent; delete+re-add-vs-UPDATE for corrected transactions (re-add reuses category resolution; UPDATE would bypass it).
 10. Tests (`tests/`, pure domain only): `parse_intent_response` with/without `corrects_previous` per intent kind, `format_recent_context` caps/ordering, `format_known_items` cap; pin clocks per convention.
 
@@ -44,12 +44,14 @@ Design: fix the screenshot failure with a short **per-user interaction log in Po
 Touched (COORDINATION with T-027 on `domain/intent.py` + `voice.py` — sequence, do not run as parallel worktrees): new `0006_ai_interactions.py`, `infrastructure/repositories/interaction_repository.py`; modified `repositories/__init__.py`, `shared/di/container.py`, `domain/intent.py`, `src/handlers/voice.py`, `src/core.py`, `src/scheduler.py`, `src/config.py`, `src/texts.py`, `src/texts_ru.py`, `docs/DECISIONS.md`, tests.
 
 Open questions (recommended defaults):
-1. Raw transcript retention days (summaries-only long-term arrives with v2) → 30.
+1. Raw transcript retention → OWNER OVERRIDE 2026-07-13: no time purge; size-based compaction at ~50k tokens/user (summarize + extract key facts, delete raw), per-message char cap. See amended step 8.
 2. Recent-interaction window N injected into the intent prompt → 3.
 3. Correction of an already-confirmed transaction = delete + re-inject (not in-place UPDATE) → yes.
 4. Also inject recent context into the /ask answer prompt (ask-channel follow-ups) → no (v2).
 5. Known-items dictionary cap in the prompt → 40.
 6. Record /ask Q&A rows in ai_interactions in v1 → yes.
+
+**Owner decisions 2026-07-13:** retention = size-based compaction, NOT time-based (override of planner's 30-day default): store all conversations, per-message char guardrail, summarize-and-delete at ~50k tokens/user with key-fact extraction (amended step 8; latest summary feeds the intent prompt). All other defaults accepted (N=3 window; delete+re-add for confirmed-tx corrections; /ask answers single-shot in v1; 40-item dictionary cap; /ask Q&A logged). Implement immediately — only unblocked p1 feature; T-027 rebases on it later.
 
 What v1 does NOT do (ranked by likelihood someone assumes it does):
 1. No long-term facts/summaries/evaluator/compaction — the whole Devvybot fact tier is v2.
@@ -61,3 +63,4 @@ What v1 does NOT do (ranked by likelihood someone assumes it does):
 
 Risks: classifier regression as the prompt grows (T-034's regression checklist already covers intent routing — re-run it; watch "Intent routed" logs; contrast examples mandatory); `corrects_previous` misfiring on messages that merely *mention* the previous item (gated: ignored unless a previous add_* interaction exists, and fallback is a normal confirm — worst case one extra tap, never a silent edit); stale confirm keyboard after a proposal is superseded by a correction (old buttons act on the NEW payload since `user_data` was overwritten — same accepted vtx_ overwrite behavior as T-027, noted in testing); `get_latest` match ambiguity for delete+re-add (two identical recent amounts → falls back to propose-new, never deletes ambiguously); privacy — voice transcripts now persist server-side 30 days (owner sign-off required, question 1); T-027/T-041 both edit the intent prompt and `_route_intent` — sequence them, the context seam itself is append-only.
 - 2026-07-12 Implementation plan proposed: ai_interactions log + context-aware re-parse (corrects_previous flag), known-items ASR bias, 30-day purge; Devi facts/evaluator sketched as v2. 6 open questions pending owner
+- 2026-07-13 Owner decisions: size-based compaction instead of 30-day purge (summarize+extract at ~50k tokens/user, keep summaries, delete raw); other defaults accepted; implementation starting
