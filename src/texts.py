@@ -315,6 +315,11 @@ VOICE_UNKNOWN = (
     "I couldn't map this to an action. You can add a spending like “coffee 4.5”, "
     "ask a question with /ask, or see /help."
 )
+# Voice correction of an already-saved transaction (T-041)
+VOICE_CONFIRM_FIX = "🎙 Heard: “{transcript}”\n\nReplace {old} → {new}?"
+VOICE_FIX_DONE = "Replaced. Adding: {transaction}"
+VOICE_FIX_CANCELLED = "Cancelled — the saved record was kept."
+VOICE_FIX_NOT_FOUND = "Couldn't find that record anymore — nothing was changed."
 
 # Recurring transactions (T-026)
 RECURRING_BUTTON = "🔁 Recurring"
