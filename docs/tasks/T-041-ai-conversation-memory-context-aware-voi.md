@@ -19,7 +19,7 @@ Owner request 2026-07-12 (screenshot repro): voice pipeline is stateless — Whi
 - [ ] Screenshot repro fixed: after a proposed/confirmed voice transaction, a voice correction ("не X, а Y") replaces the pending proposal or offers "Replace old → new?" for a saved one — never falls to VOICE_UNKNOWN
 - [ ] ai_interactions table (alembic 0006+) persists every voice//ask exchange with outcome lifecycle (proposed/confirmed/cancelled/routed/unknown/superseded)
 - [ ] Intent prompt receives last-N context + user's known-items dictionary; mishears snap to real categories
-- [ ] Daily retention purge job; domain-level unit tests for new pure functions
+- [ ] Size-based compaction job (~50k tokens/user: summarize + extract key facts incl. correction pairs, delete raw rows, keep summary; per-message char guardrail); domain-level unit tests for new pure functions
 
 ## Log
 - 2026-07-12 created
