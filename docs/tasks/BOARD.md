@@ -4,8 +4,8 @@
 
 Updated: 2026-07-13 · see docs/ROADMAP.md for milestones
 
-## Doing (0)
-_empty_
+## Doing (1)
+- **T-041** `p1/feature/bot` AI conversation memory: context-aware voice/ask channel with correction handling — last: 2026-07-12 created
 
 ## Review (18)
 - **T-020** `p0/bug/bot` Fix show_last: Transaction attribute mismatch (tx.category vs category_name) — last: 2026-07-09 moved to review
@@ -27,11 +27,10 @@ _empty_
 - **T-031** `p2/bug/bot` Fix /about panel: stale version, raw limit sentinel, dead settings buttons — last: 2026-07-11 moved to review
 - **T-032** `p3/feature/bot` Restore emojis/visual polish in generated /help and menu command descriptions — last: 2026-07-11 moved to review
 
-## Todo (7)
+## Todo (6)
 - **T-023** `p1/feature/bot` Paywall: buy AI access via Telegram Stars _(waiting: T-022)_
 - **T-027** `p1/feature/bot` AI channel: manage recurring spendings by voice//ask _(waiting: T-026)_
 - **T-038** `p1/bug/infra` LLM auth: dedicated token for container, stop sharing host OAuth credentials
-- **T-041** `p1/feature/bot` AI conversation memory: context-aware voice/ask channel with correction handling
 - **T-037** `p2/feature/bot` Income in Edit-recent-entries menu: list, edit, delete income records
 - **T-039** `p2/bug/bot` Chart handlers reference undefined texts.NO_DATA (latent AttributeError on empty-data path)
 - **T-040** `p2/bug/bot` Income date parser accepts garbage: 99.99 backdates to 1999, 29.02 non-leap reinterpreted

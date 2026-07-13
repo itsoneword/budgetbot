@@ -1,7 +1,7 @@
 ---
 id: T-041
 title: AI conversation memory: context-aware voice/ask channel with correction handling
-status: todo
+status: doing
 type: feature
 area: bot
 priority: p1
@@ -64,3 +64,5 @@ What v1 does NOT do (ranked by likelihood someone assumes it does):
 Risks: classifier regression as the prompt grows (T-034's regression checklist already covers intent routing — re-run it; watch "Intent routed" logs; contrast examples mandatory); `corrects_previous` misfiring on messages that merely *mention* the previous item (gated: ignored unless a previous add_* interaction exists, and fallback is a normal confirm — worst case one extra tap, never a silent edit); stale confirm keyboard after a proposal is superseded by a correction (old buttons act on the NEW payload since `user_data` was overwritten — same accepted vtx_ overwrite behavior as T-027, noted in testing); `get_latest` match ambiguity for delete+re-add (two identical recent amounts → falls back to propose-new, never deletes ambiguously); privacy — voice transcripts now persist server-side 30 days (owner sign-off required, question 1); T-027/T-041 both edit the intent prompt and `_route_intent` — sequence them, the context seam itself is append-only.
 - 2026-07-12 Implementation plan proposed: ai_interactions log + context-aware re-parse (corrects_previous flag), known-items ASR bias, 30-day purge; Devi facts/evaluator sketched as v2. 6 open questions pending owner
 - 2026-07-13 Owner decisions: size-based compaction instead of 30-day purge (summarize+extract at ~50k tokens/user, keep summaries, delete raw); other defaults accepted; implementation starting
+- 2026-07-13 started
+- 2026-07-13 alembic 0006 ai_interactions + InteractionRepository + DI wiring; repo pattern from recurring_repository
