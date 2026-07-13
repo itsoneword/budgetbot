@@ -1,20 +1,38 @@
 """Tests for domain/intent.py — strict validation of messy LLM replies."""
 import json
+from dataclasses import dataclass
 
 from domain.intent import (
+    CONTEXT_BLOCK_CHARS,
+    CONTEXT_SUMMARY_CHARS,
+    CONTEXT_TRANSCRIPT_CHARS,
     INTENT_ADD_INCOME,
     INTENT_ADD_TRANSACTION,
     INTENT_QUESTION,
     INTENT_SHOW_STAT,
     INTENT_UNKNOWN,
+    KNOWN_ITEMS_MAX,
     MAX_QUESTION_CHARS,
     build_intent_prompt,
+    find_correction_target,
+    format_known_items,
+    format_recent_context,
     parse_intent_response,
 )
 
 
-def reply(intent, payload):
-    return json.dumps({"intent": intent, "payload": payload})
+def reply(intent, payload, **extra):
+    return json.dumps({"intent": intent, "payload": payload, **extra})
+
+
+@dataclass
+class StubInteraction:
+    """Attribute shape of InteractionRepository.AIInteraction rows."""
+    transcript: str
+    intent: str = "add_transaction"
+    payload: str = "дом 5"
+    outcome: str = "proposed"
+    id: int = 1
 
 
 class TestAddTransaction:
@@ -156,4 +174,172 @@ class TestMalformedReplies:
 def test_build_intent_prompt_includes_date_and_truncates():
     prompt = build_intent_prompt("x" * 2000, today="2026-07-11 Friday")
     assert prompt.startswith("Today is 2026-07-11 Friday.")
-    assert len(prompt) < 1200  # transcript capped at 1000 chars
+    assert len(prompt) < 1300  # transcript capped at 1000 chars
+
+
+class TestCorrectsPrevious:
+    def test_add_transaction_true(self):
+        result = parse_intent_response(
+            reply("add_transaction", "дом 5", corrects_previous=True)
+        )
+        assert result.kind == INTENT_ADD_TRANSACTION
+        assert result.corrects_previous is True
+
+    def test_add_income_true(self):
+        result = parse_intent_response(
+            reply("add_income", "salary 2000", corrects_previous=True)
+        )
+        assert result.kind == INTENT_ADD_INCOME
+        assert result.corrects_previous is True
+
+    def test_defaults_to_false_when_absent(self):
+        assert parse_intent_response(
+            reply("add_transaction", "coffee 4.5")
+        ).corrects_previous is False
+
+    def test_non_boolean_values_ignored(self):
+        for bad in ("true", 1, [True], {"a": 1}, None):
+            result = parse_intent_response(
+                reply("add_transaction", "coffee 4.5", corrects_previous=bad)
+            )
+            assert result.kind == INTENT_ADD_TRANSACTION
+            assert result.corrects_previous is False
+
+    def test_ignored_for_other_intents(self):
+        for intent, payload in (
+            ("show_stat", "show"),
+            ("question", "how much?"),
+            ("set_reminder", "17:00"),
+        ):
+            result = parse_intent_response(reply(intent, payload, corrects_previous=True))
+            assert result.kind != INTENT_UNKNOWN
+            assert result.corrects_previous is False
+
+    def test_flag_does_not_bypass_payload_validation(self):
+        assert parse_intent_response(
+            reply("add_transaction", "/leave 5", corrects_previous=True)
+        ).kind == INTENT_UNKNOWN
+
+    def test_unknown_never_carries_flag(self):
+        assert parse_intent_response(
+            reply("unknown", "", corrects_previous=True)
+        ).corrects_previous is False
+
+
+class TestFormatRecentContext:
+    def test_empty_inputs_give_empty_block(self):
+        assert format_recent_context([]) == ""
+        assert format_recent_context(None) == ""
+
+    def test_numbering_one_is_most_recent(self):
+        interactions = [  # newest-first, as get_recent returns
+            StubInteraction("не холм дом, а дом", payload="дом 5"),
+            StubInteraction("холм дом пять", payload="холм дом 5", outcome="superseded"),
+        ]
+        block = format_recent_context(interactions)
+        assert "1. [proposed] heard: «не холм дом, а дом» -> add_transaction: дом 5" in block
+        assert "2. [superseded]" in block
+        assert block.index("1. [proposed]") < block.index("2. [superseded]")
+
+    def test_transcript_capped_per_line(self):
+        block = format_recent_context([StubInteraction("x" * 500)])
+        assert "x" * (CONTEXT_TRANSCRIPT_CHARS + 1) not in block
+        assert "x" * CONTEXT_TRANSCRIPT_CHARS in block
+
+    def test_block_capped_total(self):
+        interactions = [
+            StubInteraction("x" * 400, payload="item 5") for _ in range(20)
+        ]
+        block = format_recent_context(interactions)
+        assert len(block) <= CONTEXT_BLOCK_CHARS + 100  # + header line
+
+    def test_intent_without_payload_has_no_colon_suffix(self):
+        block = format_recent_context(
+            [StubInteraction("что-то", intent="unknown", payload="", outcome="unknown")]
+        )
+        assert "-> unknown" in block
+        assert "-> unknown:" not in block
+
+    def test_summary_prepended_and_capped(self):
+        block = format_recent_context(
+            [StubInteraction("дом 5")], summary="s" * 2000
+        )
+        assert block.startswith("Long-term memory")
+        assert "s" * CONTEXT_SUMMARY_CHARS in block
+        assert "s" * (CONTEXT_SUMMARY_CHARS + 1) not in block
+        # recent lines still follow the summary
+        assert "1. [proposed]" in block
+
+    def test_summary_alone_still_renders(self):
+        block = format_recent_context([], summary="«холм дом» -> «дом»")
+        assert "Long-term memory" in block
+        assert "Recent interactions" not in block
+
+
+class TestFormatKnownItems:
+    def test_empty(self):
+        assert format_known_items([]) == ""
+        assert format_known_items(None) == ""
+
+    def test_lists_items(self):
+        block = format_known_items(["дом", "coffee", "metro"])
+        assert block.startswith("User's known spending items: ")
+        assert "дом, coffee, metro" in block
+
+    def test_item_cap(self):
+        block = format_known_items([f"i{n}" for n in range(100)])
+        assert block.count(",") == KNOWN_ITEMS_MAX - 1
+
+    def test_char_cap(self):
+        block = format_known_items(["x" * 50 for _ in range(100)])
+        assert len(block) < 700
+
+    def test_dedupes_case_insensitively(self):
+        block = format_known_items(["Coffee", "coffee", "дом"])
+        assert block.count("offee") == 1
+
+
+class TestFindCorrectionTarget:
+    def test_exactly_one_match(self):
+        candidates = [(11, "дом", 5), (12, "кофе", 4.5)]
+        assert find_correction_target("дом 5", candidates) == 11
+
+    def test_zero_matches(self):
+        assert find_correction_target("дом 5", [(12, "кофе", 4.5)]) is None
+
+    def test_many_matches_ambiguous(self):
+        candidates = [(11, "дом", 5), (12, "дом", 5)]
+        assert find_correction_target("дом 5", candidates) is None
+
+    def test_amount_must_match(self):
+        assert find_correction_target("дом 5", [(11, "дом", 6)]) is None
+
+    def test_multi_item_payload_ambiguous(self):
+        assert find_correction_target("дом 5, кофе 4", [(11, "дом", 5)]) is None
+
+    def test_date_prefix_stripped(self):
+        assert find_correction_target("09.07 дом 5", [(11, "дом", 5)]) == 11
+
+    def test_garbage_payload(self):
+        assert find_correction_target("", [(11, "дом", 5)]) is None
+        assert find_correction_target("no amount here", [(11, "дом", 5)]) is None
+
+
+def test_build_intent_prompt_appends_context_and_known_items():
+    prompt = build_intent_prompt(
+        "не холм дом, а дом",
+        today="2026-07-13 Monday",
+        context_block="Recent interactions:\n1. [proposed] heard: «холм дом пять»",
+        known_items="User's known spending items: дом, кофе",
+    )
+    assert prompt.startswith("Today is 2026-07-13 Monday.")
+    assert "Recent interactions" in prompt
+    assert "known spending items" in prompt
+    # the message itself stays last so the blocks read as context, not input
+    assert prompt.rindex("Message to classify:") > prompt.index("known spending items")
+
+
+def test_build_intent_prompt_empty_blocks_add_nothing():
+    assert build_intent_prompt("coffee 4", today="2026-07-13 Monday") == (
+        "Today is 2026-07-13 Monday.\nMessage to classify:\ncoffee 4"
+    )

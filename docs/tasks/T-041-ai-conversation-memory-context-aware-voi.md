@@ -67,3 +67,4 @@ Risks: classifier regression as the prompt grows (T-034's regression checklist a
 - 2026-07-13 started
 - 2026-07-13 alembic 0006 ai_interactions + InteractionRepository + DI wiring; repo pattern from recurring_repository
 - 2026-07-13 context-aware intent prompt (corrects_previous, recent-context + known-items blocks), voice correction flow (supersede pending / vfix Replace keyboard), interaction logging incl. unknown, /ask Q&A rows, vfix_ registration, EN/RU copy
+- 2026-07-13 size-based compaction: domain/memory.py pure logic, run_interaction_compaction daily job, AI_INTERACTION_COMPACT_CHARS config; 40 new domain tests (212 total green); 3 DECISIONS one-liners

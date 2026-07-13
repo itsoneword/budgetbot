@@ -42,3 +42,12 @@ SENTRY_ENVIRONMENT = os.getenv("SENTRY_ENVIRONMENT", "prod")
 # reminders that became due since the last pass, so a reminder fires at most
 # this many seconds late.
 REMINDER_SWEEP_SECONDS = int(os.getenv("REMINDER_SWEEP_SECONDS", "300"))
+
+# AI interaction-log compaction (T-041, size-based retention — owner decision
+# 2026-07-13): a user whose raw ai_interactions rows exceed this many chars
+# (~50k tokens) gets everything but the newest rows summarized into one
+# summary row and the raw rows deleted. There is NO time-based purge.
+AI_INTERACTION_COMPACT_CHARS = int(os.getenv("AI_INTERACTION_COMPACT_CHARS", "200000"))
+
+# UTC hour of the daily compaction job.
+AI_COMPACTION_HOUR_UTC = int(os.getenv("AI_COMPACTION_HOUR_UTC", "4"))
