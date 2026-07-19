@@ -26,6 +26,8 @@ Owner request 2026-07-19: entitled tap on the Ask AI menu button should edit the
 ## Log
 - 2026-07-19 created
 - 2026-07-19 started
+- 2026-07-19 ASK_AI_PROMPT texts; menu_ask_ai arms awaiting_ask; core.answer_ask_question helper shared by /ask and typed path; flag cleared in menu_call top + voice entry; 8 unit tests, suite 250 green
+- 2026-07-19 moved to review
 
 ## Testing
 
@@ -49,5 +51,3 @@ Manual testing checklist: Ask AI typed-question mode (T-045)
 ### Nice-to-have
 - [ ] Double-tapping the Ask AI button does not error (edit-not-modified swallowed)
 - [ ] LLM failure during the answer → friendly ASK_ERROR text, bot stays responsive
-- 2026-07-19 ASK_AI_PROMPT texts; menu_ask_ai arms awaiting_ask; core.answer_ask_question helper shared by /ask and typed path; flag cleared in menu_call top + voice entry; 8 unit tests, suite 250 green
-- 2026-07-19 moved to review
