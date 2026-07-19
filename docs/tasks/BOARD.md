@@ -4,8 +4,8 @@
 
 Updated: 2026-07-19 · see docs/ROADMAP.md for milestones
 
-## Doing (0)
-_empty_
+## Doing (1)
+- **T-051** `p1/feature/bot` Agentic AI channel: tool-calling /ask (read tools) + recurring management (write tools) — last: 2026-07-19 Foundation + wave 2 implemented via deviz board (dv-ee06/dv-f0d5/dv-82c8/dv-94bd): tool-calling ask session with query_transactions read tool, staged recurring write tools behind vrc_/rr_ confirms, voice routed through agent session with channel tags. 348 tests green, container deployed. Task detail now tracked on deviz board (board-ff8aeb03).
 
 ## Review (6)
 - **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating — last: 2026-07-07 created from production-readiness T1 + O2
@@ -15,9 +15,8 @@ _empty_
 - **T-049** `p1/bug/bot` /ask only sees last 12 months: pass full history to finance summary — last: 2026-07-19 moved to review
 - **T-010** `p2/ops/infra` Currency API circuit breaker — last: 2026-07-07 created from production-readiness P4
 
-## Todo (7)
+## Todo (6)
 - **T-038** `p1/bug/infra` LLM auth: dedicated token for container, stop sharing host OAuth credentials
-- **T-051** `p1/feature/bot` Agentic AI channel: tool-calling /ask (read tools) + recurring management (write tools)
 - **T-037** `p2/feature/bot` Income in Edit-recent-entries menu: list, edit, delete income records
 - **T-040** `p2/bug/bot` Income date parser accepts garbage: 99.99 backdates to 1999, 29.02 non-leap reinterpreted
 - **T-043** `p2/feature/bot` Voice channel: 'yes' confirms pending proposal; graceful reply to conversational/meta messages

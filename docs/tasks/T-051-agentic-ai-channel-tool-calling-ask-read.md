@@ -1,7 +1,7 @@
 ---
 id: T-051
 title: Agentic AI channel: tool-calling /ask (read tools) + recurring management (write tools)
-status: todo
+status: doing
 type: feature
 area: bot
 priority: p1
@@ -20,3 +20,5 @@ Combines T-027 with an agentic redesign of /ask (owner decision 2026-07-19) — 
 
 ## Log
 - 2026-07-19 created
+- 2026-07-19 started
+- 2026-07-19 Foundation + wave 2 implemented via deviz board (dv-ee06/dv-f0d5/dv-82c8/dv-94bd): tool-calling ask session with query_transactions read tool, staged recurring write tools behind vrc_/rr_ confirms, voice routed through agent session with channel tags. 348 tests green, container deployed. Task detail now tracked on deviz board (board-ff8aeb03).
