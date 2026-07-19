@@ -4,12 +4,13 @@
 
 Updated: 2026-07-19 · see docs/ROADMAP.md for milestones
 
-## Doing (1)
-- **T-023** `p1/feature/bot` Paywall: buy AI access via Telegram Stars — last: 2026-07-11 created
+## Doing (0)
+_empty_
 
-## Review (7)
+## Review (8)
 - **T-004** `p1/refactor/bot` Move chart rendering off the event loop — last: 2026-07-11 moved to review
 - **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating — last: 2026-07-07 created from production-readiness T1 + O2
+- **T-023** `p1/feature/bot` Paywall: buy AI access via Telegram Stars — last: 2026-07-11 created
 - **T-028** `p1/bug/bot` Fix /download: export transactions from PostgreSQL, not stale user_data CSV — last: 2026-07-11 created
 - **T-034** `p1/feature/bot` Daily reminder to add transactions (menu + voice), per-user timezone — last: 2026-07-11 created
 - **T-041** `p1/feature/bot` AI conversation memory: context-aware voice/ask channel with correction handling — last: 2026-07-12 created
