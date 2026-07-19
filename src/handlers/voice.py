@@ -5,9 +5,11 @@ Flow: Telegram voice note -> local whisper transcription (infrastructure/stt)
 -> LLM intent classification (validated in domain/intent.py) -> dispatch.
 
 Dispatch works by synthetic-update injection: the routed intent is turned into
-the exact text the user could have typed ("/ask <q>", "/show_last",
-"coffee 4.5") and fed through application.process_update(), so it follows the
-same handlers, gating and conversation states as typed input.
+the exact text the user could have typed ("/show_last", "coffee 4.5") and fed
+through application.process_update(), so it follows the same handlers, gating
+and conversation states as typed input. Questions are the exception (dv-94bd):
+they call answer_ask_question() directly with the classifier payload so the
+interaction log keeps the originating channel.
 
 Guardrails:
 - check_ai_access() gate (admin / DB entitlement, T-022; paywall offer on
@@ -321,8 +323,14 @@ async def _route_intent(
         await status.edit_text(texts.VOICE_HEARD.format(transcript=transcript))
         await _inject_text(update, context, "/" + intent.payload)
     elif intent.kind == INTENT_QUESTION:
+        # Direct call instead of "/ask " injection (dv-94bd): the agentic
+        # session gets the classifier payload, and the interaction row keeps
+        # the originating channel (voice/text vs typed ask). Transcript echo
+        # stays its own message; the answer arrives separately (owner
+        # decision: two messages, no merged status edit).
         await status.edit_text(texts.VOICE_HEARD.format(transcript=transcript))
-        await _inject_text(update, context, "/ask " + intent.payload)
+        from src.core import answer_ask_question
+        await answer_ask_question(update, context, intent.payload, channel=channel)
     else:
         await status.edit_text(texts.VOICE_UNKNOWN.format(transcript=transcript))
 

@@ -14,6 +14,7 @@ from domain.intent import (
     KNOWN_ITEMS_MAX,
     MAX_QUESTION_CHARS,
     build_intent_prompt,
+    build_intent_system_prompt,
     find_correction_target,
     format_known_items,
     format_recent_context,
@@ -343,3 +344,28 @@ def test_build_intent_prompt_empty_blocks_add_nothing():
     assert build_intent_prompt("coffee 4", today="2026-07-13 Monday") == (
         "Today is 2026-07-13 Monday.\nMessage to classify:\ncoffee 4"
     )
+
+
+# ==========================================
+# System-prompt recurring/subscription examples (dv-94bd)
+# ==========================================
+
+def test_system_prompt_routes_recurring_phrases_to_question():
+    """Recurring/subscription management must classify as question (dv-94bd):
+    the agent stages the rule; no new intent kind is introduced."""
+    prompt = build_intent_system_prompt()
+    # English + Russian recurring examples live in the question bullet
+    assert "add rent 800 every month" in prompt
+    assert "cancel my Netflix subscription" in prompt
+    assert "каждый месяц" in prompt
+    assert "отмени подписку" in prompt
+
+
+def test_system_prompt_keeps_one_off_spendings_as_add_transaction():
+    """Boundary guard: recurrence examples must not steal genuine one-off
+    transactions — the add_transaction bullet spells out "rent 800"."""
+    prompt = build_intent_system_prompt()
+    add_tx_bullet = prompt.split('- "add_income"')[0]
+    assert '"rent 800"' in add_tx_bullet
+    assert '"аренда 800"' in add_tx_bullet
+    assert "one-off" in add_tx_bullet

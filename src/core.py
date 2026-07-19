@@ -686,12 +686,15 @@ async def handle_ask_input(update: Update, context):
     return await handle_text(update, context)
 
 
-async def answer_ask_question(update: Update, context: CallbackContext, question: str):
+async def answer_ask_question(
+    update: Update, context: CallbackContext, question: str, channel: str = "ask"
+):
     """Answer a finance question via the LLM.
 
-    Shared by the /ask command and the menu typed-question mode (T-045);
-    both paths re-check entitlement here and log the interaction on
-    channel 'ask' identically. Data is aggregated in memory and packed
+    Shared by the /ask command, the menu typed-question mode (T-045) and
+    voice-routed questions (dv-94bd, channel="voice"); all paths re-check
+    entitlement here and log the interaction under `channel` identically.
+    Data is aggregated in memory and packed
     into the prompt; raw-row questions go through the read-only
     query_transactions tool over the same in-memory session — the model
     never touches the DB (T-018)."""
@@ -746,7 +749,7 @@ async def answer_ask_question(update: Update, context: CallbackContext, question
         # the answer is already delivered.
         try:
             await repos.interactions.add(
-                user_id, "ask", question, "question", answer[:300], outcome="routed"
+                user_id, channel, question, "question", answer[:300], outcome="routed"
             )
         except Exception as log_err:
             logging.error(f"/ask interaction log failed for user {user_id}: {log_err}")
