@@ -163,6 +163,11 @@ async def menu_call(update: Update, context: CallbackContext):
     texts = check_language(update, context)
     action = query.data
 
+    # Ask-AI typed-question mode (T-045): any menu tap cancels a pending
+    # question prompt — only the menu_ask_ai branch below re-arms the flag.
+    # Prevents a stale flag from swallowing a later typed transaction.
+    context.user_data.pop("awaiting_ask", None)
+
     # Import here to avoid circular imports
     from src.core import build_detailed_report
 
@@ -331,16 +336,20 @@ async def menu_call(update: Update, context: CallbackContext):
         return TRANSACTION
 
     if action == "menu_ask_ai":
-        # Ask-AI funnel (T-023): entitled users get the how-to, everyone else
-        # the Stars offer — both as edits of the anchor (T-044). The button
-        # never grants anything — purchases flow exclusively
+        # Ask-AI funnel (T-023): entitled users get the typed-question prompt
+        # (T-045) — the next text message is routed into the /ask flow by
+        # handle_text (core.py) via the awaiting_ask flag; Back or any other
+        # menu tap clears it (pop at the top of menu_call). Everyone else
+        # gets the Stars offer — both as edits of the anchor (T-044). The
+        # button never grants anything — purchases flow exclusively
         # invoice -> successful_payment (handlers/payments.py). A Buy tap
         # still sends the invoice as a new message (unavoidable); the anchor
         # keeps its Back button.
         from src.ai_access import check_ai_access
         from src.handlers.payments import build_ai_offer
         if await check_ai_access(user_id, context):
-            await _safe_edit(query, texts.AI_HOWTO, reply_markup=_back_kb(texts))
+            context.user_data["awaiting_ask"] = True
+            await _safe_edit(query, texts.ASK_AI_PROMPT, reply_markup=_back_kb(texts))
         else:
             offer_text, offer_kb = build_ai_offer(texts, include_back=True)
             await _safe_edit(query, offer_text, reply_markup=offer_kb)

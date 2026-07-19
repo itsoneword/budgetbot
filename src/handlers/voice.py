@@ -64,6 +64,9 @@ async def handle_voice(update: Update, context: CallbackContext):
     """Transcribe a voice note and route it by intent."""
     user_id = update.effective_user.id
     texts = check_language(update, context)
+    # A voice note routes itself by intent — drop a pending typed-question
+    # flag (T-045) so it can't later swallow a typed transaction.
+    context.user_data.pop("awaiting_ask", None)
     log_user_interaction(
         user_id, update.effective_user.first_name, update.effective_user.username
     )

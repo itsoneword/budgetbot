@@ -153,6 +153,193 @@ async def test_build_records_report_within_limit_no_warning(monkeypatch):
     assert _LIMIT_MARKER not in report
 
 
+# ==========================================
+# Ask-AI typed-question mode (T-045)
+# ==========================================
+
+import src.texts_ru as texts_ru
+
+
+@pytest.fixture(scope="module")
+def core(tmp_path_factory):
+    """Import src.core once, from a cwd with a stubbed configs/config.
+
+    src/core.py reads configs/config (Telegram token) at import time; the
+    repo checkout has no such file, so tests import it from a temp cwd
+    holding a dummy one. Cached in sys.modules for every later user —
+    including menu_call's in-function `from src.core import ...`.
+    """
+    import os
+    import sys
+
+    if "src.core" not in sys.modules:
+        tmp = tmp_path_factory.mktemp("coreimport")
+        (tmp / "configs").mkdir()
+        (tmp / "configs" / "config").write_text("[TELEGRAM]\nTOKEN = 123:dummy\n")
+        (tmp / "user_data").mkdir()  # src.logger opens user_data/app.log
+        old_cwd = os.getcwd()
+        os.chdir(tmp)
+        try:
+            import src.core  # noqa: F401
+        finally:
+            os.chdir(old_cwd)
+    import src.core
+    return src.core
+
+
+def test_ask_ai_prompt_defined_in_both_languages():
+    assert texts_en.ASK_AI_PROMPT
+    assert texts_ru.ASK_AI_PROMPT
+    assert texts_en.ASK_AI_PROMPT != texts_ru.ASK_AI_PROMPT
+
+
+class FakeMenuQuery:
+    """Callback query stand-in for menu_call: ack + edit recording."""
+
+    def __init__(self, data):
+        self.data = data
+        self.from_user = SimpleNamespace(id=100, first_name="Test")
+        self.edits = []
+
+    async def answer(self):
+        pass
+
+    async def edit_message_text(self, text, **kwargs):
+        self.edits.append((text, kwargs))
+
+
+def _menu_update(query):
+    return SimpleNamespace(
+        callback_query=query,
+        effective_user=SimpleNamespace(id=100, first_name="Test", username="test"),
+    )
+
+
+async def test_menu_ask_ai_entitled_arms_flag_and_prompts(core, monkeypatch):
+    import src.ai_access as ai_access
+
+    async def fake_access(user_id, context):
+        return True
+
+    monkeypatch.setattr(ai_access, "check_ai_access", fake_access)
+    from src.handlers.menu import menu_call
+
+    query = FakeMenuQuery("menu_ask_ai")
+    context = SimpleNamespace(user_data={"cached_language": "en"})
+    await menu_call(_menu_update(query), context)
+
+    assert context.user_data.get("awaiting_ask") is True
+    text, kwargs = query.edits[-1]
+    assert text == texts_en.ASK_AI_PROMPT
+    kb = kwargs["reply_markup"].inline_keyboard
+    assert kb[0][0].callback_data == "back_to_main_menu"
+
+
+async def test_menu_ask_ai_non_entitled_offer_no_flag(core, monkeypatch):
+    import src.ai_access as ai_access
+
+    async def fake_access(user_id, context):
+        return False
+
+    monkeypatch.setattr(ai_access, "check_ai_access", fake_access)
+    from src.handlers.menu import menu_call
+
+    query = FakeMenuQuery("menu_ask_ai")
+    context = SimpleNamespace(user_data={"cached_language": "en"})
+    await menu_call(_menu_update(query), context)
+
+    assert "awaiting_ask" not in context.user_data
+    offer_text, _ = build_ai_offer(texts_en)
+    assert query.edits[-1][0] == offer_text
+
+
+async def test_menu_back_clears_stale_awaiting_ask(core):
+    from src.handlers.menu import menu_call
+
+    query = FakeMenuQuery("back_to_main_menu")
+    context = SimpleNamespace(
+        user_data={"cached_language": "en", "awaiting_ask": True}
+    )
+    await menu_call(_menu_update(query), context)
+
+    assert "awaiting_ask" not in context.user_data
+    assert query.edits[-1][0] == texts_en.MAIN_MENU_TEXT
+
+
+async def test_any_menu_tap_clears_stale_awaiting_ask(core):
+    from src.handlers.menu import menu_call
+
+    query = FakeMenuQuery("menu_settings")
+    context = SimpleNamespace(
+        user_data={"cached_language": "en", "awaiting_ask": True}
+    )
+    await menu_call(_menu_update(query), context)
+    assert "awaiting_ask" not in context.user_data
+
+
+async def test_handle_text_awaiting_ask_routes_to_ask_flow(core, monkeypatch):
+    questions = []
+
+    async def fake_answer(update, context, question):
+        questions.append(question)
+
+    monkeypatch.setattr(core, "answer_ask_question", fake_answer)
+
+    update = SimpleNamespace(
+        effective_user=SimpleNamespace(id=100, first_name="Test", username="test"),
+        message=SimpleNamespace(text="how much did I spend on beer this year?"),
+    )
+    context = SimpleNamespace(
+        user_data={"cached_language": "en", "awaiting_ask": True}
+    )
+    state = await core.handle_text(update, context)
+
+    assert questions == ["how much did I spend on beer this year?"]
+    assert "awaiting_ask" not in context.user_data
+    assert state == core.TRANSACTION
+
+
+async def test_ask_command_joins_args_and_delegates(core, monkeypatch):
+    questions = []
+
+    async def fake_answer(update, context, question):
+        questions.append(question)
+
+    monkeypatch.setattr(core, "answer_ask_question", fake_answer)
+    update = SimpleNamespace(
+        effective_user=SimpleNamespace(id=100, first_name="Test", username="test"),
+    )
+    context = SimpleNamespace(args=["beer", "spend?"], user_data={"cached_language": "en"})
+    await core.ask(update, context)
+    assert questions == ["beer spend?"]
+
+
+async def test_voice_entry_clears_awaiting_ask(monkeypatch):
+    import src.handlers.voice as voice
+
+    async def fake_access(user_id, context):
+        return False  # earliest exit after the pop — offer instead of routing
+
+    offers = []
+
+    async def fake_offer(update, context):
+        offers.append(True)
+
+    monkeypatch.setattr(voice, "check_ai_access", fake_access)
+    import src.handlers.payments as payments
+    monkeypatch.setattr(payments, "send_ai_offer", fake_offer)
+
+    update = SimpleNamespace(
+        effective_user=SimpleNamespace(id=100, first_name="Test", username="test"),
+        effective_message=SimpleNamespace(voice=None),
+    )
+    context = SimpleNamespace(user_data={"cached_language": "en", "awaiting_ask": True})
+    await voice.handle_voice(update, context)
+
+    assert "awaiting_ask" not in context.user_data
+    assert offers == [True]
+
+
 async def test_build_records_report_appends_limit_block_when_exceeded(monkeypatch):
     from domain.models.user_session import UserConfig
 

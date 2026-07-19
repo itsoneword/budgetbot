@@ -310,6 +310,8 @@ BUY_AI_ALREADY = "You already have AI access — paying this invoice extends it.
 PAY_PRECHECKOUT_FAILED = "This invoice is no longer valid. Please send /buy_ai to get a fresh one."
 ASK_AI_BUTTON = "🤖 Ask AI"
 AI_HOWTO = "🤖 You have AI access!\n\n• Send a voice message — I'll turn it into a transaction or answer a question.\n• Or type /ask followed by a question, e.g. /ask how much did I spend on food this month?"
+# Ask-AI typed-question mode (T-045): shown when an entitled user taps the menu button.
+ASK_AI_PROMPT = "🤖 Ask me anything about your finances — e.g. \"how much did I spend on beer this year?\"\n\nJust type your question as the next message."
 ASK_ERROR = "Could not get an answer right now. Please try again later."
 ASK_NO_DATA = "You don't have any transactions yet — add some spendings first."
 
