@@ -184,7 +184,9 @@ async def test_answer_ask_question_logs_caller_channel(
         return True
 
     async def fake_load_session(user_id, repos, **kwargs):
-        return SimpleNamespace(transactions=[object()], language="en")
+        return SimpleNamespace(
+            transactions=[object()], language="en", currency="USD", user_id=100
+        )
 
     class FakeClient:
         async def complete_with_tools(self, prompt, system, tools=None):
