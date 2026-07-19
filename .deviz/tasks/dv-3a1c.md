@@ -5,7 +5,7 @@ status: todo
 priority: high
 assignee: 
 labels: [feature, bot]
-deps: []
+deps: [dv-9219]
 parent: 
 created: 2026-07-19T14:55:32Z
 updated: 2026-07-19T14:55:32Z
@@ -19,7 +19,10 @@ Combines T-027 with an agentic redesign of /ask (owner decision 2026-07-19) — 
 
 ## Acceptance Criteria
 
-- [ ] TODO
+- [ ] /ask answers raw-row questions the fixed aggregates can't (specific dates, amount filters, full multi-year history) via query_transactions — see dv-f0d5
+- [ ] Recurring rules manageable through /ask and voice; every write staged behind an inline confirm tap, never auto-applied — see dv-82c8
+- [ ] Simple aggregate questions still resolve in one turn (compact summary as system context); tool rounds and total time capped; per-turn usage logged — see dv-ee06
+- [ ] Voice channel routes through the same agent session with the same guardrails — see dv-94bd
 
 ## Notes
 

@@ -1,14 +1,14 @@
 ---
 id: dv-93dd
 title: Ask AI menu tap opens typed-question mode (like Add transaction)
-status: review
+status: done
 priority: high
 assignee: 
 labels: [feature, bot]
 deps: []
 parent: 
 created: 2026-07-19T14:55:25Z
-updated: 2026-07-19T14:55:25Z
+updated: 2026-07-19T15:32:05Z
 ---
 
 ## Description
@@ -58,3 +58,9 @@ Manual testing checklist: Ask AI typed-question mode (T-045)
 - [ ] Double-tapping the Ask AI button does not error (edit-not-modified swallowed)
 - [ ] LLM failure during the answer → friendly ASK_ERROR text, bot stays responsive
 - 2026-07-19 owner test: typed question after /ask works; menu-tap path broken (tracked T-046); 12-month data window limitation spun off as T-049
+
+## Comments
+
+### @claude — 2026-07-19T15:32:05Z
+
+Owner verified typed-question Ask AI mode works after container rebuild (2026-07-19).

@@ -1,14 +1,14 @@
 ---
 id: dv-3ace
 title: Currency API circuit breaker
-status: review
+status: in_progress
 priority: medium
 assignee: 
 labels: [ops, infra]
 deps: []
 parent: 
 created: 2026-07-19T14:55:25Z
-updated: 2026-07-19T14:55:25Z
+updated: 2026-07-19T15:16:19Z
 ---
 
 ## Description
@@ -75,3 +75,13 @@ Automated (already run, green): `pytest tests/shared/test_circuit_breaker.py` (8
 - [ ] Log lines: "Fetched fresh exchange rates from API" on success; "Error fetching exchange rates from API" on blocked network; no tracebacks
 - [ ] Regression: /show_last, stats and detailed reports (other currency consumers, if any) unaffected — only charts call get_rates()
 - 2026-07-12 moved to review
+
+## Comments
+
+### @itsoneword — 2026-07-19T15:15:33Z
+
+not sure I understand the task. there is no chart command. the ones exist work as expected
+
+### @itsoneword — 2026-07-19T15:16:19Z
+
+would appreciate your guidance. shall mark this as done or we just missed some comands wiring?

@@ -1,14 +1,14 @@
 ---
 id: dv-b1bd
 title: awaiting_ask intercepted too late: typed question hits transaction parser
-status: review
+status: done
 priority: high
 assignee: 
 labels: [bug, bot]
 deps: []
 parent: 
 created: 2026-07-19T14:55:25Z
-updated: 2026-07-19T14:55:25Z
+updated: 2026-07-19T15:32:05Z
 ---
 
 ## Description
@@ -51,3 +51,9 @@ The T-045 checklist item "typed question after menu tap" is the repro this fixes
 #### Nice-to-have
 - [ ] Voice message while the question prompt is open: voice channel handles it; a typed message after that is parsed normally
 - [ ] /cancel or /menu while the prompt is open: no stuck question mode
+
+## Comments
+
+### @claude — 2026-07-19T15:32:05Z
+
+Owner verified awaiting_ask routing works after container rebuild (2026-07-19).
