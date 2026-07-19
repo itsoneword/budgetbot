@@ -1,14 +1,14 @@
 ---
 id: dv-ee06
 title: Agent session plumbing: tool loop, round/timeout caps, summary context, usage logging
-status: todo
+status: in_progress
 priority: high
 assignee: 
 labels: [feature, bot]
 deps: []
 parent: dv-3a1c
 created: 2026-07-19T15:31:19Z
-updated: 2026-07-19T15:31:19Z
+updated: 2026-07-19T16:28:40Z
 ---
 
 ## Description
@@ -18,5 +18,22 @@ claude-agent-sdk session with custom tools replacing tools=[]. Keep compact fina
 ## Acceptance Criteria
 
 ## Notes
+
+## Notes
+
+### Implementation plan (plan agent, 2026-07-19)
+
+Verified against installed claude-agent-sdk 0.1.81: @tool + create_sdk_mcp_server + ClaudeAgentOptions(mcp_servers, allowed_tools=["mcp__finance__<tool>"], tools=[] disables built-ins). query() with string prompt DOES support SDK MCP servers in 0.1.81 (README stale; fallback = ClaudeSDKClient runner; pin SDK version). max_turns caps tool rounds; AssistantMessage.usage + .model feed usage_meter.record per turn (ResultMessage cumulative only as fallback — avoid double count).
+
+1. infrastructure/llm/base.py: ToolSpec dataclass (name, description, input_schema, async handler->str), ToolInputError (message surfaced to model as is_error result), non-abstract complete_with_tools default raising LLMError. complete() untouched (voice/scheduler call sites preserved). Tools passed per call, never stored — get_llm_client() is lru_cached/shared.
+2. infrastructure/llm/claude_agent.py: shared runner; complete_with_tools wraps ToolSpecs into SDK tools (ToolInputError -> is_error; unexpected exceptions -> generic "tool failed", never leak internals), permission_mode="dontAsk", DEFAULT_MAX_TOOL_TURNS=8 (env ASK_MAX_TOOL_TURNS), 120s wall clock kept (env ASK_TIMEOUT_SECONDS). On max-turns/budget exhaustion with usable text: return accumulated text, don't raise; LLMError only when nothing usable.
+3. domain/ask_summary.py: build_ask_system_prompt(language, tools_enabled=False) — when True, append guidance: answer from summary when it suffices (keeps simple questions one-turn/zero tools); call query_transactions only for raw rows/filters; at most a few calls.
+4. src/core.py answer_ask_question: ~4 lines — complete_with_tools(prompt, system(tools_enabled=True), tools=build_ask_toolspecs(session)). Entitlement gate, empty-data early return, thinking message, interaction log unchanged.
+
+Sizing: rows default 20 / cap 200 / ~8KB formatted cap / counts+totals always over full match set pre-truncation.
+
+Defaults accepted: per-turn usage JSONL rows (row count != ask count); 20/200/8KB limits; in-memory filter over session (no SQL surface at all) instead of new repo method.
+
+Risks: SDK upgrade regressing query()-MCP path; max_turns too low truncates (graceful text return, tune from logs); usage double-count (check host report once after deploy); 10k-row get_latest cap inherited from summary path (accepted).
 
 ## Comments

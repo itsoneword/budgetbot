@@ -1,14 +1,14 @@
 ---
 id: dv-3a1c
 title: Agentic AI channel: tool-calling /ask (read tools) + recurring management (write tools)
-status: todo
+status: in_progress
 priority: high
 assignee: 
 labels: [feature, bot]
 deps: [dv-9219]
 parent: 
 created: 2026-07-19T14:55:32Z
-updated: 2026-07-19T14:55:32Z
+updated: 2026-07-19T15:46:14Z
 ---
 
 ## Description
@@ -29,3 +29,9 @@ Combines T-027 with an agentic redesign of /ask (owner decision 2026-07-19) — 
 ### Log
 
 - 2026-07-19 created
+
+## Comments
+
+### @claude — 2026-07-19T15:46:14Z
+
+Planning wave started: 3 parallel plan agents — (1) dv-ee06+dv-f0d5 foundation unit, (2) dv-82c8 write tools, (3) dv-94bd voice routing. Implementation order: foundation first, then write tools + voice in parallel worktrees.
