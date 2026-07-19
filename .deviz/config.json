@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "statuses": [
+    "todo",
+    "in_progress",
+    "review",
+    "waiting_user",
+    "done"
+  ],
+  "defaultStatus": "todo",
+  "priorities": [
+    "low",
+    "medium",
+    "high"
+  ],
+  "idPrefix": "dv",
+  "archiveDone": true,
+  "humanAuthor": "itsoneword"
+}
