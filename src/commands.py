@@ -145,6 +145,12 @@ COMMANDS: Tuple[CommandSpec, ...] = (
         section="stats",
     ),
     CommandSpec(
+        "buy_ai", "buy_ai",
+        "⭐ Buy AI access with Telegram Stars",
+        "⭐ Купить доступ к ИИ за Telegram Stars",
+        section="stats",
+    ),
+    CommandSpec(
         "download", "download_spendings",
         "📥 Download your transactions as a CSV file",
         "📥 Скачать ваши транзакции в формате CSV",
@@ -205,6 +211,12 @@ COMMANDS: Tuple[CommandSpec, ...] = (
         "revoke_ai", "revoke_ai",
         "Revoke AI access: /revoke_ai USER_ID (admin)",
         "Отозвать доступ к ИИ: /revoke_ai USER_ID (админ)",
+        admin_only=True,
+    ),
+    CommandSpec(
+        "refund_ai", "refund_ai",
+        "Refund a Stars payment and revoke AI access: /refund_ai USER_ID [charge_id] (admin)",
+        "Вернуть платёж Stars и отозвать доступ к ИИ: /refund_ai USER_ID [charge_id] (админ)",
         admin_only=True,
     ),
     CommandSpec(

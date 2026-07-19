@@ -1,7 +1,7 @@
 ---
 id: T-023
 title: Paywall: buy AI access via Telegram Stars
-status: todo
+status: review
 type: feature
 area: bot
 priority: p1
@@ -9,14 +9,24 @@ deps: [T-022]
 tags: [ai, monetization]
 blocked: 
 created: 2026-07-11
-updated: 2026-07-12
+updated: 2026-07-19
 ---
 
 ## Context
 Users without AI entitlement get an offer instead of ASK_NOT_ALLOWED: inline button -> Telegram native payments in Stars (XTR, no provider token needed for digital goods): send_invoice, PreCheckoutQueryHandler, successful_payment handler writes the entitlement (T-022) with period end. Decide pricing/duration with owner before implementing. Handle: repeat purchase extends expiry; refund command per Telegram policy (refundStarPayment); receipts in both languages (texts.py + texts_ru.py). Security: entitlement written ONLY from successful_payment update, never from callback data.
 
 ## Acceptance
-- [ ] TODO
+- [x] Alembic revision 0007 `ai_payments`: audit table with user_id WITHOUT FK (refund audit survives /leave cascade), telegram_payment_charge_id UNIQUE; single head on top of 0006
+- [x] PaymentRepository (record ON CONFLICT DO NOTHING -> False on redelivery, get_latest_paid, get_by_charge_id, mark_refunded), exported + `repos.payments` DI property
+- [x] Config: AI_ACCESS_PRICE_STARS (default 100), AI_ACCESS_DAYS (default 30; 0 = perpetual)
+- [x] Copy in BOTH texts.py + texts_ru.py: offer, buy button, invoice title/description, receipts ({expiry}/perpetual), BUY_AI_ALREADY, PAY_PRECHECKOUT_FAILED, ASK_AI_BUTTON, AI_HOWTO
+- [x] Stateless src/handlers/payments.py: send_ai_offer (via effective_message — works from message AND callback contexts), invoice with payload-encoded sold terms (domain/payments.py 'ai:30'/'ai:perp'), /buy_ai (entitled -> BUY_AI_ALREADY + invoice anyway), buy_ai callback, precheckout (validation only, NO DB), successful_payment = the ONLY grant point (record first; grant only if inserted; CRITICAL log with charge_id on any failure), /refund_ai USER_ID [charge_id] -> refund_star_payment + mark_refunded + revoke
+- [x] Registry rows: buy_ai next to ask, refund_ai admin_only; import guard passes (no <>& chars)
+- [x] core.py wiring BEFORE spendings_handler: CallbackQueryHandler(^buy_ai$), PreCheckoutQueryHandler, MessageHandler(filters.SUCCESSFUL_PAYMENT)
+- [x] Denial -> offer at both gate sites (core.py ask(), voice.py handle_voice); silent free-text fallthrough left silent; ASK_NOT_ALLOWED removed
+- [x] Step 9 code side: LLM_ALLOWED_USERS env tier removed from config.py/ai_access.py/list_ai footer (pre-deploy /grant_ai migration = owner action, see Testing)
+- [x] Amendment: ASK_AI_BUTTON full-width TOP row in create_main_menu_keyboard (callback_data="menu_ask_ai"); menu_call branch: entitled -> AI_HOWTO + return to menu, else send_ai_offer
+- [x] Domain payload codec tests added; full suite green (231 passed); `import src.core` OK with stub config; alembic single head 0007
 
 ## Log
 - 2026-07-11 created
@@ -60,3 +70,39 @@ Open question (recommended default): exact label/placement → "🤖 Ask AI" as 
 
 Risks: none new — `menu_ask_ai` from a stale keyboard rendered outside TRANSACTION state is caught by the menu_callback fallback (same as every existing `menu_*` button); `check_ai_access` is fail-closed, so a DB error shows the offer rather than granting — acceptable (paying while entitled just extends via GREATEST, step 5).
 - 2026-07-12 Plan amendment: main-menu Ask AI funnel button (steps 10-12) — reuses send_ai_offer; effective_message contract note for step 5
+- 2026-07-19 started
+- 2026-07-19 Implemented all 12 plan steps: 0007 ai_payments revision, PaymentRepository+DI, config pricing, texts EN/RU, stateless payments handlers (invoice/precheckout/successful_payment sole grant point/refund_ai), registry rows, core.py wiring, denial->offer at ask+voice, env tier removed, menu Ask-AI funnel; suite 231 green, import check OK, alembic single head
+
+## Testing
+
+### PRE-DEPLOY — OWNER ACTION REQUIRED (before this code goes live)
+- [ ] **Migrate the env allowlist BEFORE deploying this build.** The LLM_ALLOWED_USERS env tier is REMOVED in this code — any user relying on it loses AI access the moment this deploys. On the CURRENTLY RUNNING (old) bot, run `/grant_ai USER_ID` (or `/grant_ai USER_ID 30` for a timed pass) for EVERY user id currently in LLM_ALLOWED_USERS, and verify with `/list_ai` that each now holds a DB entitlement. Only then deploy. (Reversible: if anything goes wrong, re-adding LLM_ALLOWED_USERS to the old image restores the old behavior.)
+- [ ] After deploy: `alembic upgrade head` ran on container start (check logs for revision 0007); `\d ai_payments` shows the table with the UNIQUE constraint on telegram_payment_charge_id and NO FK on user_id.
+- [ ] After deploy: remove LLM_ALLOWED_USERS from the deployment env/compose file (it is dead config now).
+
+### Critical — real purchase flow (needs a real 100-Star balance)
+- [ ] As a NON-entitled, non-admin user: `/ask test` shows the Stars offer (price 100, 30 days) with the Buy button — not the old denial text, no dead end.
+- [ ] As the same user: send a voice note — same offer appears.
+- [ ] Tap Buy: a Telegram Stars invoice appears (title/description in the user's language, 100 XTR, one price row). `/buy_ai` produces the same invoice directly.
+- [ ] Pay the invoice (real 100 Stars): receipt arrives with an expiry date ~30 days out (UTC); `/ask test` now answers; voice notes now work; admin `/list_ai` shows the user with source=purchase and the expiry.
+- [ ] DB audit: `SELECT * FROM ai_payments` has one 'paid' row with the charge id, payload 'ai:30', amount 100, currency XTR.
+- [ ] Repeat purchase while entitled: `/buy_ai` first replies BUY_AI_ALREADY, still sends the invoice; paying again EXTENDS expiry (~60 days from first purchase, GREATEST semantics) — it must never shorten.
+- [ ] Redelivery idempotency (reasoning check, hard to trigger live): the grant runs ONLY when payments.record() actually inserts; a redelivered successful_payment update hits the UNIQUE charge_id, record() returns False, and the handler sends a receipt WITHOUT re-granting. Verify the code path once by manually re-inserting the same charge id is rejected: second `INSERT ... ON CONFLICT DO NOTHING` reports INSERT 0 0.
+- [ ] Refund flow: admin `/refund_ai USER_ID` refunds the latest paid charge — Stars return to the buyer, ai_payments row flips to 'refunded' with refunded_by, `/list_ai` no longer lists the user, and their next `/ask` shows the offer again. Reply text mentions revoke-all + manual /grant_ai for remainders.
+- [ ] Ask AI menu button — NOT entitled: /menu shows the full-width top "🤖 Ask AI" row; tapping it sends the offer and returns to the main menu (menu keeps working afterwards).
+- [ ] Ask AI menu button — entitled (or admin): tapping it shows AI_HOWTO, then returns to the main menu.
+
+### Important
+- [ ] Pre-checkout failure path: with a pending unpaid invoice, restart the bot, then pay — payment still completes (handlers are stateless; payload carries the sold terms). If Telegram ever sends a non-'ai:' payload, the pre-checkout is declined with PAY_PRECHECKOUT_FAILED.
+- [ ] `/refund_ai` edge cases: unknown user id -> "no refundable payment"; explicit charge id of another user -> rejected; refunding an already-refunded charge -> "already refunded"; non-admin caller -> restricted message.
+- [ ] Russian-language user sees RU copy end-to-end: offer, invoice title/description, receipt, AI_HOWTO, Ask-AI button label.
+- [ ] Grant-failure audit trail (reasoning check): if entitlements.grant() throws after record(), the log contains a CRITICAL line with the charge_id and the /grant_ai instruction, and the user sees ERROR_PROCESSING_REQUEST — money is never silently lost.
+- [ ] Free-text fallthrough stays silent: a non-entitled user typing random text (no amount pattern) gets UNKNOWN_TEXT_FORMAT, NOT the paywall offer (no spam).
+- [ ] `/help` and the command menu show /buy_ai for everyone and /refund_ai only in the admin scope.
+
+### Regression
+- [ ] Menu still 5 rows and all previous buttons work (add/show/edit/reminder/settings/help); mid-conversation menu_ask_ai from a stale keyboard doesn't crash (menu_callback fallback catches it).
+- [ ] Admin retains AI access with no entitlement row (is_admin tier).
+- [ ] /grant_ai, /revoke_ai, /list_ai still work; /list_ai no longer prints the env-allowlist footer.
+- [ ] vtx_/vinc_/rr/rem_ inline buttons still work (handler ordering unchanged around the new payment handlers).
+- 2026-07-19 moved to review

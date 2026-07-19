@@ -232,6 +232,19 @@ async def menu_call(update: Update, context: CallbackContext):
         log_state_transition(TRANSACTION)
         return TRANSACTION
 
+    if action == "menu_ask_ai":
+        # Ask-AI funnel (T-023): entitled users get the how-to, everyone else
+        # the Stars offer. The button never grants anything — purchases flow
+        # exclusively invoice -> successful_payment (handlers/payments.py).
+        await query.answer()
+        from src.ai_access import check_ai_access
+        from src.handlers.payments import send_ai_offer
+        if await check_ai_access(user_id, context):
+            await query.edit_message_text(texts.AI_HOWTO)
+            return await _return_to_main_menu(query, texts)
+        await send_ai_offer(update, context)
+        return await _return_to_main_menu(query, texts)
+
     if action == "menu_help":
         await query.edit_message_text(
             build_help_text(texts, is_admin=query.from_user.id == ADMIN_USER_ID)

@@ -8,6 +8,7 @@ from .entitlement_repository import EntitlementRepository, AIEntitlement
 from .recurring_repository import RecurringRepository, RecurringRule
 from .reminder_repository import ReminderRepository, Reminder
 from .interaction_repository import InteractionRepository, AIInteraction
+from .payment_repository import PaymentRepository, AIPayment
 
 __all__ = [
     'BaseRepository',
@@ -26,4 +27,6 @@ __all__ = [
     'Reminder',
     'InteractionRepository',
     'AIInteraction',
+    'PaymentRepository',
+    'AIPayment',
 ]

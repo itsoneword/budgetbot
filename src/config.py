@@ -11,23 +11,17 @@ VERSION_DATE = "11.07.2026"
 # Defaults to 0 (matches no real user) when unset, so admin commands stay locked.
 ADMIN_USER_ID = int(os.getenv("ADMIN_USER_ID", "0"))
 
-# Users allowed to use LLM-backed commands (/ask). The LLM runs on the owner's
-# subscription, so this is an allowlist: ADMIN_USER_ID plus LLM_ALLOWED_USERS
-# (comma-separated Telegram IDs). Empty LLM_ALLOWED_USERS = admin only.
-LLM_ALLOWED_USERS = frozenset(
-    int(uid) for uid in os.getenv("LLM_ALLOWED_USERS", "").split(",") if uid.strip().isdigit()
-)
-
-
 def is_admin(user_id: int) -> bool:
     return user_id == ADMIN_USER_ID
 
 
-def is_llm_allowed(user_id: int) -> bool:
-    """Admin + env allowlist. Since T-022 this is only the fallback tier of
-    src/ai_access.check_ai_access (DB entitlements); the env allowlist is
-    scheduled for removal in the T-023 release."""
-    return user_id == ADMIN_USER_ID or user_id in LLM_ALLOWED_USERS
+# AI access paywall (T-023). Price of the AI pass in Telegram Stars and its
+# duration in days; AI_ACCESS_DAYS=0 sells perpetual access (entitlement
+# expires_at NULL). The legacy LLM_ALLOWED_USERS env tier was removed in the
+# T-023 release — access is admin + DB entitlements (src/ai_access.py) only;
+# pre-deploy, every env-allowlisted user must be migrated via /grant_ai.
+AI_ACCESS_PRICE_STARS = int(os.getenv("AI_ACCESS_PRICE_STARS", "100"))
+AI_ACCESS_DAYS = int(os.getenv("AI_ACCESS_DAYS", "30"))
 
 
 # UTC hour at which the daily recurring-transactions job runs (T-026).

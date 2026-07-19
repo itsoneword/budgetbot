@@ -15,7 +15,7 @@ from telegram.ext import CallbackContext, ConversationHandler
 from src.language_util import check_language, format_monthly_limit
 from shared.di import get_repos
 from src.commands import build_help_text
-from src.config import ADMIN_USER_ID, LLM_ALLOWED_USERS, VERSION, VERSION_DATE, is_admin
+from src.config import ADMIN_USER_ID, VERSION, VERSION_DATE, is_admin
 from src.logger import log_user_interaction
 from src.keyboards import create_settings_keyboard
 from src.charts import generate_usage_summary_chart
@@ -184,10 +184,6 @@ async def list_ai(update: Update, context: CallbackContext) -> int:
         lines.append(
             f"{ent.user_id}{username} — {ent.source}, {_format_expiry(ent.expires_at)}"
         )
-    if LLM_ALLOWED_USERS:
-        env_ids = ", ".join(str(uid) for uid in sorted(LLM_ALLOWED_USERS))
-        lines.append(f"Env allowlist (LLM_ALLOWED_USERS, legacy): {env_ids}")
-
     await update.message.reply_text("\n".join(lines))
     return TRANSACTION
 

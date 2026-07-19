@@ -141,6 +141,11 @@ def create_main_menu_keyboard(texts):
     """Create the main menu keyboard"""
     #print("DEBUG: Creating main menu keyboard with texts module:", texts)
     keyboard = [
+        # Ask-AI funnel (T-023): full-width top row — the paywall's primary
+        # entry point. menu_ask_ai rides the existing ^menu_ routing.
+        [
+            InlineKeyboardButton(texts.ASK_AI_BUTTON, callback_data="menu_ask_ai")
+        ],
         [
             InlineKeyboardButton(texts.ADD_TRANSACTION_BUTTON, callback_data="menu_add_transaction"),
             InlineKeyboardButton(texts.SHOW_TRANSACTIONS_BUTTON, callback_data="menu_show_transactions")
