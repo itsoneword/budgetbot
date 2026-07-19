@@ -4,8 +4,8 @@
 
 Updated: 2026-07-19 · see docs/ROADMAP.md for milestones
 
-## Doing (0)
-_empty_
+## Doing (1)
+- **T-023** `p1/feature/bot` Paywall: buy AI access via Telegram Stars — last: 2026-07-11 created
 
 ## Review (7)
 - **T-004** `p1/refactor/bot` Move chart rendering off the event loop — last: 2026-07-11 moved to review
@@ -16,8 +16,7 @@ _empty_
 - **T-010** `p2/ops/infra` Currency API circuit breaker — last: 2026-07-07 created from production-readiness P4
 - **T-025** `p2/feature/bot` Admin panel commands: user data export + activity monitoring — last: 2026-07-11 created
 
-## Todo (8)
-- **T-023** `p1/feature/bot` Paywall: buy AI access via Telegram Stars
+## Todo (7)
 - **T-027** `p1/feature/bot` AI channel: manage recurring spendings by voice//ask
 - **T-038** `p1/bug/infra` LLM auth: dedicated token for container, stop sharing host OAuth credentials
 - **T-042** `p1/bug/bot` Voice STT: accented English transcribed as Russian (language misdetection on small model)

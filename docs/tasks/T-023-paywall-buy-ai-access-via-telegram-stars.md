@@ -1,7 +1,7 @@
 ---
 id: T-023
 title: Paywall: buy AI access via Telegram Stars
-status: todo
+status: doing
 type: feature
 area: bot
 priority: p1
@@ -9,14 +9,24 @@ deps: [T-022]
 tags: [ai, monetization]
 blocked: 
 created: 2026-07-11
-updated: 2026-07-12
+updated: 2026-07-19
 ---
 
 ## Context
 Users without AI entitlement get an offer instead of ASK_NOT_ALLOWED: inline button -> Telegram native payments in Stars (XTR, no provider token needed for digital goods): send_invoice, PreCheckoutQueryHandler, successful_payment handler writes the entitlement (T-022) with period end. Decide pricing/duration with owner before implementing. Handle: repeat purchase extends expiry; refund command per Telegram policy (refundStarPayment); receipts in both languages (texts.py + texts_ru.py). Security: entitlement written ONLY from successful_payment update, never from callback data.
 
 ## Acceptance
-- [ ] TODO
+- [x] Alembic revision 0007 `ai_payments`: audit table with user_id WITHOUT FK (refund audit survives /leave cascade), telegram_payment_charge_id UNIQUE; single head on top of 0006
+- [x] PaymentRepository (record ON CONFLICT DO NOTHING -> False on redelivery, get_latest_paid, get_by_charge_id, mark_refunded), exported + `repos.payments` DI property
+- [x] Config: AI_ACCESS_PRICE_STARS (default 100), AI_ACCESS_DAYS (default 30; 0 = perpetual)
+- [x] Copy in BOTH texts.py + texts_ru.py: offer, buy button, invoice title/description, receipts ({expiry}/perpetual), BUY_AI_ALREADY, PAY_PRECHECKOUT_FAILED, ASK_AI_BUTTON, AI_HOWTO
+- [x] Stateless src/handlers/payments.py: send_ai_offer (via effective_message — works from message AND callback contexts), invoice with payload-encoded sold terms (domain/payments.py 'ai:30'/'ai:perp'), /buy_ai (entitled -> BUY_AI_ALREADY + invoice anyway), buy_ai callback, precheckout (validation only, NO DB), successful_payment = the ONLY grant point (record first; grant only if inserted; CRITICAL log with charge_id on any failure), /refund_ai USER_ID [charge_id] -> refund_star_payment + mark_refunded + revoke
+- [x] Registry rows: buy_ai next to ask, refund_ai admin_only; import guard passes (no <>& chars)
+- [x] core.py wiring BEFORE spendings_handler: CallbackQueryHandler(^buy_ai$), PreCheckoutQueryHandler, MessageHandler(filters.SUCCESSFUL_PAYMENT)
+- [x] Denial -> offer at both gate sites (core.py ask(), voice.py handle_voice); silent free-text fallthrough left silent; ASK_NOT_ALLOWED removed
+- [x] Step 9 code side: LLM_ALLOWED_USERS env tier removed from config.py/ai_access.py/list_ai footer (pre-deploy /grant_ai migration = owner action, see Testing)
+- [x] Amendment: ASK_AI_BUTTON full-width TOP row in create_main_menu_keyboard (callback_data="menu_ask_ai"); menu_call branch: entitled -> AI_HOWTO + return to menu, else send_ai_offer
+- [x] Domain payload codec tests added; full suite green (231 passed); `import src.core` OK with stub config; alembic single head 0007
 
 ## Log
 - 2026-07-11 created
@@ -60,3 +70,5 @@ Open question (recommended default): exact label/placement → "🤖 Ask AI" as 
 
 Risks: none new — `menu_ask_ai` from a stale keyboard rendered outside TRANSACTION state is caught by the menu_callback fallback (same as every existing `menu_*` button); `check_ai_access` is fail-closed, so a DB error shows the offer rather than granting — acceptable (paying while entitled just extends via GREATEST, step 5).
 - 2026-07-12 Plan amendment: main-menu Ask AI funnel button (steps 10-12) — reuses send_ai_offer; effective_message contract note for step 5
+- 2026-07-19 started
+- 2026-07-19 Implemented all 12 plan steps: 0007 ai_payments revision, PaymentRepository+DI, config pricing, texts EN/RU, stateless payments handlers (invoice/precheckout/successful_payment sole grant point/refund_ai), registry rows, core.py wiring, denial->offer at ask+voice, env tier removed, menu Ask-AI funnel; suite 231 green, import check OK, alembic single head

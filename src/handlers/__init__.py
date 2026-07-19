@@ -60,6 +60,15 @@ from src.handlers.menu import (
     menu_callback,
 )
 
+from src.handlers.payments import (
+    send_ai_offer,
+    buy_ai,
+    buy_ai_callback,
+    precheckout,
+    successful_payment,
+    refund_ai,
+)
+
 from src.handlers.transactions import (
     show_recent_entries,
     handle_transaction_selection,
@@ -127,6 +136,13 @@ __all__ = [
     'show_menu',
     'menu_call',
     'menu_callback',
+    # Payments (T-023)
+    'send_ai_offer',
+    'buy_ai',
+    'buy_ai_callback',
+    'precheckout',
+    'successful_payment',
+    'refund_ai',
     # Transactions
     'show_recent_entries',
     'handle_transaction_selection',

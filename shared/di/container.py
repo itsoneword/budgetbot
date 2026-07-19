@@ -14,6 +14,7 @@ from infrastructure.repositories import (
     RecurringRepository,
     ReminderRepository,
     InteractionRepository,
+    PaymentRepository,
 )
 from infrastructure.external.currency_service import CurrencyService
 
@@ -34,6 +35,7 @@ class Container:
         self._recurring_repo: Optional[RecurringRepository] = None
         self._reminder_repo: Optional[ReminderRepository] = None
         self._interaction_repo: Optional[InteractionRepository] = None
+        self._payment_repo: Optional[PaymentRepository] = None
         self._currency_service: Optional[CurrencyService] = None
         self._initialized = False
     
@@ -54,6 +56,7 @@ class Container:
         self._recurring_repo = RecurringRepository(self._pool)
         self._reminder_repo = ReminderRepository(self._pool)
         self._interaction_repo = InteractionRepository(self._pool)
+        self._payment_repo = PaymentRepository(self._pool)
 
         # Initialize services
         self._currency_service = CurrencyService(self._pool)
@@ -126,6 +129,13 @@ class Container:
         if not self._interaction_repo:
             raise RuntimeError("Container not initialized. Call init() first.")
         return self._interaction_repo
+
+    @property
+    def payments(self) -> PaymentRepository:
+        """Get Stars payment audit repository."""
+        if not self._payment_repo:
+            raise RuntimeError("Container not initialized. Call init() first.")
+        return self._payment_repo
 
     @property
     def currency(self) -> CurrencyService:

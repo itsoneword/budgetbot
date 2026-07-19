@@ -292,7 +292,19 @@ VIEW_TRANSACTIONS_BUTTON = "📋 View Transactions"
 # /ask — AI Q&A over spendings
 ASK_USAGE = "Ask a question about your finances, e.g.:\n/ask how much did I spend on groceries last month?"
 ASK_THINKING = "🤔 Analyzing your data..."
-ASK_NOT_ALLOWED = "The /ask command is in limited testing and not available for your account yet."
+# AI paywall (T-023): shown instead of a plain denial wherever AI access is gated.
+BUY_AI_OFFER = "🤖 AI features — voice messages and /ask questions about your finances — require an AI pass.\n\nGet {days} days of access for {price} ⭐ Telegram Stars."
+BUY_AI_OFFER_PERPETUAL = "🤖 AI features — voice messages and /ask questions about your finances — require an AI pass.\n\nGet permanent access for {price} ⭐ Telegram Stars."
+BUY_AI_BUTTON = "⭐ Buy AI access"
+BUY_AI_TITLE = "AI access pass"  # Telegram invoice title, max 32 chars
+BUY_AI_DESCRIPTION = "{days} days of AI access: voice input and /ask questions about your finances."
+BUY_AI_DESCRIPTION_PERPETUAL = "Permanent AI access: voice input and /ask questions about your finances."
+BUY_AI_RECEIPT_DAYS = "✅ Payment received! Your AI access is active until {expiry} (UTC).\nA repeat purchase extends the expiry date."
+BUY_AI_RECEIPT_PERPETUAL = "✅ Payment received! You now have permanent AI access."
+BUY_AI_ALREADY = "You already have AI access — paying this invoice extends it."
+PAY_PRECHECKOUT_FAILED = "This invoice is no longer valid. Please send /buy_ai to get a fresh one."
+ASK_AI_BUTTON = "🤖 Ask AI"
+AI_HOWTO = "🤖 You have AI access!\n\n• Send a voice message — I'll turn it into a transaction or answer a question.\n• Or type /ask followed by a question, e.g. /ask how much did I spend on food this month?"
 ASK_ERROR = "Could not get an answer right now. Please try again later."
 ASK_NO_DATA = "You don't have any transactions yet — add some spendings first."
 

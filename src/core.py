@@ -100,6 +100,14 @@ from src.handlers import (
     show_menu,
     menu_call,
     menu_callback,
+    # Payments (T-023): buy_ai/refund_ai are looked up in module globals by
+    # the COMMANDS registry loop; the rest are registered in main().
+    send_ai_offer,
+    buy_ai,
+    buy_ai_callback,
+    precheckout,
+    successful_payment,
+    refund_ai,
 )
 from src.keyboards import (
     create_language_keyboard,
@@ -152,6 +160,7 @@ from telegram.ext import (
     CallbackContext,
     CallbackQueryHandler,
     MessageHandler,
+    PreCheckoutQueryHandler,
     filters,
 )
 from logging.handlers import TimedRotatingFileHandler
@@ -668,7 +677,8 @@ async def ask(update: Update, context: CallbackContext):
 
     from src.ai_access import check_ai_access
     if not await check_ai_access(user_id, context):
-        await update.effective_message.reply_text(texts.ASK_NOT_ALLOWED)
+        # Paywall (T-023): denial shows the Stars offer instead of a dead end.
+        await send_ai_offer(update, context)
         return
 
     question = " ".join(context.args) if context.args else ""
@@ -989,6 +999,16 @@ def main():
     )
     application.add_handler(
         CallbackQueryHandler(handle_tzpick_callback, pattern="^tzpick_")
+    )
+    # AI-access paywall (T-023): same ordering requirement — the buy_ai
+    # callback must not be swallowed by spendings_handler's pattern-less
+    # menu_callback fallback. Pre-checkout and successful_payment updates are
+    # not conversation updates, but keeping all payment wiring together and
+    # before the big handler removes any ordering doubt.
+    application.add_handler(CallbackQueryHandler(buy_ai_callback, pattern="^buy_ai$"))
+    application.add_handler(PreCheckoutQueryHandler(precheckout))
+    application.add_handler(
+        MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment)
     )
 
     application.add_handler(spendings_handler)

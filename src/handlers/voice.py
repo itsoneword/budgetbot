@@ -10,7 +10,8 @@ the exact text the user could have typed ("/ask <q>", "/show_last",
 same handlers, gating and conversation states as typed input.
 
 Guardrails:
-- check_ai_access() gate (admin / env fallback / DB entitlement, T-022);
+- check_ai_access() gate (admin / DB entitlement, T-022; paywall offer on
+  denial, T-023);
   voice duration and transcript length caps;
 - the LLM output is reduced to an intent enum + validated payload — commands
   come from a hardcoded whitelist, transaction text must match the normal
@@ -68,7 +69,9 @@ async def handle_voice(update: Update, context: CallbackContext):
     )
 
     if not await check_ai_access(user_id, context):
-        await update.effective_message.reply_text(texts.ASK_NOT_ALLOWED)
+        # Paywall (T-023): denial shows the Stars offer instead of a dead end.
+        from src.handlers.payments import send_ai_offer
+        await send_ai_offer(update, context)
         return
 
     voice = update.effective_message.voice
