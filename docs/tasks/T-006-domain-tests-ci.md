@@ -9,7 +9,7 @@ deps: []
 tags: []
 blocked: 
 created: 2026-07-07
-updated: 2026-07-12
+updated: 2026-07-19
 ---
 
 ## Context
@@ -85,3 +85,4 @@ Ops/infra task — the deliverable is the test suite itself; no bot-facing behav
 ### Nice-to-have
 - [ ] Confirm pip cache hit on the second CI run (setup-python cache: pip)
 - 2026-07-12 moved to review
+- 2026-07-19 nothing to test in Telegram; remaining box = CI green on first push (local is 110 commits ahead, tests.yml not on origin yet)

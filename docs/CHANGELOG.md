@@ -7,6 +7,11 @@ under `## Unreleased` by `python3 scripts/tasks.py done T-NNN --changelog "..."`
 
 ## Unreleased
 
+- 2026-07-19 T-034: Daily reminder to add transactions via menu or voice, per-user timezone
+- 2026-07-19 T-025: Admin panel commands: user data export and activity monitoring
+- 2026-07-19 T-041: AI channel remembers recent conversation: follow-ups and corrections understood in voice//ask
+- 2026-07-19 T-028: /download exports transactions from PostgreSQL instead of stale user_data CSV
+- 2026-07-19 T-004: Chart rendering moved off the event loop (thread pool), bot stays responsive during chart generation
 - 2026-07-19 T-023: AI paywall via Telegram Stars: /buy_ai, offer-on-denial, Ask-AI menu funnel, /refund_ai — purchase flow owner-verified live
 - 2026-07-19 T-039: Defined missing chart texts (NO_DATA + 3 more) in both languages — fixed with T-044
 - 2026-07-19 T-026: Recurring transactions: rules engine, daily scheduler with catch-up, manual management

@@ -1,7 +1,7 @@
 ---
 id: T-034
 title: Daily reminder to add transactions (menu + voice), per-user timezone
-status: review
+status: done
 type: feature
 area: bot
 priority: p1
@@ -9,7 +9,7 @@ deps: []
 tags: []
 blocked: 
 created: 2026-07-11
-updated: 2026-07-12
+updated: 2026-07-19
 ---
 
 ## Context
@@ -95,3 +95,6 @@ Manual testing checklist (generated per .claude/instructions/post_implementation
 - [ ] Settings → language/currency/limit/about still work with the new Time zone row present; main menu layout renders correctly with the new row
 - 2026-07-12 acceptance boxes checked; verified via compileall, full src.core import (dummy config), domain/intent scratch tests, alembic history (0005 single head); DB not migrated live on purpose
 - 2026-07-12 moved to review
+- 2026-07-19 owner tested: reminder + adding works; logic changes requested (no skip-on-activity, multiple reminder times) -> follow-up task
+- 2026-07-19 done
+- 2026-07-19 changelog: Daily reminder to add transactions via menu or voice, per-user timezone

@@ -1,7 +1,7 @@
 ---
 id: T-041
 title: AI conversation memory: context-aware voice/ask channel with correction handling
-status: review
+status: done
 type: feature
 area: bot
 priority: p1
@@ -9,7 +9,7 @@ deps: []
 tags: []
 blocked: 
 created: 2026-07-12
-updated: 2026-07-13
+updated: 2026-07-19
 ---
 
 ## Context
@@ -104,3 +104,6 @@ Manual checklist (unit suite green: 212 passed; alembic single head 0006; `impor
 - [ ] Typed quick-add («кофе 4.5») and menu flows unaffected
 - [ ] Recurring rules + reminder jobs still fire (scheduler untouched paths)
 - 2026-07-13 moved to review
+- 2026-07-19 owner tested: voice Tx adding works; will reopen if issues surface
+- 2026-07-19 done
+- 2026-07-19 changelog: AI channel remembers recent conversation: follow-ups and corrections understood in voice//ask

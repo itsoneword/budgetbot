@@ -51,3 +51,4 @@ Manual testing checklist: Ask AI typed-question mode (T-045)
 ### Nice-to-have
 - [ ] Double-tapping the Ask AI button does not error (edit-not-modified swallowed)
 - [ ] LLM failure during the answer → friendly ASK_ERROR text, bot stays responsive
+- 2026-07-19 owner test: typed question after /ask works; menu-tap path broken (tracked T-046); 12-month data window limitation spun off as T-049

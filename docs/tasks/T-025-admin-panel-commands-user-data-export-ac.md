@@ -1,7 +1,7 @@
 ---
 id: T-025
 title: Admin panel commands: user data export + activity monitoring
-status: review
+status: done
 type: feature
 area: bot
 priority: p2
@@ -9,7 +9,7 @@ deps: []
 tags: [admin]
 blocked: 
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-19
 ---
 
 ## Context
@@ -65,3 +65,6 @@ Risks: log file starts fresh per deploy volume — stats cover only on-disk hist
 - [ ] Users with NULL telegram_username render as "-" in /admin_users rather than "None"
 - [ ] /admin_stats active-users list shows readable "Name @username" labels
 - 2026-07-11 owner feedback: /admin_users now defaults to users with >=1 tx (all arg shows everyone) and enriches names/@usernames from the usage log (users table name columns are never populated)
+- 2026-07-19 owner tested: admin commands visible for admin only — correct
+- 2026-07-19 done
+- 2026-07-19 changelog: Admin panel commands: user data export and activity monitoring

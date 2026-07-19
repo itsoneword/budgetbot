@@ -1,7 +1,7 @@
 ---
 id: T-004
 title: Move chart rendering off the event loop
-status: review
+status: done
 type: refactor
 area: bot
 priority: p1
@@ -9,7 +9,7 @@ deps: []
 tags: []
 blocked: 
 created: 2026-07-07
-updated: 2026-07-11
+updated: 2026-07-19
 ---
 
 ## Context
@@ -51,3 +51,6 @@ Automated (done): py_compile on all 5 touched files; scratchpad equivalence test
 ### Nice-to-have
 - [ ] Currency with no stored rate falls back to 1.0 conversion (unchanged behavior)
 - [ ] /delete_income path behaves same as /delete
+- 2026-07-19 owner tested: charts fine; /monthly_ext_stat readability spun off to new task
+- 2026-07-19 done
+- 2026-07-19 changelog: Chart rendering moved off the event loop (thread pool), bot stays responsive during chart generation

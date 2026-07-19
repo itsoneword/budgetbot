@@ -1,7 +1,7 @@
 ---
 id: T-028
 title: Fix /download: export transactions from PostgreSQL, not stale user_data CSV
-status: review
+status: done
 type: bug
 area: bot
 priority: p1
@@ -9,7 +9,7 @@ deps: []
 tags: [db]
 blocked: 
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-19
 ---
 
 ## Context
@@ -56,3 +56,6 @@ Risks: >10k tx silently truncated by get_latest limit (comment it); `str(Decimal
 ### Regression
 - [ ] /upload flow (start_upload/receive_document) unchanged and still works
 - [ ] show_records / stats commands unaffected (session_loader change surface)
+- 2026-07-19 owner tested: /download works
+- 2026-07-19 done
+- 2026-07-19 changelog: /download exports transactions from PostgreSQL instead of stale user_data CSV
