@@ -713,8 +713,11 @@ async def answer_ask_question(update: Update, context: CallbackContext, question
         from infrastructure.llm import get_llm_client, LLMError
 
         repos = get_repos(context)
+        # Full history (T-049): the summary is aggregated per month/category,
+        # so its size grows linearly and slowly — a 12-month window made the
+        # model deny knowledge of older data the user does have.
         session = await load_user_session(
-            user_id, repos, load_transactions=True, transactions_months=12
+            user_id, repos, load_transactions=True, transactions_months=None
         )
         if not session.transactions:
             await thinking_message.edit_text(texts.ASK_NO_DATA)

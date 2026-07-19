@@ -1,7 +1,7 @@
 ---
 id: T-049
 title: /ask only sees last 12 months: pass full history to finance summary
-status: todo
+status: review
 type: bug
 area: bot
 priority: p1
@@ -16,7 +16,29 @@ updated: 2026-07-19
 Owner repro 2026-07-19 (screenshot): asked for 3-year alcohol breakdown, bot answered 'data only goes back to 2025-07-24' though DB has data since 2023. Cause: src/core.py:704 loads transactions_months=12 for the ask flow. Fix: transactions_months=None (full history) — build_finance_summary scales fine (1 line per month); also extend per-category-by-month breakdown beyond last-6-months (or per year) so max/min month per year questions are answerable. Watch prompt size for very long histories.
 
 ## Acceptance
-- [ ] TODO
+- [x] /ask flow loads the user's full transaction history (transactions_months=None)
+- [x] Finance summary's per-month per-category breakdown covers the whole period, not last 6 months (answers "max/min month per year")
+- [x] "Data covers since" derived from the oldest transaction when no explicit window
+- [x] Prompt size stays sane on a real 3-year history (verified: 17.7KB for 3.4k transactions)
 
 ## Log
 - 2026-07-19 created
+- 2026-07-19 started
+- 2026-07-19 core.py ask flow -> transactions_months=None; ask_summary per-month-per-category block whole period; Data-covers-since derived from oldest tx; 2 new tests, 254 green; verified on real DB: owner summary covers since 2023-05-04, 42 alcohol month-lines, 17.7KB total
+- 2026-07-19 moved to review
+
+## Testing
+
+Needs the container redeployed with this commit first. Repro account: the owner's (data since 2023-05).
+
+### Critical
+- [ ] /ask how much do I spend on alcohol? show last 3 years with monthly averages and max/min months per year — answer covers 2023/2024/2025/2026, no "data only goes back to 2025" disclaimer
+- [ ] /ask when did I start tracking? — answer says May 2023 (Data covers since)
+- [ ] Answer latency still acceptable (larger prompt: ~18KB vs ~6KB before)
+
+### Important
+- [ ] Menu → Ask AI typed question (post T-046) gets the same full-history data
+- [ ] Fresh account with 1-2 transactions: /ask still answers, no crash on tiny history
+
+### Nice-to-have
+- [ ] Voice channel question ("сколько я трачу на алкоголь по годам?") also answers with full history if it routes via the ask flow

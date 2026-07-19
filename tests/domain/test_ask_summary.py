@@ -72,6 +72,19 @@ def test_per_month_per_category_block():
     assert "  2026-06 food: 42.00" in text
 
 
+def test_per_month_per_category_covers_whole_period():
+    """T-049: the breakdown is no longer capped at the last 6 months."""
+    session = make_session(transactions=[
+        make_tx(timestamp=datetime(2023, 3, 5, tzinfo=timezone.utc),
+                category="alcohol", amount=15),
+        make_tx(timestamp=datetime(2026, 6, 5, tzinfo=timezone.utc),
+                category="food", amount=42),
+    ])
+    text = build_finance_summary(session)
+    assert "  2023-03 alcohol: 15.00" in text
+    assert "  2026-06 food: 42.00" in text
+
+
 def test_recent_subcategory_detail_uses_real_clock():
     now = datetime.now(timezone.utc)
     session = make_session(transactions=[
@@ -95,6 +108,18 @@ def test_data_covers_since_line():
     since = datetime(2025, 7, 1, tzinfo=timezone.utc)
     session = make_session(transactions_since=since)
     assert "Data covers since: 2025-07-01" in build_finance_summary(session)
+
+
+def test_data_covers_since_derived_from_oldest_tx_on_full_history():
+    """T-049: full-history load has transactions_since=None — derive from data."""
+    session = make_session(
+        transactions=[
+            make_tx(timestamp=datetime(2023, 2, 1, tzinfo=timezone.utc)),
+            make_tx(timestamp=datetime(2026, 6, 1, tzinfo=timezone.utc)),
+        ],
+        transactions_since=None,
+    )
+    assert "Data covers since: 2023-02-01" in build_finance_summary(session)
 
 
 def test_ask_system_prompt_language():

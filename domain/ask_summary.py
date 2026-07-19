@@ -3,7 +3,7 @@ Build a compact text summary of a user's finances for LLM Q&A (/ask).
 
 Pure functions over UserSession — no I/O, no Telegram types. The summary is
 packed into the LLM prompt directly (per-user data is small), so it must stay
-compact: monthly totals for the whole loaded period, category totals, and a
+compact: monthly and per-category totals for the whole loaded period, plus a
 recent category/subcategory breakdown.
 """
 from collections import defaultdict
@@ -30,8 +30,13 @@ def build_finance_summary(session: UserSession) -> str:
     if session.config.monthly_limit and session.config.monthly_limit < Decimal("99999999"):
         lines.append(f"Monthly spending limit: {session.config.monthly_limit}")
     lines.append(f"Transactions loaded: {len(spendings)} spendings, {len(incomes)} incomes")
-    if session.transactions_since:
-        lines.append(f"Data covers since: {session.transactions_since.date().isoformat()}")
+    # Full-history loads (T-049) have no explicit window — derive the start
+    # from the data so the model states its coverage correctly.
+    since = session.transactions_since
+    if since is None and session.transactions:
+        since = min(t.timestamp for t in session.transactions)
+    if since:
+        lines.append(f"Data covers since: {since.date().isoformat()}")
 
     # Monthly totals (spending and income)
     monthly_spend: dict = defaultdict(Decimal)
@@ -66,17 +71,15 @@ def build_finance_summary(session: UserSession) -> str:
         for cat, total in sorted(income_totals.items(), key=lambda x: -x[1]):
             lines.append(f"  {cat}: {total:.2f}")
 
-    # Per-month per-category totals for the last 6 months — needed for questions
-    # like "how much did I spend on X last month?"
-    months_sorted = sorted(set(monthly_spend))
-    recent_months = set(months_sorted[-6:])
+    # Per-month per-category totals over the whole period — needed for
+    # questions like "how much did I spend on X last month?" or "which month
+    # was my max on X in 2024?" (T-049). Size is months x active categories,
+    # ~25 chars a line — even multi-year histories stay a few KB.
     month_cat: dict = defaultdict(Decimal)
     for t in spendings:
-        mk = _month_key(t)
-        if mk in recent_months:
-            month_cat[(mk, t.category)] += t.amount
+        month_cat[(_month_key(t), t.category)] += t.amount
     if month_cat:
-        lines.append("\nPer-category totals by month (last 6 months):")
+        lines.append("\nPer-category totals by month (whole period):")
         for (month, cat), total in sorted(month_cat.items()):
             lines.append(f"  {month} {cat}: {total:.2f}")
 
