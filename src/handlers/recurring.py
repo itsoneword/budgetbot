@@ -63,15 +63,15 @@ async def delete_rule(repos, user_id: int, rule_id: int) -> bool:
 # Rendering
 # =========================================================================
 
-def build_rules_view(rules: List[RecurringRule], texts) -> Tuple[str, Optional[InlineKeyboardMarkup]]:
-    """(message text, inline keyboard) for the rules list."""
-    if not rules:
-        return texts.RECURRING_LIST_EMPTY, None
-    text = texts.RECURRING_LIST_HEADER + "\n\n" + format_rules_list(
-        rules,
-        paused_label=texts.RECURRING_PAUSED_LABEL,
-        day_label=texts.RECURRING_DAY_WORD,
-    ) + "\n\n" + texts.RECURRING_USAGE
+def build_rules_view(
+    rules: List[RecurringRule], texts, back_cb: Optional[str] = None
+) -> Tuple[str, Optional[InlineKeyboardMarkup]]:
+    """(message text, inline keyboard) for the rules list.
+
+    back_cb appends a Back row with that callback_data so the menu-opened
+    view isn't a dead end (T-044); the /recurring command path passes
+    nothing and is unchanged.
+    """
     keyboard = []
     for rule in rules:
         if rule.active:
@@ -88,12 +88,26 @@ def build_rules_view(rules: List[RecurringRule], texts) -> Tuple[str, Optional[I
             toggle,
             InlineKeyboardButton(texts.RECURRING_DELETE_BTN, callback_data=f"rr_del_{rule.id}"),
         ])
+    if back_cb:
+        keyboard.append(
+            [InlineKeyboardButton(texts.BACK_BUTTON, callback_data=back_cb)]
+        )
+    if not rules:
+        return texts.RECURRING_LIST_EMPTY, InlineKeyboardMarkup(keyboard) if keyboard else None
+    text = texts.RECURRING_LIST_HEADER + "\n\n" + format_rules_list(
+        rules,
+        paused_label=texts.RECURRING_PAUSED_LABEL,
+        day_label=texts.RECURRING_DAY_WORD,
+    ) + "\n\n" + texts.RECURRING_USAGE
     return text, InlineKeyboardMarkup(keyboard)
 
 
 async def _render_rules(query, repos, user_id: int, texts) -> None:
     rules = await list_rules(repos, user_id)
-    text, markup = build_rules_view(rules, texts)
+    # Re-renders always carry a Back row: the rr_ buttons live on both
+    # menu-opened and command-opened views, and back_to_main_menu is handled
+    # globally either way (T-044).
+    text, markup = build_rules_view(rules, texts, back_cb="back_to_main_menu")
     await query.edit_message_text(text, reply_markup=markup)
 
 

@@ -34,8 +34,14 @@ def _stale_rates_caption(update: Update, context: CallbackContext, repos) -> str
     return texts.RATES_STALE_NOTE.format(hours=int(age.total_seconds() // 3600))
 
 
-async def send_chart(update: Update, context: CallbackContext) -> None:
-    """Send monthly spending charts (pivot + line)."""
+async def send_chart(update: Update, context: CallbackContext) -> bool:
+    """Send monthly spending charts (pivot + line).
+
+    Returns True when a new message was sent (menu callers then restore the
+    anchor to the main menu), False when there was nothing to send — in
+    callback context the no-data text is NOT sent, the menu edits the tapped
+    message instead (T-044).
+    """
     user_id = update.effective_user.id
     log_user_interaction(
         update.effective_user.id,
@@ -66,13 +72,18 @@ async def send_chart(update: Update, context: CallbackContext) -> None:
 
     if media:
         await context.bot.send_media_group(chat_id=update.effective_chat.id, media=media)
-    else:
+        return True
+    if update.callback_query is None:
+        # Command context only — the menu shows no-data in the anchor itself.
         texts = check_language(update, context)
-        await update.message.reply_text(texts.NO_DATA)
+        await update.effective_message.reply_text(texts.NO_DATA)
+    return False
 
 
-async def send_ext_chart(update: Update, context: CallbackContext) -> None:
-    """Send extended monthly chart with category breakdown."""
+async def send_ext_chart(update: Update, context: CallbackContext) -> bool:
+    """Send extended monthly chart with category breakdown.
+
+    Same return contract as send_chart (T-044)."""
     user_id = update.effective_user.id
     log_user_interaction(
         update.effective_user.id,
@@ -94,13 +105,17 @@ async def send_ext_chart(update: Update, context: CallbackContext) -> None:
         await context.bot.send_photo(
             chat_id=update.effective_chat.id, photo=ext_chart, caption=stale_note
         )
-    else:
+        return True
+    if update.callback_query is None:
         texts = check_language(update, context)
-        await update.message.reply_text(texts.NO_DATA)
+        await update.effective_message.reply_text(texts.NO_DATA)
+    return False
 
 
-async def send_yearly_piechart(update: Update, context: CallbackContext) -> None:
-    """Send yearly pie charts showing spending distribution by category."""
+async def send_yearly_piechart(update: Update, context: CallbackContext) -> bool:
+    """Send yearly pie charts showing spending distribution by category.
+
+    Same return contract as send_chart (T-044)."""
     user_id = update.effective_user.id
     log_user_interaction(
         update.effective_user.id,
@@ -120,10 +135,11 @@ async def send_yearly_piechart(update: Update, context: CallbackContext) -> None
     log_debug(f"Received {len(all_charts)} charts from make_yearly_pie_chart")
 
     if not all_charts:
-        texts = check_language(update, context)
-        log_debug("No charts returned, sending NO_YEARLY_DATA message")
-        await update.message.reply_text(texts.NO_YEARLY_DATA)
-        return
+        log_debug("No charts returned")
+        if update.callback_query is None:
+            texts = check_language(update, context)
+            await update.effective_message.reply_text(texts.NO_YEARLY_DATA)
+        return False
 
     # Build media group from BytesIO objects (stale-rates note on the first photo)
     stale_note = _stale_rates_caption(update, context, repos)
@@ -145,8 +161,10 @@ async def send_yearly_piechart(update: Update, context: CallbackContext) -> None
         except Exception as e:
             log_debug(f"Error sending media group for user {user_id}: {e}")
             texts = check_language(update, context)
-            await update.message.reply_text(texts.ERROR_SENDING_CHARTS)
-    else:
-        log_debug("No media to send, sending ERROR_GENERATING_CHARTS message")
-        texts = check_language(update, context)
-        await update.message.reply_text(texts.ERROR_GENERATING_CHARTS)
+            await update.effective_message.reply_text(texts.ERROR_SENDING_CHARTS)
+        # Something (charts or the error text) was delivered as a new message.
+        return True
+    log_debug("No media to send, sending ERROR_GENERATING_CHARTS message")
+    texts = check_language(update, context)
+    await update.effective_message.reply_text(texts.ERROR_GENERATING_CHARTS)
+    return True

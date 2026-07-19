@@ -58,8 +58,14 @@ async def start_detailed_transactions(update: Update, context: CallbackContext):
     categories = get_unique_categories(spending_tx)
 
     if not categories:
-        await query.edit_message_text(texts.NO_CATEGORIES_FOUND)
-        return await back_to_transactions_menu(update, context)
+        # Single edit: notice + transactions menu in one message — a second
+        # edit right after would overwrite the notice instantly (T-044).
+        await query.edit_message_text(
+            texts.NO_CATEGORIES_FOUND + "\n\n" + texts.SHOW_TRANSACTIONS_MENU_TEXT,
+            reply_markup=create_show_transactions_keyboard(texts),
+            parse_mode=ParseMode.HTML
+        )
+        return TRANSACTION
 
     # Initialize context data
     context.user_data['selected_categories'] = []
@@ -331,15 +337,11 @@ async def show_filtered_transactions(update: Update, context: CallbackContext):
     transactions = context.user_data.get('filtered_transactions', [])
 
     if not transactions:
+        # Single edit: notice + main menu in one message — no sleep, no
+        # extra "Returning to main menu." message (T-044).
         await query.edit_message_text(
-            texts.NO_TRANSACTIONS_FOUND,
-            parse_mode=ParseMode.HTML
-        )
-        await asyncio.sleep(2)
-        reply_markup = create_main_menu_keyboard(texts)
-        await query.message.reply_text(
-            texts.BACK_TO_MAIN_MENU,
-            reply_markup=reply_markup,
+            texts.NO_TRANSACTIONS_FOUND + "\n\n" + texts.MAIN_MENU_TEXT,
+            reply_markup=create_main_menu_keyboard(texts),
             parse_mode=ParseMode.HTML
         )
         return TRANSACTION

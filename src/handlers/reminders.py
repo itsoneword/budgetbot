@@ -68,8 +68,14 @@ async def get_reminder(repos, user_id: int) -> Optional[Reminder]:
 # Rendering
 # =========================================================================
 
-def build_reminder_view(reminder: Optional[Reminder], texts) -> Tuple[str, InlineKeyboardMarkup]:
-    """(status text, preset keyboard) for the /reminder view."""
+def build_reminder_view(
+    reminder: Optional[Reminder], texts, back_cb: Optional[str] = None
+) -> Tuple[str, InlineKeyboardMarkup]:
+    """(status text, preset keyboard) for the /reminder view.
+
+    back_cb appends a Back row so the menu-opened view isn't a dead end
+    (T-044); the /reminder command path passes nothing and is unchanged.
+    """
     if reminder and reminder.active:
         text = texts.REMINDER_STATUS_ACTIVE.format(
             time=format_reminder_time(reminder.time_local)
@@ -88,11 +94,21 @@ def build_reminder_view(reminder: Optional[Reminder], texts) -> Tuple[str, Inlin
     ]
     if reminder and reminder.active:
         keyboard.append([InlineKeyboardButton(texts.REMINDER_OFF_BTN, callback_data="rem_off")])
+    if back_cb:
+        keyboard.append(
+            [InlineKeyboardButton(texts.BACK_BUTTON, callback_data=back_cb)]
+        )
     return text, InlineKeyboardMarkup(keyboard)
 
 
-def build_tz_keyboard() -> InlineKeyboardMarkup:
-    """One-tap offset picker: each button is a candidate current local time."""
+def build_tz_keyboard(
+    back_cb: Optional[str] = None, texts=None
+) -> InlineKeyboardMarkup:
+    """One-tap offset picker: each button is a candidate current local time.
+
+    back_cb (+ texts for the label) appends a Back row — used by the
+    settings-menu path (T-044); reminder-flow callers are unchanged.
+    """
     candidates = build_offset_candidates(datetime.now(timezone.utc))
     keyboard = []
     for i in range(0, len(candidates), 4):
@@ -100,6 +116,10 @@ def build_tz_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(label, callback_data=f"tzpick_{offset}")
             for offset, label in candidates[i : i + 4]
         ])
+    if back_cb and texts is not None:
+        keyboard.append(
+            [InlineKeyboardButton(texts.BACK_BUTTON, callback_data=back_cb)]
+        )
     return InlineKeyboardMarkup(keyboard)
 
 

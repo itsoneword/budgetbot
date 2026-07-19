@@ -4,10 +4,9 @@ Menu handlers for main menu navigation and routing.
 Handles: menu display, menu callbacks, submenu navigation.
 """
 
-import asyncio
-
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
+from telegram.error import BadRequest
 from telegram.ext import CallbackContext
 
 from src.language_util import check_language, format_monthly_limit
@@ -37,11 +36,81 @@ from src.states import (
 # Import handlers used by menu_call
 from src.handlers.recurring import build_rules_view, list_rules
 from src.handlers.reminders import build_reminder_view, build_tz_keyboard, get_reminder
-from src.handlers.records import show_records, show_last_month_records
+from src.handlers.records import build_records_report, build_last_month_report
 from src.handlers.charts import send_chart, send_yearly_piechart
 from src.handlers.categories import show_categories
 from src.handlers.transactions import show_recent_entries
 from src.detailed_transactions import start_detailed_transactions
+
+# Telegram hard limit for message text length.
+TELEGRAM_MESSAGE_LIMIT = 4096
+
+
+async def _safe_edit(query, text, **kwargs):
+    """edit_message_text that swallows the 'Message is not modified' error.
+
+    Double-tapping a button re-issues the same edit; Telegram rejects it with
+    BadRequest and without this guard every second tap would trip the global
+    error handler. Everything else re-raises.
+    """
+    try:
+        await query.edit_message_text(text, **kwargs)
+    except BadRequest as exc:
+        if "not modified" not in str(exc).lower():
+            raise
+
+
+def _back_kb(texts, cb: str = "back_to_main_menu") -> InlineKeyboardMarkup:
+    """One-row keyboard with a single Back button."""
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton(texts.BACK_BUTTON, callback_data=cb)]]
+    )
+
+
+async def _edit_to_main_menu(query, texts):
+    """Edit the tapped (anchor) message back into the main menu."""
+    await _safe_edit(
+        query,
+        texts.MAIN_MENU_TEXT,
+        reply_markup=create_main_menu_keyboard(texts),
+        parse_mode=ParseMode.HTML,
+    )
+    log_state_transition(TRANSACTION)
+    return TRANSACTION
+
+
+def _split_text(text: str, limit: int = TELEGRAM_MESSAGE_LIMIT):
+    """Split text into <=limit chunks on line boundaries (hard-cut fallback)."""
+    chunks, current = [], ""
+    for line in text.split("\n"):
+        while len(line) > limit:  # pathological single line — hard cut
+            chunks.append(line[:limit])
+            line = line[limit:]
+        candidate = f"{current}\n{line}" if current else line
+        if len(candidate) > limit:
+            chunks.append(current)
+            current = line
+        else:
+            current = candidate
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+async def _edit_report(query, texts, text, reply_markup, parse_mode=None):
+    """Edit the anchor into a report + Back button, in place.
+
+    Reports longer than one Telegram message can't be an edit: fall back to
+    sending the chunks and restoring the anchor to the main menu, so exactly
+    one menu keyboard exists — never a duplicate menu message.
+    """
+    if len(text) <= TELEGRAM_MESSAGE_LIMIT:
+        await _safe_edit(query, text, reply_markup=reply_markup, parse_mode=parse_mode)
+        log_state_transition(TRANSACTION)
+        return TRANSACTION
+    for chunk in _split_text(text):
+        await query.message.reply_text(chunk, parse_mode=parse_mode)
+    return await _edit_to_main_menu(query, texts)
 
 
 async def show_menu(update: Update, context: CallbackContext):
@@ -71,80 +140,100 @@ async def show_menu(update: Update, context: CallbackContext):
 
 
 async def menu_call(update: Update, context: CallbackContext):
-    """Handle menu callbacks using dispatch pattern."""
+    """Handle menu callbacks using dispatch pattern.
+
+    Edit-in-place navigation (T-044): every branch either edits the tapped
+    message (the navigation anchor) into the requested view — with a Back
+    button where the view isn't itself a menu — or, for flows that must send
+    new content (media groups, invoices, typed input), sends it and edits
+    the anchor back to the main menu. No branch re-sends the menu as a new
+    message.
+    """
     query = update.callback_query
     log_function_call()
+
+    # Single ack for every branch; stale queries (e.g. after a restart) are
+    # already expired at Telegram — never let that kill the navigation.
+    try:
+        await query.answer()
+    except BadRequest:
+        pass
 
     user_id = update.effective_user.id
     texts = check_language(update, context)
     action = query.data
 
-    # Import show_detailed here to avoid circular imports
-    from src.core import show_detailed
+    # Import here to avoid circular imports
+    from src.core import build_detailed_report
 
     # =========================================================================
     # Show transactions actions
     # =========================================================================
     if action == "show_monthly_summary":
-        await query.answer()
-        await query.edit_message_text(texts.LOADING_MONTHLY_SUMMARY)
-        await show_records(update, context)
-        return await _return_to_main_menu(query, texts)
+        report = await build_records_report(update, context, tx_type='spending')
+        return await _edit_report(
+            query, texts, report or texts.RECORDS_NOT_FOUND_TEXT,
+            reply_markup=_back_kb(texts), parse_mode=ParseMode.HTML,
+        )
 
     if action == "show_last_month_summary":
-        await query.answer()
-        await query.edit_message_text(texts.LOADING_LAST_MONTH_SUMMARY)
-        await show_last_month_records(update, context)
-        return await _return_to_main_menu(query, texts)
+        report = await build_last_month_report(update, context, tx_type='spending')
+        return await _edit_report(
+            query, texts, report or texts.RECORDS_NOT_FOUND_TEXT,
+            reply_markup=_back_kb(texts), parse_mode=ParseMode.HTML,
+        )
 
     if action == "show_last_transactions":
-        await query.answer()
         return await start_detailed_transactions(update, context)
 
     if action == "show_monthly_charts":
-        await query.answer()
-        await query.edit_message_text(texts.GENERATING_MONTHLY_CHARTS)
-        await send_chart(update, context)
-        return await _return_to_main_menu(query, texts)
+        await _safe_edit(query, texts.GENERATING_MONTHLY_CHARTS)
+        if await send_chart(update, context):
+            # Media went out as new messages — restore the anchor to the menu
+            # so exactly one menu keyboard exists.
+            return await _edit_to_main_menu(query, texts)
+        return await _edit_report(
+            query, texts, texts.NO_DATA, reply_markup=_back_kb(texts)
+        )
 
     if action == "show_extended_stats":
-        await query.answer()
-        await query.edit_message_text(texts.LOADING_EXTENDED_STATS)
-        await show_detailed(update, context)
-        return await _return_to_main_menu(query, texts)
+        report = await build_detailed_report(update, context)
+        return await _edit_report(
+            query, texts, report, reply_markup=_back_kb(texts)
+        )
 
     if action == "show_last_month_extended_stats":
-        await query.answer()
-        await query.edit_message_text(texts.LOADING_LAST_MONTH_EXTENDED_STATS)
-        await show_detailed(update, context, period='last_month')
-        return await _return_to_main_menu(query, texts)
+        report = await build_detailed_report(update, context, period='last_month')
+        return await _edit_report(
+            query, texts, report, reply_markup=_back_kb(texts)
+        )
 
     if action == "show_yearly_charts":
-        await query.answer()
-        await query.edit_message_text(texts.GENERATING_YEARLY_CHARTS)
-        await send_yearly_piechart(update, context)
-        return await _return_to_main_menu(query, texts)
+        await _safe_edit(query, texts.GENERATING_YEARLY_CHARTS)
+        if await send_yearly_piechart(update, context):
+            return await _edit_to_main_menu(query, texts)
+        return await _edit_report(
+            query, texts, texts.NO_YEARLY_DATA, reply_markup=_back_kb(texts)
+        )
 
     if action == "show_income_stats":
-        await query.answer()
-        await query.edit_message_text(texts.LOADING_INCOME_STATS)
         # PTB Message objects are immutable — pass the type, don't mutate .text
-        await show_records(update, context, tx_type='income')
-        return await _return_to_main_menu(query, texts)
+        report = await build_records_report(update, context, tx_type='income')
+        return await _edit_report(
+            query, texts, report or texts.RECORDS_NOT_FOUND_TEXT,
+            reply_markup=_back_kb(texts), parse_mode=ParseMode.HTML,
+        )
 
     # =========================================================================
     # Category management actions
     # =========================================================================
     if action == "edit_show_categories":
-        await query.answer()
         return await show_categories(update, context)
 
     if action == "menu_edit_transactions":
-        await query.answer()
         return await show_recent_entries(update, context)
 
     if action == "menu_edit_categories":
-        await query.answer()
         context.user_data["current_page"] = 0
         return await show_categories(update, context)
 
@@ -154,7 +243,8 @@ async def menu_call(update: Update, context: CallbackContext):
     if action == "menu_add_transaction":
         # Add-transaction section (T-035/T-036): spending / income / recurring
         reply_markup = create_add_transaction_keyboard(texts)
-        await query.edit_message_text(
+        await _safe_edit(
+            query,
             texts.ADD_TX_MENU_TEXT,
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
@@ -165,8 +255,11 @@ async def menu_call(update: Update, context: CallbackContext):
     if action == "menu_add_income":
         # Prompt for income input; the PROCESS_INCOME state of the main
         # conversation catches the next message (save_income_text path).
-        await query.answer()
-        await query.edit_message_text(texts.INCOME_HELP, parse_mode=ParseMode.HTML)
+        # Back is served by the conversation fallback (menu_callback).
+        await _safe_edit(
+            query, texts.INCOME_HELP,
+            reply_markup=_back_kb(texts), parse_mode=ParseMode.HTML,
+        )
         log_state_transition(PROCESS_INCOME)
         return PROCESS_INCOME
 
@@ -180,7 +273,8 @@ async def menu_call(update: Update, context: CallbackContext):
         context.user_data["tx_page"] = 0
 
         reply_markup = create_tx_categories_keyboard(categories, texts, context.user_data["tx_page"])
-        await query.edit_message_text(
+        await _safe_edit(
+            query,
             texts.SELECT_TRANSACTION_CATEGORY,
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
@@ -190,7 +284,8 @@ async def menu_call(update: Update, context: CallbackContext):
 
     if action == "menu_show_transactions":
         reply_markup = create_show_transactions_keyboard(texts)
-        await query.edit_message_text(
+        await _safe_edit(
+            query,
             texts.SHOW_TRANSACTIONS_MENU_TEXT,
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
@@ -202,11 +297,12 @@ async def menu_call(update: Update, context: CallbackContext):
         # Recurring rules (T-026). Rendered without parse_mode: rule names are
         # user text. Button presses are handled by the standalone ^rr
         # CallbackQueryHandler registered before spendings_handler in core.py.
-        await query.answer()
         repos = get_repos(context)
         rules = await list_rules(repos, user_id)
-        text, reply_markup = build_rules_view(rules, texts)
-        await query.edit_message_text(text, reply_markup=reply_markup)
+        text, reply_markup = build_rules_view(
+            rules, texts, back_cb="back_to_main_menu"
+        )
+        await _safe_edit(query, text, reply_markup=reply_markup)
         log_state_transition(TRANSACTION)
         return TRANSACTION
 
@@ -214,17 +310,19 @@ async def menu_call(update: Update, context: CallbackContext):
         # Daily reminder (T-034). Button presses (rem_*/tzpick_*) are handled
         # by standalone CallbackQueryHandlers registered before
         # spendings_handler in core.py, like ^rr.
-        await query.answer()
         repos = get_repos(context)
         reminder = await get_reminder(repos, user_id)
-        text, reply_markup = build_reminder_view(reminder, texts)
-        await query.edit_message_text(text, reply_markup=reply_markup)
+        text, reply_markup = build_reminder_view(
+            reminder, texts, back_cb="back_to_main_menu"
+        )
+        await _safe_edit(query, text, reply_markup=reply_markup)
         log_state_transition(TRANSACTION)
         return TRANSACTION
 
     if action == "menu_settings":
         reply_markup = create_settings_keyboard_menu(texts)
-        await query.edit_message_text(
+        await _safe_edit(
+            query,
             texts.SETTINGS_MENU_TEXT,
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
@@ -234,39 +332,43 @@ async def menu_call(update: Update, context: CallbackContext):
 
     if action == "menu_ask_ai":
         # Ask-AI funnel (T-023): entitled users get the how-to, everyone else
-        # the Stars offer. The button never grants anything — purchases flow
-        # exclusively invoice -> successful_payment (handlers/payments.py).
-        await query.answer()
+        # the Stars offer — both as edits of the anchor (T-044). The button
+        # never grants anything — purchases flow exclusively
+        # invoice -> successful_payment (handlers/payments.py). A Buy tap
+        # still sends the invoice as a new message (unavoidable); the anchor
+        # keeps its Back button.
         from src.ai_access import check_ai_access
-        from src.handlers.payments import send_ai_offer
+        from src.handlers.payments import build_ai_offer
         if await check_ai_access(user_id, context):
-            await query.edit_message_text(texts.AI_HOWTO)
-            return await _return_to_main_menu(query, texts)
-        await send_ai_offer(update, context)
-        return await _return_to_main_menu(query, texts)
+            await _safe_edit(query, texts.AI_HOWTO, reply_markup=_back_kb(texts))
+        else:
+            offer_text, offer_kb = build_ai_offer(texts, include_back=True)
+            await _safe_edit(query, offer_text, reply_markup=offer_kb)
+        log_state_transition(TRANSACTION)
+        return TRANSACTION
 
     if action == "menu_help":
-        await query.edit_message_text(
-            build_help_text(texts, is_admin=query.from_user.id == ADMIN_USER_ID)
-        )
-        return await _return_to_main_menu(query, texts)
-
-    if action == "back_to_main_menu":
-        reply_markup = create_main_menu_keyboard(texts)
-        await query.edit_message_text(
-            texts.MAIN_MENU_TEXT,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
+        await _safe_edit(
+            query,
+            build_help_text(texts, is_admin=query.from_user.id == ADMIN_USER_ID),
+            reply_markup=_back_kb(texts),
         )
         log_state_transition(TRANSACTION)
         return TRANSACTION
+
+    if action == "back_to_main_menu":
+        # Leaving an input prompt via Back must also drop the
+        # out-of-conversation limit marker (see settings_change_limit).
+        context.user_data.pop('awaiting_limit', None)
+        return await _edit_to_main_menu(query, texts)
 
     # =========================================================================
     # Settings submenu
     # =========================================================================
     if action == "settings_change_language":
         reply_markup = create_settings_language_keyboard()
-        await query.edit_message_text(
+        await _safe_edit(
+            query,
             texts.SELECT_LANGUAGE,
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
@@ -276,7 +378,8 @@ async def menu_call(update: Update, context: CallbackContext):
 
     if action == "settings_change_currency":
         reply_markup = create_settings_currency_keyboard()
-        await query.edit_message_text(
+        await _safe_edit(
+            query,
             texts.CHOOSE_CURRENCY_TEXT,
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
@@ -286,16 +389,18 @@ async def menu_call(update: Update, context: CallbackContext):
 
     if action == "settings_change_limit":
         context.user_data['awaiting_limit'] = True
-        await query.edit_message_text(texts.CHOOSE_LIMIT_TEXT)
+        # Back leads home (and clears awaiting_limit in the branch above).
+        await _safe_edit(query, texts.CHOOSE_LIMIT_TEXT, reply_markup=_back_kb(texts))
         log_state_transition(SETTINGS_LIMIT)
         return SETTINGS_LIMIT
 
     if action == "settings_timezone":
         # One-tap timezone picker (T-034); tzpick_ taps are handled by the
         # standalone handler registered before spendings_handler in core.py.
-        await query.answer()
-        await query.edit_message_text(
-            texts.TZ_PICK_PROMPT, reply_markup=build_tz_keyboard()
+        # Back returns to the Settings submenu.
+        await _safe_edit(
+            query, texts.TZ_PICK_PROMPT,
+            reply_markup=build_tz_keyboard(back_cb="menu_settings", texts=texts),
         )
         log_state_transition(TRANSACTION)
         return TRANSACTION
@@ -308,37 +413,40 @@ async def menu_call(update: Update, context: CallbackContext):
         language = config.language if config else 'en'
         limit = float(config.monthly_limit) if config else 99999999
 
-        await query.edit_message_text(
+        # Back returns to the Settings submenu this view came from.
+        await _safe_edit(
+            query,
             texts.ABOUT.format(
                 name, currency, language,
                 format_monthly_limit(limit, texts), VERSION, VERSION_DATE,
             ),
+            reply_markup=_back_kb(texts, cb="menu_settings"),
             parse_mode=ParseMode.HTML
         )
-        return await _return_to_main_menu(query, texts)
+        log_state_transition(TRANSACTION)
+        return TRANSACTION
 
     # =========================================================================
     # Transaction actions
     # =========================================================================
     if action == "cancel_transaction":
         log_function_call()
-        await query.edit_message_text(
-            texts.TRANSACTION_CANCELED,
-            parse_mode=ParseMode.HTML
-        )
-        await asyncio.sleep(1)
-        reply_markup = create_main_menu_keyboard(texts)
-        await query.message.reply_text(
-            texts.MAIN_MENU_TEXT,
-            reply_markup=reply_markup,
+        # Single edit: cancellation notice + main menu in one message — no
+        # sleep, no extra menu message (T-044).
+        await _safe_edit(
+            query,
+            texts.TRANSACTION_CANCELED + "\n\n" + texts.MAIN_MENU_TEXT,
+            reply_markup=create_main_menu_keyboard(texts),
             parse_mode=ParseMode.HTML
         )
         log_state_transition(TRANSACTION)
         return TRANSACTION
 
     if action == "edit_add_remove_category":
-        await query.edit_message_text(
+        await _safe_edit(
+            query,
             texts.ADD_CAT_PROMPT,
+            reply_markup=_back_kb(texts),
             parse_mode="MarkdownV2"
         )
         log_state_transition(ADD_CATEGORY)
@@ -355,15 +463,3 @@ async def menu_callback(update: Update, context: CallbackContext) -> int:
     user_id = update.effective_user.id
     log_debug("menu_callback called")
     return await menu_call(update, context)
-
-
-async def _return_to_main_menu(query, texts):
-    """Helper: Return to main menu after an action."""
-    reply_markup = create_main_menu_keyboard(texts)
-    await query.message.reply_text(
-        texts.BACK_TO_MAIN_MENU,
-        reply_markup=reply_markup,
-        parse_mode=ParseMode.HTML
-    )
-    log_state_transition(TRANSACTION)
-    return TRANSACTION

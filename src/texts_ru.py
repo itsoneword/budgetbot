@@ -116,7 +116,12 @@ MAIN_MENU_TEXT = "📱 <b>Главное меню</b>\nЧто вы хотите 
 SHOW_TRANSACTIONS_MENU_TEXT = "📊 <b>Показать транзакции</b>\nВыберите, что вы хотите просмотреть:"
 SETTINGS_MENU_TEXT = "⚙️ <b>Настройки</b>\nВыберите, что вы хотите настроить:"
 ADD_TRANSACTION_TEXT = "Пожалуйста, введите вашу транзакцию в одном из следующих форматов:\n<code>дата категория подкатегория сумма</code>\n<code>категория подкатегория сумма</code>\n<code>подкатегория сумма</code>"
-BACK_TO_MAIN_MENU = "Возвращение в главное меню."
+
+# Chart fallbacks (referenced by handlers/charts.py; previously missing — T-039)
+NO_DATA = "Пока нет данных для графиков — сначала добавьте транзакции."
+NO_YEARLY_DATA = "Пока нет годовых данных для графиков — сначала добавьте транзакции."
+ERROR_SENDING_CHARTS = "Не удалось отправить графики. Попробуйте ещё раз."
+ERROR_GENERATING_CHARTS = "Не удалось построить графики. Попробуйте ещё раз."
 
 # Category editor text strings
 NO_CATEGORIES_FOUND = "В вашем словаре не найдено категорий."
