@@ -630,6 +630,14 @@ async def handle_text(update: Update, context):
         if context.user_data.get('awaiting_limit'):
             return await handle_settings_limit(update, context)
 
+        # Ask-AI typed-question mode (T-045): the menu prompt armed the flag,
+        # so this message is the question — route it into the /ask flow
+        # (which re-checks entitlement). Pop: the mode consumes exactly one
+        # message; Back or any other menu tap clears it in menu_call.
+        if context.user_data.pop('awaiting_ask', False):
+            await answer_ask_question(update, context, text)
+            return TRANSACTION
+
         # Check if user exists in database, create if needed
         repos = get_repos(context)
         if not await repos.users.user_exists(int(user_id)):
@@ -665,14 +673,15 @@ async def handle_text(update: Update, context):
     return TRANSACTION
 
 
-async def ask(update: Update, context: CallbackContext):
-    """AI Q&A over the user's spendings (T-018). Data is aggregated in memory
-    and packed into the prompt; the model never touches the DB."""
+async def answer_ask_question(update: Update, context: CallbackContext, question: str):
+    """Answer a finance question via the LLM.
+
+    Shared by the /ask command and the menu typed-question mode (T-045);
+    both paths re-check entitlement here and log the interaction on
+    channel 'ask' identically. Data is aggregated in memory and packed
+    into the prompt; the model never touches the DB (T-018)."""
     user_id = update.effective_user.id
     texts = check_language(update, context)
-    log_user_interaction(
-        user_id, update.effective_user.first_name, update.effective_user.username
-    )
 
     from src.ai_access import check_ai_access
     if not await check_ai_access(user_id, context):
@@ -680,7 +689,6 @@ async def ask(update: Update, context: CallbackContext):
         await send_ai_offer(update, context)
         return
 
-    question = " ".join(context.args) if context.args else ""
     if not question.strip():
         await update.effective_message.reply_text(texts.ASK_USAGE)
         return
@@ -719,6 +727,17 @@ async def ask(update: Update, context: CallbackContext):
     except LLMError as e:
         logging.error(f"/ask LLM failure for user {user_id}: {e}")
         await thinking_message.edit_text(texts.ASK_ERROR)
+
+
+async def ask(update: Update, context: CallbackContext):
+    """/ask command entry (T-018): question comes from the command args."""
+    log_user_interaction(
+        update.effective_user.id,
+        update.effective_user.first_name,
+        update.effective_user.username,
+    )
+    question = " ".join(context.args) if context.args else ""
+    return await answer_ask_question(update, context, question)
 
 
 async def global_error_handler(update: object, context) -> None:

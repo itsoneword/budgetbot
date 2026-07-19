@@ -4,8 +4,8 @@
 
 Updated: 2026-07-19 · see docs/ROADMAP.md for milestones
 
-## Doing (0)
-_empty_
+## Doing (1)
+- **T-045** `p1/feature/bot` Ask AI menu tap opens typed-question mode (like Add transaction) — last: 2026-07-19 ASK_AI_PROMPT texts; menu_ask_ai arms awaiting_ask; core.answer_ask_question helper shared by /ask and typed path; flag cleared in menu_call top + voice entry; 8 unit tests, suite 250 green
 
 ## Review (8)
 - **T-004** `p1/refactor/bot` Move chart rendering off the event loop — last: 2026-07-11 moved to review
@@ -17,10 +17,9 @@ _empty_
 - **T-010** `p2/ops/infra` Currency API circuit breaker — last: 2026-07-07 created from production-readiness P4
 - **T-025** `p2/feature/bot` Admin panel commands: user data export + activity monitoring — last: 2026-07-11 created
 
-## Todo (6)
+## Todo (5)
 - **T-027** `p1/feature/bot` AI channel: manage recurring spendings by voice//ask
 - **T-038** `p1/bug/infra` LLM auth: dedicated token for container, stop sharing host OAuth credentials
-- **T-045** `p1/feature/bot` Ask AI menu tap opens typed-question mode (like Add transaction)
 - **T-037** `p2/feature/bot` Income in Edit-recent-entries menu: list, edit, delete income records
 - **T-040** `p2/bug/bot` Income date parser accepts garbage: 99.99 backdates to 1999, 29.02 non-leap reinterpreted
 - **T-043** `p2/feature/bot` Voice channel: 'yes' confirms pending proposal; graceful reply to conversational/meta messages
