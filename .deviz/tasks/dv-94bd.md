@@ -1,14 +1,14 @@
 ---
 id: dv-94bd
 title: Voice channel routes through the same agent session
-status: waiting_user
+status: done
 priority: medium
 assignee: 
 labels: [feature, bot]
 deps: []
 parent: dv-3a1c
 created: 2026-07-19T15:31:19Z
-updated: 2026-07-19T17:25:56Z
+updated: 2026-07-19T17:32:58Z
 ---
 
 ## Description
@@ -48,3 +48,7 @@ Merged to main, 317 tests green. Voice + typed free-text questions now call the 
 ### @claude — 2026-07-19T17:25:56Z
 
 VERIFY (owner): 1) voice question -> transcript echo + agent answer (two messages, as decided). 2) voice add rent 800 every month -> vrc_ confirm flow. 3) BOUNDARY: plain rent 800 (typed and voice) still parses as one-off transaction, NOT recurring. 4) voice coffee 4.50 -> normal vtx_ confirm, no agent session. 5) ai_interactions rows show channel=voice / text correctly.
+
+### @itsoneword — 2026-07-19T17:32:48Z
+
+seems to be working.

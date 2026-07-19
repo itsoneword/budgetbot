@@ -7,6 +7,7 @@ under `## Unreleased` by `python3 scripts/tasks.py done T-NNN --changelog "..."`
 
 ## Unreleased
 
+- 2026-07-19 T-051: Agentic AI channel: /ask and voice run a tool-calling session — raw-row transaction queries + recurring add/cancel staged behind confirm buttons
 - 2026-07-19 T-034: Daily reminder to add transactions via menu or voice, per-user timezone
 - 2026-07-19 T-025: Admin panel commands: user data export and activity monitoring
 - 2026-07-19 T-041: AI channel remembers recent conversation: follow-ups and corrections understood in voice//ask

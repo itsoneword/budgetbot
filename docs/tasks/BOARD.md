@@ -4,8 +4,8 @@
 
 Updated: 2026-07-19 · see docs/ROADMAP.md for milestones
 
-## Doing (1)
-- **T-051** `p1/feature/bot` Agentic AI channel: tool-calling /ask (read tools) + recurring management (write tools) — last: 2026-07-19 Foundation + wave 2 implemented via deviz board (dv-ee06/dv-f0d5/dv-82c8/dv-94bd): tool-calling ask session with query_transactions read tool, staged recurring write tools behind vrc_/rr_ confirms, voice routed through agent session with channel tags. 348 tests green, container deployed. Task detail now tracked on deviz board (board-ff8aeb03).
+## Doing (0)
+_empty_
 
 ## Review (6)
 - **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating — last: 2026-07-07 created from production-readiness T1 + O2
@@ -36,7 +36,7 @@ Updated: 2026-07-19 · see docs/ROADMAP.md for milestones
 - **T-027** `p3/feature/bot` AI channel: manage recurring spendings by voice//ask ⛔ superseded by T-051 (agentic AI channel) — owner decision 2026-07-19
 - **T-048** `p3/refactor/bot` Improve /monthly_ext_stat chart readability: too many lines, almost unreadable
 
-## Done (last 10 of 25)
+## Done (last 10 of 26)
 - **T-003** `p1/ops/bot` Replace print() with logger in runtime code
 - **T-004** `p1/refactor/bot` Move chart rendering off the event loop
 - **T-005** `p1/ops/db` Adopt alembic for schema migrations

@@ -1,14 +1,14 @@
 ---
 id: dv-f0d5
 title: Read tool: query_transactions for raw-row questions (show tx, full history)
-status: waiting_user
+status: done
 priority: high
 assignee: 
 labels: [feature, bot]
 deps: []
 parent: dv-3a1c
 created: 2026-07-19T15:31:18Z
-updated: 2026-07-19T17:25:56Z
+updated: 2026-07-19T17:32:54Z
 ---
 
 ## Description
@@ -41,3 +41,7 @@ Read tool landed: domain/ask_tools.py (QUERY_TRANSACTIONS_SCHEMA, parse_period i
 ### @claude — 2026-07-19T17:25:56Z
 
 VERIFY (owner): 1) /ask show all spendings over 100 -> tool call, rows + correct total. 2) /ask 3-year category breakdown -> answers from summary, ZERO tool calls (check container logs). 3) /ask what did I spend on a specific date. 4) last purchase of X older than 92 days -> correct date. 5) RU account: answer in Russian, tool still works.
+
+### @itsoneword — 2026-07-19T17:30:15Z
+
+seems to be working

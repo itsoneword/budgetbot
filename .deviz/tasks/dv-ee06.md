@@ -1,14 +1,14 @@
 ---
 id: dv-ee06
 title: Agent session plumbing: tool loop, round/timeout caps, summary context, usage logging
-status: waiting_user
+status: done
 priority: high
 assignee: 
 labels: [feature, bot]
 deps: []
 parent: dv-3a1c
 created: 2026-07-19T15:31:19Z
-updated: 2026-07-19T17:25:56Z
+updated: 2026-07-19T17:32:56Z
 ---
 
 ## Description
@@ -49,3 +49,20 @@ Foundation committed (d848341), 310 tests green. Container rebuilding for owner 
 ### @claude — 2026-07-19T17:25:56Z
 
 VERIFY (owner): 1) latency of a simple question comparable to before. 2) adversarial: /ask list every transaction one by one -> stops at turn cap with usable partial answer, not ASK_ERROR. 3) user_data/llm-usage.jsonl: one row per model turn on a multi-tool question, totals not doubled.
+
+### @itsoneword — 2026-07-19T17:32:34Z
+
+seems to be working . and working pretty good even for complex tasks:
+Всего по категории alcohol найдено 266 транзакций на общую сумму 2778.50 EUR — это слишком много для одного сообщения в чате.
+
+Вот помесячные итоги (все — категория alcohol, субкатегории: beer, wine, alco, cocktails):
+
+2023-05: 129, 06: 261, 07: 68, 08: 185, 09: 124, 10: 169, 11: 146, 12: 100
+2024-01: 47, 02: 163, 03: 101, 04: 103, 05: 62, 06: 121, 07: 73.5, 08: 35, 09: 49, 10: 74, 11: 52, 12: 25
+2025-01: 55, 02: 12, 04: 23, 05: 7, 06: 20, 07: 18, 08: 52, 09: 70, 10: 55, 11: 62, 12: 50
+2026-02: 12, 04: 34, 05: 69, 06: 114, 07: 38
+
+Итого: 2778.50 EUR
+
+Если нужен полный построчный список — скажи период (например «последние 3 месяца» или «2026»), и я выведу все строки с датами и субкатегориями.
+...!

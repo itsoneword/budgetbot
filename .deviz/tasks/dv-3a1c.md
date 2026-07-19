@@ -1,14 +1,14 @@
 ---
 id: dv-3a1c
 title: Agentic AI channel: tool-calling /ask (read tools) + recurring management (write tools)
-status: in_progress
+status: done
 priority: high
 assignee: 
 labels: [feature, bot]
 deps: [dv-9219]
 parent: 
 created: 2026-07-19T14:55:32Z
-updated: 2026-07-19T15:46:14Z
+updated: 2026-07-19T17:33:52Z
 ---
 
 ## Description
@@ -19,10 +19,10 @@ Combines T-027 with an agentic redesign of /ask (owner decision 2026-07-19) — 
 
 ## Acceptance Criteria
 
-- [ ] /ask answers raw-row questions the fixed aggregates can't (specific dates, amount filters, full multi-year history) via query_transactions — see dv-f0d5
-- [ ] Recurring rules manageable through /ask and voice; every write staged behind an inline confirm tap, never auto-applied — see dv-82c8
-- [ ] Simple aggregate questions still resolve in one turn (compact summary as system context); tool rounds and total time capped; per-turn usage logged — see dv-ee06
-- [ ] Voice channel routes through the same agent session with the same guardrails — see dv-94bd
+- [x] /ask answers raw-row questions the fixed aggregates can't (specific dates, amount filters, full multi-year history) via query_transactions — see dv-f0d5
+- [x] Recurring rules manageable through /ask and voice; every write staged behind an inline confirm tap, never auto-applied — see dv-82c8
+- [x] Simple aggregate questions still resolve in one turn (compact summary as system context); tool rounds and total time capped; per-turn usage logged — see dv-ee06
+- [x] Voice channel routes through the same agent session with the same guardrails — see dv-94bd
 
 ## Notes
 
@@ -35,3 +35,7 @@ Combines T-027 with an agentic redesign of /ask (owner decision 2026-07-19) — 
 ### @claude — 2026-07-19T15:46:14Z
 
 Planning wave started: 3 parallel plan agents — (1) dv-ee06+dv-f0d5 foundation unit, (2) dv-82c8 write tools, (3) dv-94bd voice routing. Implementation order: foundation first, then write tools + voice in parallel worktrees.
+
+### @claude — 2026-07-19T17:33:52Z
+
+All four subtasks implemented, owner-verified 2026-07-19, done. Follow-ups living elsewhere: dv-2cf1 (spoken yes + conversational fallthrough, rebases on the new intent prompt), dv-2615 (dedicated LLM token).
