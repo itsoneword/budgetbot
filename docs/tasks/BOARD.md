@@ -16,11 +16,10 @@ _empty_
 - **T-010** `p2/ops/infra` Currency API circuit breaker — last: 2026-07-07 created from production-readiness P4
 - **T-025** `p2/feature/bot` Admin panel commands: user data export + activity monitoring — last: 2026-07-11 created
 
-## Todo (8)
+## Todo (7)
 - **T-023** `p1/feature/bot` Paywall: buy AI access via Telegram Stars
 - **T-027** `p1/feature/bot` AI channel: manage recurring spendings by voice//ask
 - **T-038** `p1/bug/infra` LLM auth: dedicated token for container, stop sharing host OAuth credentials
-- **T-042** `p1/bug/bot` Voice STT: accented English transcribed as Russian (language misdetection on small model)
 - **T-037** `p2/feature/bot` Income in Edit-recent-entries menu: list, edit, delete income records
 - **T-039** `p2/bug/bot` Chart handlers reference undefined texts.NO_DATA (latent AttributeError on empty-data path)
 - **T-040** `p2/bug/bot` Income date parser accepts garbage: 99.99 backdates to 1999, 29.02 non-leap reinterpreted
