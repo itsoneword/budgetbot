@@ -35,8 +35,9 @@
     SHOW_TRANSACTIONS,
     WAITING_FOR_DOCUMENT,
     PROCESS_INCOME,
-    DELETE_PROFILE
-) = range(34)
+    DELETE_PROFILE,
+    ASK_INPUT
+) = range(35)
 
 
 

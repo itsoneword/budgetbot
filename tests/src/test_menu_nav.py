@@ -12,6 +12,7 @@ from telegram.error import BadRequest
 import src.texts as texts_en
 from src.handlers.menu import _back_kb, _safe_edit, _split_text
 from src.handlers.payments import build_ai_offer
+from src.states import ASK_INPUT, TRANSACTION
 
 from tests.conftest import make_session, make_tx
 
@@ -226,9 +227,12 @@ async def test_menu_ask_ai_entitled_arms_flag_and_prompts(core, monkeypatch):
 
     query = FakeMenuQuery("menu_ask_ai")
     context = SimpleNamespace(user_data={"cached_language": "en"})
-    await menu_call(_menu_update(query), context)
+    state = await menu_call(_menu_update(query), context)
 
     assert context.user_data.get("awaiting_ask") is True
+    # T-046: inside the conversation TRANSACTION routes text to the amount
+    # handler — the question must land in its own state.
+    assert state == ASK_INPUT
     text, kwargs = query.edits[-1]
     assert text == texts_en.ASK_AI_PROMPT
     kb = kwargs["reply_markup"].inline_keyboard
@@ -246,9 +250,10 @@ async def test_menu_ask_ai_non_entitled_offer_no_flag(core, monkeypatch):
 
     query = FakeMenuQuery("menu_ask_ai")
     context = SimpleNamespace(user_data={"cached_language": "en"})
-    await menu_call(_menu_update(query), context)
+    state = await menu_call(_menu_update(query), context)
 
     assert "awaiting_ask" not in context.user_data
+    assert state == TRANSACTION  # no question expected — stay in TRANSACTION
     offer_text, _ = build_ai_offer(texts_en)
     assert query.edits[-1][0] == offer_text
 
@@ -296,6 +301,50 @@ async def test_handle_text_awaiting_ask_routes_to_ask_flow(core, monkeypatch):
 
     assert questions == ["how much did I spend on beer this year?"]
     assert "awaiting_ask" not in context.user_data
+    assert state == core.TRANSACTION
+
+
+async def test_handle_ask_input_routes_armed_question(core, monkeypatch):
+    """T-046: ASK_INPUT state callback answers the question and re-enters TRANSACTION."""
+    questions = []
+
+    async def fake_answer(update, context, question):
+        questions.append(question)
+
+    monkeypatch.setattr(core, "answer_ask_question", fake_answer)
+
+    update = SimpleNamespace(
+        effective_user=SimpleNamespace(id=100, first_name="Test", username="test"),
+        message=SimpleNamespace(text="how much on beer?"),
+    )
+    context = SimpleNamespace(
+        user_data={"cached_language": "en", "awaiting_ask": True}
+    )
+    state = await core.handle_ask_input(update, context)
+
+    assert questions == ["how much on beer?"]
+    assert "awaiting_ask" not in context.user_data
+    assert state == core.TRANSACTION
+
+
+async def test_handle_ask_input_stale_flag_falls_back_to_handle_text(core, monkeypatch):
+    """T-046: flag already cleared (Back on a stale prompt) — ordinary text handling."""
+    called = []
+
+    async def fake_handle_text(update, context):
+        called.append(update.message.text)
+        return core.TRANSACTION
+
+    monkeypatch.setattr(core, "handle_text", fake_handle_text)
+
+    update = SimpleNamespace(
+        effective_user=SimpleNamespace(id=100, first_name="Test", username="test"),
+        message=SimpleNamespace(text="bread 5"),
+    )
+    context = SimpleNamespace(user_data={"cached_language": "en"})
+    state = await core.handle_ask_input(update, context)
+
+    assert called == ["bread 5"]
     assert state == core.TRANSACTION
 
 

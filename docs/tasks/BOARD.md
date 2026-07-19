@@ -7,21 +7,22 @@ Updated: 2026-07-19 · see docs/ROADMAP.md for milestones
 ## Doing (0)
 _empty_
 
-## Review (4)
+## Review (5)
 - **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating — last: 2026-07-07 created from production-readiness T1 + O2
 - **T-044** `p1/bug/bot` Menu UX: edit-in-place navigation, stop stacking new messages on submenu actions — last: 2026-07-19 created
 - **T-045** `p1/feature/bot` Ask AI menu tap opens typed-question mode (like Add transaction) — last: 2026-07-19 moved to review
+- **T-046** `p1/bug/bot` awaiting_ask intercepted too late: typed question after Ask AI tap hits transaction parser — last: 2026-07-19 moved to review
 - **T-010** `p2/ops/infra` Currency API circuit breaker — last: 2026-07-07 created from production-readiness P4
 
 ## Todo (8)
 - **T-027** `p1/feature/bot` AI channel: manage recurring spendings by voice//ask
 - **T-038** `p1/bug/infra` LLM auth: dedicated token for container, stop sharing host OAuth credentials
-- **T-046** `p1/bug/bot` awaiting_ask intercepted too late: typed question after Ask AI tap hits transaction parser
 - **T-049** `p1/bug/bot` /ask only sees last 12 months: pass full history to finance summary
 - **T-037** `p2/feature/bot` Income in Edit-recent-entries menu: list, edit, delete income records
 - **T-040** `p2/bug/bot` Income date parser accepts garbage: 99.99 backdates to 1999, 29.02 non-leap reinterpreted
 - **T-043** `p2/feature/bot` Voice channel: 'yes' confirms pending proposal; graceful reply to conversational/meta messages
 - **T-047** `p2/feature/bot` Reminder v2: always remind (no skip when Tx already added), support multiple reminder times per day
+- **T-050** `p2/bug/bot` states.py collision: PROCESS_INCOME/WAITING_FOR_DOCUMENT/DELETE_PROFILE redefined, PROCESS_INCOME==LIMIT shadows onboarding limit state
 
 ## Backlog (10)
 - **T-008** `p2/feature/deploy` Webhook mode + horizontal scaling path _(waiting: T-009)_

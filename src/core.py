@@ -673,6 +673,19 @@ async def handle_text(update: Update, context):
     return TRANSACTION
 
 
+async def handle_ask_input(update: Update, context):
+    """ASK_INPUT state (T-046): the message typed after the Ask-AI prompt.
+
+    The awaiting_ask flag is armed by menu_ask_ai and cleared by any menu
+    tap; if it is already gone (stale prompt, Back via the global handler)
+    the text is ordinary input — hand it to handle_text.
+    """
+    if context.user_data.pop('awaiting_ask', False):
+        await answer_ask_question(update, context, update.message.text)
+        return TRANSACTION
+    return await handle_text(update, context)
+
+
 async def answer_ask_question(update: Update, context: CallbackContext, question: str):
     """Answer a finance question via the LLM.
 
@@ -904,6 +917,13 @@ def main():
             ],
             SETTINGS_LIMIT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_settings_limit)
+            ],
+            # Ask-AI typed question via the menu button (T-046): the state the
+            # entitled menu_ask_ai branch returns. Back and other menu taps are
+            # served by the pattern-less menu_callback fallback, same as
+            # SETTINGS_LIMIT above.
+            ASK_INPUT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_ask_input)
             ],
             # Add-income via the menu button (T-035); the /income command has
             # its own ConversationHandler — this state only serves menu taps.

@@ -31,6 +31,7 @@ from src.states import (
     SETTINGS_LIMIT,
     ADD_CATEGORY,
     PROCESS_INCOME,
+    ASK_INPUT,
 )
 
 # Import handlers used by menu_call
@@ -337,22 +338,26 @@ async def menu_call(update: Update, context: CallbackContext):
 
     if action == "menu_ask_ai":
         # Ask-AI funnel (T-023): entitled users get the typed-question prompt
-        # (T-045) — the next text message is routed into the /ask flow by
-        # handle_text (core.py) via the awaiting_ask flag; Back or any other
-        # menu tap clears it (pop at the top of menu_call). Everyone else
-        # gets the Stars offer — both as edits of the anchor (T-044). The
-        # button never grants anything — purchases flow exclusively
-        # invoice -> successful_payment (handlers/payments.py). A Buy tap
-        # still sends the invoice as a new message (unavoidable); the anchor
-        # keeps its Back button.
+        # (T-045) and the conversation moves to ASK_INPUT (T-046) — inside the
+        # conversation the TRANSACTION state would route typed text to the
+        # amount handler, so the question needs its own state. The
+        # awaiting_ask flag stays as the out-of-conversation backup (stale
+        # prompt after a restart -> top-level handle_text intercept); Back or
+        # any other menu tap clears it (pop at the top of menu_call).
+        # Everyone else gets the Stars offer — both as edits of the anchor
+        # (T-044). The button never grants anything — purchases flow
+        # exclusively invoice -> successful_payment (handlers/payments.py).
+        # A Buy tap still sends the invoice as a new message (unavoidable);
+        # the anchor keeps its Back button.
         from src.ai_access import check_ai_access
         from src.handlers.payments import build_ai_offer
         if await check_ai_access(user_id, context):
             context.user_data["awaiting_ask"] = True
             await _safe_edit(query, texts.ASK_AI_PROMPT, reply_markup=_back_kb(texts))
-        else:
-            offer_text, offer_kb = build_ai_offer(texts, include_back=True)
-            await _safe_edit(query, offer_text, reply_markup=offer_kb)
+            log_state_transition(ASK_INPUT)
+            return ASK_INPUT
+        offer_text, offer_kb = build_ai_offer(texts, include_back=True)
+        await _safe_edit(query, offer_text, reply_markup=offer_kb)
         log_state_transition(TRANSACTION)
         return TRANSACTION
 
