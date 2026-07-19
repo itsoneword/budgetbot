@@ -16,15 +16,15 @@ _empty_
 - **T-010** `p2/ops/infra` Currency API circuit breaker — last: 2026-07-07 created from production-readiness P4
 
 ## Todo (7)
-- **T-027** `p1/feature/bot` AI channel: manage recurring spendings by voice//ask
 - **T-038** `p1/bug/infra` LLM auth: dedicated token for container, stop sharing host OAuth credentials
+- **T-051** `p1/feature/bot` Agentic AI channel: tool-calling /ask (read tools) + recurring management (write tools)
 - **T-037** `p2/feature/bot` Income in Edit-recent-entries menu: list, edit, delete income records
 - **T-040** `p2/bug/bot` Income date parser accepts garbage: 99.99 backdates to 1999, 29.02 non-leap reinterpreted
 - **T-043** `p2/feature/bot` Voice channel: 'yes' confirms pending proposal; graceful reply to conversational/meta messages
 - **T-047** `p2/feature/bot` Reminder v2: always remind (no skip when Tx already added), support multiple reminder times per day
 - **T-050** `p2/bug/bot` states.py collision: PROCESS_INCOME/WAITING_FOR_DOCUMENT/DELETE_PROFILE redefined, PROCESS_INCOME==LIMIT shadows onboarding limit state
 
-## Backlog (10)
+## Backlog (11)
 - **T-008** `p2/feature/deploy` Webhook mode + horizontal scaling path _(waiting: T-009)_
 - **T-009** `p2/refactor/bot` Durable conversation state
 - **T-012** `p2/ops/deploy` Deploy hardening: prod compose overlay + secrets
@@ -34,6 +34,7 @@ _empty_
 - **T-015** `p3/feature/bot` CSV download/upload restore
 - **T-016** `p3/feature/infra` Analytics events table
 - **T-017** `p3/feature/infra` Web UI / API layer
+- **T-027** `p3/feature/bot` AI channel: manage recurring spendings by voice//ask ⛔ superseded by T-051 (agentic AI channel) — owner decision 2026-07-19
 - **T-048** `p3/refactor/bot` Improve /monthly_ext_stat chart readability: too many lines, almost unreadable
 
 ## Done (last 10 of 25)

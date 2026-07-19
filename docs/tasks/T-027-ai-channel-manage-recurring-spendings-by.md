@@ -1,15 +1,15 @@
 ---
 id: T-027
 title: AI channel: manage recurring spendings by voice//ask
-status: todo
+status: backlog
 type: feature
 area: bot
-priority: p1
+priority: p3
 deps: [T-026]
 tags: [ai, recurring]
-blocked: 
+blocked: superseded by T-051 (agentic AI channel) — owner decision 2026-07-19
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-19
 ---
 
 ## Context
@@ -43,3 +43,4 @@ Open questions (recommended defaults):
 Risks: classifier accuracy regression as prompt grows (add contrast examples, watch "Intent routed" logs); transcription/language name mismatches degrade safely to full-list fallback; rule names ending in digits are ambiguous but consistent with /recurring add; stale pending confirm overwritten by second voice note (same accepted vtx_ behavior).
 
 **Owner decisions 2026-07-11:** all defaults accepted (day defaults to 1 shown in confirm; buttons decide pause-vs-delete; voice resume out of scope). Sequencing: runs AFTER T-035 in the intent chain (T-035 → T-027 → T-034).
+- 2026-07-19 superseded by T-051: agentic tool-calling design chosen over flat intents (owner 2026-07-19); UX decisions (day default 1, buttons decide pause-vs-delete) carry over
