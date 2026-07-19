@@ -4,16 +4,17 @@
 
 Updated: 2026-07-19 · see docs/ROADMAP.md for milestones
 
-## Doing (1)
-- **T-045** `p1/feature/bot` Ask AI menu tap opens typed-question mode (like Add transaction) — last: 2026-07-19 ASK_AI_PROMPT texts; menu_ask_ai arms awaiting_ask; core.answer_ask_question helper shared by /ask and typed path; flag cleared in menu_call top + voice entry; 8 unit tests, suite 250 green
+## Doing (0)
+_empty_
 
-## Review (8)
+## Review (9)
 - **T-004** `p1/refactor/bot` Move chart rendering off the event loop — last: 2026-07-11 moved to review
 - **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating — last: 2026-07-07 created from production-readiness T1 + O2
 - **T-028** `p1/bug/bot` Fix /download: export transactions from PostgreSQL, not stale user_data CSV — last: 2026-07-11 created
 - **T-034** `p1/feature/bot` Daily reminder to add transactions (menu + voice), per-user timezone — last: 2026-07-11 created
 - **T-041** `p1/feature/bot` AI conversation memory: context-aware voice/ask channel with correction handling — last: 2026-07-12 created
 - **T-044** `p1/bug/bot` Menu UX: edit-in-place navigation, stop stacking new messages on submenu actions — last: 2026-07-19 created
+- **T-045** `p1/feature/bot` Ask AI menu tap opens typed-question mode (like Add transaction) — last: 2026-07-19 started
 - **T-010** `p2/ops/infra` Currency API circuit breaker — last: 2026-07-07 created from production-readiness P4
 - **T-025** `p2/feature/bot` Admin panel commands: user data export + activity monitoring — last: 2026-07-11 created
 
