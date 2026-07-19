@@ -7,20 +7,20 @@ Updated: 2026-07-19 · see docs/ROADMAP.md for milestones
 ## Doing (0)
 _empty_
 
-## Review (8)
+## Review (9)
 - **T-004** `p1/refactor/bot` Move chart rendering off the event loop — last: 2026-07-11 moved to review
 - **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating — last: 2026-07-07 created from production-readiness T1 + O2
 - **T-023** `p1/feature/bot` Paywall: buy AI access via Telegram Stars — last: 2026-07-11 created
 - **T-028** `p1/bug/bot` Fix /download: export transactions from PostgreSQL, not stale user_data CSV — last: 2026-07-11 created
 - **T-034** `p1/feature/bot` Daily reminder to add transactions (menu + voice), per-user timezone — last: 2026-07-11 created
 - **T-041** `p1/feature/bot` AI conversation memory: context-aware voice/ask channel with correction handling — last: 2026-07-12 created
+- **T-044** `p1/bug/bot` Menu UX: edit-in-place navigation, stop stacking new messages on submenu actions — last: 2026-07-19 created
 - **T-010** `p2/ops/infra` Currency API circuit breaker — last: 2026-07-07 created from production-readiness P4
 - **T-025** `p2/feature/bot` Admin panel commands: user data export + activity monitoring — last: 2026-07-11 created
 
-## Todo (7)
+## Todo (6)
 - **T-027** `p1/feature/bot` AI channel: manage recurring spendings by voice//ask
 - **T-038** `p1/bug/infra` LLM auth: dedicated token for container, stop sharing host OAuth credentials
-- **T-044** `p1/bug/bot` Menu UX: edit-in-place navigation, stop stacking new messages on submenu actions
 - **T-037** `p2/feature/bot` Income in Edit-recent-entries menu: list, edit, delete income records
 - **T-039** `p2/bug/bot` Chart handlers reference undefined texts.NO_DATA (latent AttributeError on empty-data path)
 - **T-040** `p2/bug/bot` Income date parser accepts garbage: 99.99 backdates to 1999, 29.02 non-leap reinterpreted
