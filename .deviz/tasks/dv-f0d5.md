@@ -8,7 +8,7 @@ labels: [feature, bot]
 deps: []
 parent: dv-3a1c
 created: 2026-07-19T15:31:18Z
-updated: 2026-07-19T16:28:44Z
+updated: 2026-07-19T16:44:29Z
 ---
 
 ## Description
@@ -33,3 +33,7 @@ Tests (pure, injectable now=): parse_period matrix incl. boundary inclusivity ma
 Manual (folded-in from dv-4a58): 3-year breakdown = zero tool calls (check logs); 'when did I start' (summary, no tool); 'all spendings over 100' -> min_amount=100; last-purchase-of-X beyond 92d; specific-date question; latency vs today; fresh 1-2 tx; adversarial 'list every transaction one by one' -> ends at turn cap with usable partial answer; RU account; llm-usage.jsonl one row per turn, no doubling.
 
 ## Comments
+
+### @claude — 2026-07-19T16:44:29Z
+
+Read tool landed: domain/ask_tools.py (QUERY_TRANSACTIONS_SCHEMA, parse_period incl YYYY/YYYY-MM/day/range/presets, query_transactions with full-match totals, format_query_result 8KB cap, format_no_match) + src/ask_agent_tools.py glue (Decimal coercion, limit clamp 1..200, ValueError->ToolInputError). Tests: 310 passing (was 254): parse_period matrix, filters/ordering/truncation-totals, fresh-account empty, format caps, adapter is_error paths, prompt flag. SDK MCP server construction smoke-tested against installed 0.1.81.

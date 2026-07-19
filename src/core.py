@@ -692,7 +692,9 @@ async def answer_ask_question(update: Update, context: CallbackContext, question
     Shared by the /ask command and the menu typed-question mode (T-045);
     both paths re-check entitlement here and log the interaction on
     channel 'ask' identically. Data is aggregated in memory and packed
-    into the prompt; the model never touches the DB (T-018)."""
+    into the prompt; raw-row questions go through the read-only
+    query_transactions tool over the same in-memory session — the model
+    never touches the DB (T-018)."""
     user_id = update.effective_user.id
     texts = check_language(update, context)
 
@@ -729,7 +731,15 @@ async def answer_ask_question(update: Update, context: CallbackContext, question
             f"User's question: {question}"
         )
         client = get_llm_client()
-        answer = await client.complete(prompt, build_ask_system_prompt(session.language))
+        # Agentic path (dv-ee06/dv-f0d5): summary stays as context so simple
+        # aggregate questions resolve in one turn; query_transactions covers
+        # raw-row questions. Read-only in-memory tools — still no DB access.
+        from src.ask_agent_tools import build_ask_toolspecs
+        answer = await client.complete_with_tools(
+            prompt,
+            build_ask_system_prompt(session.language, tools_enabled=True),
+            tools=build_ask_toolspecs(session),
+        )
         await thinking_message.edit_text(answer)
         # AI conversation memory (T-041): record the Q&A so a voice follow-up
         # ("а за июнь?") classifies against the asked question. Best-effort —

@@ -8,7 +8,7 @@ labels: [feature, bot]
 deps: []
 parent: dv-3a1c
 created: 2026-07-19T15:31:19Z
-updated: 2026-07-19T16:28:40Z
+updated: 2026-07-19T16:39:55Z
 ---
 
 ## Description
@@ -37,3 +37,7 @@ Defaults accepted: per-turn usage JSONL rows (row count != ask count); 20/200/8K
 Risks: SDK upgrade regressing query()-MCP path; max_turns too low truncates (graceful text return, tune from logs); usage double-count (check host report once after deploy); 10k-row get_latest cap inherited from summary path (accepted).
 
 ## Comments
+
+### @claude — 2026-07-19T16:39:55Z
+
+Session plumbing landed: ToolSpec/ToolInputError + complete_with_tools default in llm/base.py; claude_agent.py shared _run loop with per-turn usage recording (ResultMessage fallback only), SDK MCP finance server, dontAsk, max_turns env-capped, graceful partial-text return on turn exhaustion; build_ask_system_prompt tools_enabled flag; core.py answer_ask_question switched to complete_with_tools. AgentToolContext shape defined in src/ask_agent_tools.py for dv-82c8.

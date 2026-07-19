@@ -125,3 +125,19 @@ def test_data_covers_since_derived_from_oldest_tx_on_full_history():
 def test_ask_system_prompt_language():
     assert build_ask_system_prompt("ru").endswith("Answer in Russian.")
     assert build_ask_system_prompt("en").endswith("Answer in English.")
+
+
+def test_ask_system_prompt_without_tools_has_no_tool_guidance():
+    assert "query_transactions" not in build_ask_system_prompt("en")
+
+
+def test_ask_system_prompt_with_tools_appends_guidance():
+    prompt = build_ask_system_prompt("en", tools_enabled=True)
+    assert "query_transactions" in prompt
+    # summary-first guidance keeps simple aggregate questions zero-tool
+    assert "summary" in prompt
+    assert prompt.endswith("Answer in English.")
+
+
+def test_ask_system_prompt_tools_flag_keeps_language_note_ru():
+    assert build_ask_system_prompt("ru", tools_enabled=True).endswith("Answer in Russian.")

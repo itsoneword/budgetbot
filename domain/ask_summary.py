@@ -107,10 +107,27 @@ def build_finance_summary(session: UserSession) -> str:
     return "\n".join(lines)
 
 
-def build_ask_system_prompt(language: str) -> str:
-    """System prompt for the /ask Q&A call."""
+def build_ask_system_prompt(language: str, tools_enabled: bool = False) -> str:
+    """System prompt for the /ask Q&A call.
+
+    tools_enabled=True appends tool guidance for the agentic path: answer from
+    the summary when it suffices (keeps simple aggregate questions one-turn,
+    zero tool calls); reach for query_transactions only when raw rows or
+    filters beyond the pre-aggregated summary are needed.
+    """
     lang_note = (
         "Answer in Russian." if language == "ru" else "Answer in English."
+    )
+    tools_note = (
+        "You can call the query_transactions tool to search the user's raw "
+        "transaction rows (by period, category, subcategory, type, amount "
+        "range). Answer directly from the provided summary whenever it "
+        "suffices — most aggregate questions need no tool call. Use "
+        "query_transactions only when you need specific transactions or "
+        "filters the summary does not cover (exact dates, amount thresholds, "
+        "last purchase of something). Make at most a few calls. "
+        if tools_enabled
+        else ""
     )
     return (
         "You are a personal finance assistant inside a Telegram budget bot. "
@@ -125,6 +142,7 @@ def build_ask_system_prompt(language: str) -> str:
         "spendings. Be concise — a few short "
         "sentences or a small list; this is a chat message, not a report. "
         "Round amounts sensibly and always mention the currency. "
+        + tools_note +
         "Write plain text only — no markdown, no asterisks, no headers. "
         + lang_note
     )

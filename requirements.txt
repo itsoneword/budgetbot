@@ -30,7 +30,7 @@ structlog==24.1.0
 # LoggingIntegration is built in, no extras needed.
 sentry-sdk~=2.0
 # AI Q&A /ask (T-018) — uses Claude Code subscription OAuth via mounted CLI
-claude-agent-sdk>=0.1.80,<0.2
+claude-agent-sdk>=0.1.81,<0.2  # query()+SDK MCP servers verified on 0.1.81 (dv-ee06)
 mcp>=1.20
 
 # Voice transcription (T-019) — local CPU whisper, weights mounted from host HF cache
