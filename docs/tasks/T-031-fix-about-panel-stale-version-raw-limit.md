@@ -1,7 +1,7 @@
 ---
 id: T-031
 title: Fix /about panel: stale version, raw limit sentinel, dead settings buttons
-status: review
+status: done
 type: bug
 area: bot
 priority: p2
@@ -9,7 +9,7 @@ deps: []
 tags: []
 blocked: 
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-19
 ---
 
 ## Context
@@ -45,3 +45,5 @@ All pre-existing (verified 2026-07-11): (1) version string hardcoded in texts.AB
 - [ ] Voice confirm buttons (vtx_) and recurring buttons (rr) still work
 - [ ] /start onboarding language/currency selection unaffected (conversation states claim lang_/cur_ first)
 - [ ] Transaction category selection (cat_ buttons) unaffected
+- 2026-07-19 done
+- 2026-07-19 changelog: /about panel: correct version, readable limit, working settings buttons

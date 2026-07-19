@@ -1,7 +1,7 @@
 ---
 id: T-021
 title: Sync bot menu commands with code (set_my_commands on startup)
-status: review
+status: done
 type: feature
 area: bot
 priority: p2
@@ -9,7 +9,7 @@ deps: []
 tags: []
 blocked: 
 created: 2026-07-09
-updated: 2026-07-11
+updated: 2026-07-19
 ---
 
 ## Context
@@ -68,3 +68,5 @@ Verify: `getMyCommands` for default + admin scope; /help as admin vs non-admin; 
 - 2026-07-11 commands registry + core loop + help rendering + menu sync implemented; all consistency checks pass
 - 2026-07-11 moved to review
 - 2026-07-11 acceptance boxes checked (static verification); Testing checklist appended; moved to review
+- 2026-07-19 done
+- 2026-07-19 changelog: Bot menu commands synced from code registry on startup (21 commands)

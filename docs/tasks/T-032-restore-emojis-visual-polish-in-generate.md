@@ -1,7 +1,7 @@
 ---
 id: T-032
 title: Restore emojis/visual polish in generated /help and menu command descriptions
-status: review
+status: done
 type: feature
 area: bot
 priority: p3
@@ -9,7 +9,7 @@ deps: []
 tags: []
 blocked: 
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-19
 ---
 
 ## Context
@@ -41,3 +41,5 @@ T-021's generated help is deliberately HTML-free (one call site renders HTML, tw
 ### Regression
 - [ ] /help via voice/free-text routing still renders
 - [ ] Commands themselves still dispatch (registry loop registration unchanged — spot-check /show, /about)
+- 2026-07-19 done
+- 2026-07-19 changelog: Restored emoji/visual polish in /help and menu descriptions

@@ -2,31 +2,22 @@
 
 # Task Board
 
-Updated: 2026-07-13 · see docs/ROADMAP.md for milestones
+Updated: 2026-07-19 · see docs/ROADMAP.md for milestones
 
 ## Doing (0)
 _empty_
 
-## Review (19)
-- **T-020** `p0/bug/bot` Fix show_last: Transaction attribute mismatch (tx.category vs category_name) — last: 2026-07-09 moved to review
-- **T-003** `p1/ops/bot` Replace print() with logger in runtime code — last: 2026-07-11 moved to review
+## Review (10)
 - **T-004** `p1/refactor/bot` Move chart rendering off the event loop — last: 2026-07-11 moved to review
-- **T-005** `p1/ops/db` Adopt alembic for schema migrations — last: 2026-07-11 moved to review
 - **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating — last: 2026-07-07 created from production-readiness T1 + O2
 - **T-022** `p1/feature/db` AI access control: DB-backed entitlements + admin grant/revoke — last: 2026-07-11 created
 - **T-026** `p1/feature/bot` Recurring transactions: rules engine, daily scheduler, manual management — last: 2026-07-11 created
 - **T-028** `p1/bug/bot` Fix /download: export transactions from PostgreSQL, not stale user_data CSV — last: 2026-07-11 created
-- **T-029** `p1/docs/bot` Docs catch-up: changelog, roadmap M4, README; enforce changelog on task done — last: 2026-07-11 moved to review
-- **T-033** `p1/bug/bot` Date prefix dd.mm assumes current year, creates future-dated transactions — last: 2026-07-11 moved to review
 - **T-034** `p1/feature/bot` Daily reminder to add transactions (menu + voice), per-user timezone — last: 2026-07-11 created
 - **T-036** `p1/bug/bot` Main-menu Recurring button dead; relocate into Add-transaction section — last: 2026-07-12 Recurring button relocated from main menu into new Add-transaction submenu (menu_add_transaction now opens spending/income/recurring section) — taps now always route via active-conversation menu_call
 - **T-041** `p1/feature/bot` AI conversation memory: context-aware voice/ask channel with correction handling — last: 2026-07-12 created
 - **T-010** `p2/ops/infra` Currency API circuit breaker — last: 2026-07-07 created from production-readiness P4
-- **T-011** `p2/ops/obs` Observability: structured logs, Sentry, health check — last: 2026-07-09 Added global PTB error handler (core.py): logs full traceback + user_id/input/callback context to app.log and stdout, replies with localized ERROR_PROCESSING_REQUEST. 'No error handlers registered' warning gone. Remaining scope: structured logs, health check.
-- **T-021** `p2/feature/bot` Sync bot menu commands with code (set_my_commands on startup) — last: 2026-07-11 acceptance boxes checked (static verification); Testing checklist appended; moved to review
 - **T-025** `p2/feature/bot` Admin panel commands: user data export + activity monitoring — last: 2026-07-11 created
-- **T-031** `p2/bug/bot` Fix /about panel: stale version, raw limit sentinel, dead settings buttons — last: 2026-07-11 moved to review
-- **T-032** `p3/feature/bot` Restore emojis/visual polish in generated /help and menu command descriptions — last: 2026-07-11 moved to review
 
 ## Todo (6)
 - **T-023** `p1/feature/bot` Paywall: buy AI access via Telegram Stars _(waiting: T-022)_
@@ -47,10 +38,14 @@ _empty_
 - **T-016** `p3/feature/infra` Analytics events table
 - **T-017** `p3/feature/infra` Web UI / API layer
 
-## Done (last 10 of 6)
+## Done (last 10 of 15)
+- **T-003** `p1/ops/bot` Replace print() with logger in runtime code
+- **T-005** `p1/ops/db` Adopt alembic for schema migrations
+- **T-011** `p2/ops/obs` Observability: structured logs, Sentry, health check
+- **T-020** `p0/bug/bot` Fix show_last: Transaction attribute mismatch (tx.category vs category_name)
+- **T-021** `p2/feature/bot` Sync bot menu commands with code (set_my_commands on startup)
+- **T-029** `p1/docs/bot` Docs catch-up: changelog, roadmap M4, README; enforce changelog on task done
+- **T-031** `p2/bug/bot` Fix /about panel: stale version, raw limit sentinel, dead settings buttons
+- **T-032** `p3/feature/bot` Restore emojis/visual polish in generated /help and menu command descriptions
+- **T-033** `p1/bug/bot` Date prefix dd.mm assumes current year, creates future-dated transactions
 - **T-035** `p1/feature/bot` Income tracking: verify it works, wire into voice/AI intents, income-vs-outcome analysis in /ask
-- **T-019** `p2/feature/bot` Voice input: transcribe + route to Q&A or transaction entry
-- **T-007** `p1/ops/db` Automated Postgres backups
-- **T-018** `p2/feature/bot` AI Q&A over spendings (/ask)
-- **T-001** `p0/bug/bot` Fix admin check (int vs str comparison)
-- **T-002** `p1/refactor/bot` Standardize package-qualified imports

@@ -1,7 +1,7 @@
 ---
 id: T-029
 title: Docs catch-up: changelog, roadmap M4, README; enforce changelog on task done
-status: review
+status: done
 type: docs
 area: bot
 priority: p1
@@ -9,7 +9,7 @@ deps: []
 tags: []
 blocked: 
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-19
 ---
 
 ## Context
@@ -64,3 +64,5 @@ This is a docs + tooling task — no bot runtime surface. Testing = exercising s
 - [ ] Proofread docs/CHANGELOG.md backfill against `git log` — dates and task IDs match
 - [ ] README renders correctly on GitHub; docs/CHANGELOG.md link resolves; docker compose quickstart works on a clean clone
 - [ ] ROADMAP M4 list matches the actual open T-020..T-028 tasks
+- 2026-07-19 done
+- 2026-07-19 changelog skipped (--no-changelog: docs/meta task)

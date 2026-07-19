@@ -7,6 +7,14 @@ under `## Unreleased` by `python3 scripts/tasks.py done T-NNN --changelog "..."`
 
 ## Unreleased
 
+- 2026-07-19 T-033: dd.mm date prefix resolves to most recent past date instead of future-dating
+- 2026-07-19 T-032: Restored emoji/visual polish in /help and menu descriptions
+- 2026-07-19 T-031: /about panel: correct version, readable limit, working settings buttons
+- 2026-07-19 T-020: Fixed show_last Transaction attribute crash
+- 2026-07-19 T-021: Bot menu commands synced from code registry on startup (21 commands)
+- 2026-07-19 T-011: Observability: JSON structured logs, env-gated Sentry (dark), DB heartbeat + Docker healthcheck — verified live
+- 2026-07-19 T-003: All runtime print() replaced with logger; verified in production logs
+- 2026-07-19 T-005: Alembic migrations adopted; upgrade-on-boot proven across 0003–0006 in production
 - 2026-07-12 T-035: Income tracking works end-to-end: /income inline args, type-safe /delete_income, voice/text add_income intent with confirm, /ask income-vs-spending analysis, Add-income menu button, /show_last income
 - 2026-07-11 release designation 0.3.0: version now a single constant in src/config.py (VERSION/VERSION_DATE), displayed by /about (T-031).
 

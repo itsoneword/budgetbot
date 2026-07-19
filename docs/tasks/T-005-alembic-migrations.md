@@ -1,7 +1,7 @@
 ---
 id: T-005
 title: Adopt alembic for schema migrations
-status: review
+status: done
 type: ops
 area: db
 priority: p1
@@ -9,7 +9,7 @@ deps: []
 tags: []
 blocked: 
 created: 2026-07-07
-updated: 2026-07-11
+updated: 2026-07-19
 ---
 
 ## Context
@@ -64,3 +64,5 @@ cutover is just deploy + first migrated start. Order matters:
 4. Watch `docker logs -f budgetbot-container`: expect "Running upgrade -> 0001" (no-ops through existing schema), "0001 -> 0002", then bot start
 5. Verify: `docker exec budgetbot-postgres psql -U budgetbot -d budgetbot -c "SELECT version_num FROM alembic_version;"` → `0002`; spot-check row counts vs. backup
 6. Rollback if broken: restore image to previous tag; schema-wise nothing destructive ran (baseline is additive/idempotent; 0002 is one index) — `alembic downgrade base` is NOT part of rollback
+- 2026-07-19 done
+- 2026-07-19 changelog: Alembic migrations adopted; upgrade-on-boot proven across 0003–0006 in production

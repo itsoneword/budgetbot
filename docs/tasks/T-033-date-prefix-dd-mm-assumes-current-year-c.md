@@ -1,7 +1,7 @@
 ---
 id: T-033
 title: Date prefix dd.mm assumes current year, creates future-dated transactions
-status: review
+status: done
 type: bug
 area: bot
 priority: p1
@@ -9,7 +9,7 @@ deps: []
 tags: []
 blocked: 
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-19
 ---
 
 ## Context
@@ -47,3 +47,5 @@ Verified 2026-07-11: tx 3532 (31.12, user 49560859) and 4164 (26.12, user 497754
 - [ ] Category-selection flow (short format `coffee 4` -> pick category) still saves correctly
 - [ ] Recurring transactions (scheduler) still post on their due date, not clamped
 - [ ] /show monthly stats include the backdated transaction in the correct (previous-year) month
+- 2026-07-19 done
+- 2026-07-19 changelog: dd.mm date prefix resolves to most recent past date instead of future-dating

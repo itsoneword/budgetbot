@@ -1,7 +1,7 @@
 ---
 id: T-020
 title: Fix show_last: Transaction attribute mismatch (tx.category vs category_name)
-status: review
+status: done
 type: bug
 area: bot
 priority: p0
@@ -9,7 +9,7 @@ deps: []
 tags: []
 blocked: 
 created: 2026-07-09
-updated: 2026-07-09
+updated: 2026-07-19
 ---
 
 ## Context
@@ -40,3 +40,5 @@ src/core.py:423 latest_records formats tx.category/tx.subcategory but the Transa
 - [ ] `/show` — stats render normally
 - [ ] `/monthly_stat` — charts render normally
 - [ ] Menu → recent transactions list — dates and categories display correctly
+- 2026-07-19 done
+- 2026-07-19 changelog: Fixed show_last Transaction attribute crash

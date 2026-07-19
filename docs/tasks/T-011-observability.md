@@ -1,7 +1,7 @@
 ---
 id: T-011
 title: Observability: structured logs, Sentry, health check
-status: review
+status: done
 type: ops
 area: obs
 priority: p2
@@ -9,7 +9,7 @@ deps: []
 tags: []
 blocked: 
 created: 2026-07-07
-updated: 2026-07-12
+updated: 2026-07-19
 ---
 
 ## Context
@@ -79,3 +79,5 @@ Risks: `restart: unless-stopped` ignores health status — unhealthy is a visibl
 - 2026-07-12 started
 - 2026-07-12 JSON stdout via ProcessorFormatter (verified: one-line JSON parses, extras+tracebacks as keys, app.log human-readable, /debug idempotent); daily/7d rotation fix; env-gated Sentry verified dark (no import) and lit (fake DSN); heartbeat job + compose healthcheck (compose config valid)
 - 2026-07-12 moved to review
+- 2026-07-19 done
+- 2026-07-19 changelog: Observability: JSON structured logs, env-gated Sentry (dark), DB heartbeat + Docker healthcheck — verified live

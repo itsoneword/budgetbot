@@ -1,7 +1,7 @@
 ---
 id: T-003
 title: Replace print() with logger in runtime code
-status: review
+status: done
 type: ops
 area: bot
 priority: p1
@@ -9,7 +9,7 @@ deps: []
 tags: []
 blocked: 
 created: 2026-07-07
-updated: 2026-07-11
+updated: 2026-07-19
 ---
 
 ## Context
@@ -50,3 +50,5 @@ Change is log-plumbing only (84 print() -> logger calls in 4 files); no user-vis
 ### Nice-to-have
 - [ ] Bot shutdown logs "Database container closed"
 - [ ] Confirm no stray "DEBUG: " / "[OK]" prefixes remain in log lines from these modules
+- 2026-07-19 done
+- 2026-07-19 changelog: All runtime print() replaced with logger; verified in production logs
