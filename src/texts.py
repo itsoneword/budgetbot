@@ -368,6 +368,17 @@ RECURRING_RESUME_BTN = "▶️ {}"
 RECURRING_DELETE_BTN = "🗑"
 RECURRING_CONFIRM_DELETE_BTN = "🗑 Delete"
 RECURRING_BACK_BTN = "◀️ Back"
+# AI-staged recurring actions (dv-82c8): rendered after an /ask answer.
+AI_RECURRING_CONFIRM_ADD = (
+    "🔁 Add recurring transaction: {name} — {amount} {currency}, "
+    "every month on day {day}?"
+)
+AI_RECURRING_STOP_CONFIRM = (
+    "🔁 Stop recurring transaction '{name}'? "
+    "Pause keeps it to resume later; Delete removes it permanently."
+)
+AI_RECURRING_ADD_ACCEPTED = "✅ Adding recurring transaction…"
+AI_RECURRING_ADD_CANCELLED = "❌ Recurring transaction not added."
 
 # Daily reminder + timezone (T-034)
 REMINDER_BUTTON = "⏰ Daily reminder"

@@ -5,8 +5,10 @@ from typing import Optional
 
 from domain.recurring import (
     due_date_for,
+    format_amount,
     format_rules_list,
     is_due,
+    match_rules,
     validate_rule_input,
 )
 
@@ -107,6 +109,55 @@ class TestValidateRuleInput:
     def test_day_31_accepted(self):
         payload, error = validate_rule_input("rent", "10", "31")
         assert error is None and payload["day"] == 31
+
+
+class TestMatchRules:
+    def _rules(self):
+        return [
+            Rule(subcategory_name="rent"),
+            Rule(subcategory_name="rent insurance"),
+            Rule(subcategory_name="netflix subscription"),
+            Rule(subcategory_name="spotify subscription"),
+        ]
+
+    def test_exact_match_short_circuits_over_substring_hits(self):
+        matches = match_rules(self._rules(), "rent")
+        assert [r.subcategory_name for r in matches] == ["rent"]
+
+    def test_exact_match_case_and_whitespace_insensitive(self):
+        matches = match_rules(self._rules(), "  Rent   Insurance ")
+        assert [r.subcategory_name for r in matches] == ["rent insurance"]
+
+    def test_single_token_substring_match(self):
+        matches = match_rules(self._rules(), "netflix")
+        assert [r.subcategory_name for r in matches] == ["netflix subscription"]
+
+    def test_all_tokens_must_match(self):
+        matches = match_rules(self._rules(), "netflix subscription monthly")
+        assert matches == []
+
+    def test_partial_word_substring_matches(self):
+        matches = match_rules(self._rules(), "sub")
+        assert [r.subcategory_name for r in matches] == [
+            "netflix subscription", "spotify subscription",
+        ]
+
+    def test_zero_matches(self):
+        assert match_rules(self._rules(), "gym") == []
+
+    def test_empty_and_whitespace_query_match_nothing(self):
+        assert match_rules(self._rules(), "") == []
+        assert match_rules(self._rules(), "   ") == []
+
+    def test_empty_rules(self):
+        assert match_rules([], "rent") == []
+
+
+def test_format_amount_drops_trailing_zeros():
+    assert format_amount(500.0) == "500"
+    assert format_amount(49.99) == "49.99"
+    assert format_amount(12.5) == "12.5"
+    assert format_amount(1234567.89) == "1234567.89"
 
 
 def test_format_rules_list_numbering_and_paused_mark():

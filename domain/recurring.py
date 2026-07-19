@@ -73,6 +73,38 @@ def validate_rule_input(name: str, amount: str, day: str) -> Tuple[Optional[dict
     return {"name": name.lower(), "amount": round(amount_val, 2), "day": day_val}, None
 
 
+def match_rules(rules: List, query: str) -> List:
+    """Match rules against a free-text name reference (dv-82c8 cancel flow).
+
+    Case-insensitive. An exact (whitespace-normalized) name match
+    short-circuits to just those rules — so 'rent' picks the 'rent' rule
+    even when 'rent insurance' also exists. Otherwise a rule matches when
+    every query token appears as a substring of its name. Empty query
+    matches nothing. Never raises — callers turn 0/many matches into a
+    clarification, not an error.
+    """
+    query = " ".join(str(query).lower().split())
+    if not query:
+        return []
+    exact = [r for r in rules if " ".join(r.subcategory_name.lower().split()) == query]
+    if exact:
+        return exact
+    tokens = query.split()
+    return [
+        r for r in rules
+        if all(token in r.subcategory_name.lower() for token in tokens)
+    ]
+
+
+def format_amount(amount: float) -> str:
+    """Render a rule amount without trailing zeros: 500.0 -> '500', 12.5 -> '12.5'.
+
+    Used for both display copy and the re-injected '/recurring add' command,
+    so the confirm message and the saved rule always show the same number.
+    """
+    return f"{float(amount):.2f}".rstrip("0").rstrip(".")
+
+
 def format_rules_list(rules: List, paused_label: str = "paused", day_label: str = "day") -> str:
     """Render rules as numbered lines: 'name — amount CUR, day N' (+ paused mark).
 

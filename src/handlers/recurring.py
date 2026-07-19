@@ -16,7 +16,7 @@ from typing import List, Optional, Tuple
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackContext
 
-from domain.recurring import format_rules_list, validate_rule_input
+from domain.recurring import format_amount, format_rules_list, validate_rule_input
 from infrastructure.repositories import RecurringRule
 from shared.di import get_repos
 from src.language_util import check_language, ensure_user_config_cached
@@ -158,6 +158,81 @@ async def recurring_command(update: Update, context: CallbackContext) -> None:
     if rule.day_of_month >= 29:
         message += "\n" + texts.RECURRING_DAY_CLAMP_NOTE
     await update.message.reply_text(message)
+
+
+# =========================================================================
+# AI-staged actions (dv-82c8): render staged proposals + vrc_ confirm
+# =========================================================================
+
+async def send_staged_recurring_actions(
+    update: Update, context: CallbackContext, staged: dict, texts
+) -> None:
+    """Render staged recurring proposals as SEPARATE inline-confirm messages
+    after the /ask answer (owner decision 2026-07-19). Tools never write —
+    these taps are the only write path.
+
+    add -> vrc_yes/vrc_no keyboard; yes re-injects '/recurring add ...' so
+    the write goes through the exact validated command path. cancel ->
+    existing rr_pause_/rr_delc_/rr_back buttons, zero new write code; the
+    message itself is the delete confirmation (rr_delc_ deletes in one tap).
+    """
+    add = staged.get("recurring_add")
+    if add:
+        context.user_data["ai_rec_text"] = (
+            f"/recurring add {add['name']} {format_amount(add['amount'])} {add['day']}"
+        )
+        keyboard = InlineKeyboardMarkup([[
+            InlineKeyboardButton(texts.VOICE_TX_CONFIRM_BTN, callback_data="vrc_yes"),
+            InlineKeyboardButton(texts.VOICE_TX_CANCEL_BTN, callback_data="vrc_no"),
+        ]])
+        message = texts.AI_RECURRING_CONFIRM_ADD.format(
+            name=add["name"],
+            amount=format_amount(add["amount"]),
+            currency=add["currency"],
+            day=add["day"],
+        )
+        await update.effective_message.reply_text(message, reply_markup=keyboard)
+
+    cancel = staged.get("recurring_cancel")
+    if cancel:
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton(
+                    texts.RECURRING_PAUSE_BTN.format(cancel["name"]),
+                    callback_data=f"rr_pause_{cancel['id']}",
+                ),
+                InlineKeyboardButton(
+                    texts.RECURRING_CONFIRM_DELETE_BTN,
+                    callback_data=f"rr_delc_{cancel['id']}",
+                ),
+            ],
+            [InlineKeyboardButton(texts.RECURRING_BACK_BTN, callback_data="rr_back")],
+        ])
+        await update.effective_message.reply_text(
+            texts.AI_RECURRING_STOP_CONFIRM.format(name=cancel["name"]),
+            reply_markup=keyboard,
+        )
+
+
+async def handle_ai_recurring_confirmation(update: Update, context: CallbackContext) -> None:
+    """vrc_yes/vrc_no taps on the AI-staged recurring-add confirm keyboard.
+
+    Yes re-injects the stored '/recurring add <name> <amount> <day>' text so
+    validation, category resolution and success copy come from the one
+    command path (mirrors vtx_). Registered BEFORE spendings_handler in
+    core.py — same ordering trap as vtx_/^rr.
+    """
+    query = update.callback_query
+    texts = check_language(update, context)
+    await query.answer()
+
+    rec_text = context.user_data.pop("ai_rec_text", None)
+    if query.data == "vrc_yes" and rec_text:
+        await query.edit_message_text(texts.AI_RECURRING_ADD_ACCEPTED)
+        from src.handlers.voice import _inject_text
+        await _inject_text(update, context, rec_text)
+    else:
+        await query.edit_message_text(texts.AI_RECURRING_ADD_CANCELLED)
 
 
 async def handle_recurring_callback(update: Update, context: CallbackContext) -> None:

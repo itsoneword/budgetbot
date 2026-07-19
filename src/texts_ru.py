@@ -362,6 +362,17 @@ RECURRING_RESUME_BTN = "▶️ {}"
 RECURRING_DELETE_BTN = "🗑"
 RECURRING_CONFIRM_DELETE_BTN = "🗑 Удалить"
 RECURRING_BACK_BTN = "◀️ Назад"
+# AI-staged recurring actions (dv-82c8): rendered after an /ask answer.
+AI_RECURRING_CONFIRM_ADD = (
+    "🔁 Добавить регулярную транзакцию: {name} — {amount} {currency}, "
+    "каждый месяц {day}-го числа?"
+)
+AI_RECURRING_STOP_CONFIRM = (
+    "🔁 Остановить регулярную транзакцию «{name}»? "
+    "Пауза — можно возобновить позже; Удалить — навсегда."
+)
+AI_RECURRING_ADD_ACCEPTED = "✅ Добавляю регулярную транзакцию…"
+AI_RECURRING_ADD_CANCELLED = "❌ Регулярная транзакция не добавлена."
 
 # Ежедневное напоминание и часовой пояс (T-034)
 REMINDER_BUTTON = "⏰ Напоминание"
