@@ -126,6 +126,18 @@ def build_ask_system_prompt(language: str, tools_enabled: bool = False) -> str:
         "query_transactions only when you need specific transactions or "
         "filters the summary does not cover (exact dates, amount thresholds, "
         "last purchase of something). Make at most a few calls. "
+        "You also have recurring-rule tools for monthly recurring "
+        "transactions — the one exception to the read-only rule above: "
+        "list_recurring shows the user's rules; add_recurring and "
+        "cancel_recurring never write anything — they only stage a proposal, "
+        "and the change happens only when the user taps a confirmation "
+        "button sent after your answer, so after staging always tell the "
+        "user to tap the button. add_recurring: when the user gives no day "
+        "of month it defaults to 1 — state the day you used. "
+        "cancel_recurring: the buttons let the user choose between pausing "
+        "and deleting the rule — do not promise one or the other. If a "
+        "cancel reference matches zero or several rules, use list_recurring "
+        "and ask the user which rule they meant. "
         if tools_enabled
         else ""
     )

@@ -19,7 +19,11 @@ from src.commands import COMMANDS, build_help_text, sync_bot_commands
 
 # Recurring transactions (T-026): recurring_command must be importable here —
 # the registry loop resolves CommandSpec.handler names from this module's globals.
-from src.handlers.recurring import recurring_command, handle_recurring_callback
+from src.handlers.recurring import (
+    recurring_command,
+    handle_recurring_callback,
+    handle_ai_recurring_confirmation,
+)
 # Daily reminders (T-034): reminder_command resolved by the registry loop.
 from src.handlers.reminders import (
     reminder_command,
@@ -737,13 +741,26 @@ async def answer_ask_question(
         # Agentic path (dv-ee06/dv-f0d5): summary stays as context so simple
         # aggregate questions resolve in one turn; query_transactions covers
         # raw-row questions. Read-only in-memory tools — still no DB access.
-        from src.ask_agent_tools import build_ask_toolspecs
+        from src.ask_agent_tools import AgentToolContext, build_ask_toolspecs
+        from src.ai_tools.recurring_tools import build_recurring_tools
+        # Recurring write tools (dv-82c8) only STAGE proposals into
+        # tool_ctx.staged — rendered as inline-confirm messages below;
+        # the confirm tap is the only write path.
+        tool_ctx = AgentToolContext(
+            repos=repos, user_id=user_id,
+            currency=session.currency, language=session.language,
+        )
         answer = await client.complete_with_tools(
             prompt,
             build_ask_system_prompt(session.language, tools_enabled=True),
-            tools=build_ask_toolspecs(session),
+            tools=build_ask_toolspecs(session) + build_recurring_tools(tool_ctx),
         )
         await thinking_message.edit_text(answer)
+        if tool_ctx.staged:
+            # Owner decision 2026-07-19: staged actions arrive as SEPARATE
+            # messages after the answer, not as a keyboard on it.
+            from src.handlers.recurring import send_staged_recurring_actions
+            await send_staged_recurring_actions(update, context, tool_ctx.staged, texts)
         # AI conversation memory (T-041): record the Q&A so a voice follow-up
         # ("а за июнь?") classifies against the asked question. Best-effort —
         # the answer is already delivered.
@@ -1046,6 +1063,10 @@ def main():
     # Recurring rules inline buttons (T-026): same ordering requirement as vtx_.
     application.add_handler(
         CallbackQueryHandler(handle_recurring_callback, pattern="^rr")
+    )
+    # AI-staged recurring-add confirm (dv-82c8): same ordering requirement.
+    application.add_handler(
+        CallbackQueryHandler(handle_ai_recurring_confirmation, pattern="^vrc_")
     )
     # Reminder presets + timezone picker (T-034): same ordering requirement.
     application.add_handler(
