@@ -1,5 +1,6 @@
 """
-JobQueue jobs: daily recurring transactions (T-026) and reminder sweep (T-034).
+JobQueue jobs: daily recurring transactions (T-026), reminder sweep (T-034)
+and AI interaction-log compaction (T-041).
 
 run_recurring_rules is registered on PTB's JobQueue in src/core.py main():
 once per day at RECURRING_HOUR_UTC, plus a run_once startup catch-up 60s
@@ -12,16 +13,31 @@ state is in the reminders table, so restarts need no re-registration and the
 repeating sweep is its own catch-up. ReminderRepository.claim_send mirrors
 claim_run — one send per (reminder, local date), no matter how many sweeps
 race.
+
+run_interaction_compaction runs daily (T-041, size-based retention — owner
+decision 2026-07-13): each user whose raw ai_interactions rows exceed
+AI_INTERACTION_COMPACT_CHARS gets all but the newest rows summarized by a
+small model into one durable summary row (channel='system'), the raw rows
+deleted and any previous summary folded in. LLM failure -> skip the user,
+retry next day.
 """
 import logging
+import os
 from datetime import datetime, timezone
 
 from telegram.error import Forbidden
 from telegram.ext import CallbackContext
 
+from domain.memory import (
+    build_compaction_prompt,
+    build_compaction_system_prompt,
+    needs_compaction,
+    split_for_compaction,
+)
 from domain.recurring import is_due
 from domain.reminders import is_due as reminder_is_due, local_day_start_utc
 from shared.di import get_repos
+from src.config import AI_INTERACTION_COMPACT_CHARS
 from src.language_util import get_texts_for_language
 
 logger = logging.getLogger(__name__)
@@ -130,3 +146,85 @@ async def run_reminders(context: CallbackContext) -> None:
 
     if sent:
         logger.info("Reminder sweep sent %d nudge(s)", sent)
+
+
+async def run_interaction_compaction(context: CallbackContext) -> None:
+    """Compact oversized AI interaction logs into summary rows (T-041).
+
+    Size-based, not time-based (owner decision 2026-07-13): raw rows persist
+    until a user crosses AI_INTERACTION_COMPACT_CHARS, then all but the
+    newest domain.memory.KEEP_NEWEST rows are summarized (ASR-correction
+    pairs, preferences, Q&A topics), one summary row is inserted
+    (channel='system', intent='summary') and the raw rows plus any previous
+    summary (folded into the new one) are deleted. LLM failure -> skip the
+    user, retry tomorrow.
+    """
+    from infrastructure.llm import LLMError, get_llm_client
+    from infrastructure.repositories.interaction_repository import (
+        SUMMARY_CHANNEL,
+        SUMMARY_INTENT,
+    )
+
+    repos = get_repos(context)
+    try:
+        user_ids = await repos.interactions.get_users_over_size(
+            AI_INTERACTION_COMPACT_CHARS
+        )
+    except Exception:
+        logger.exception("Interaction compaction: size scan failed")
+        return
+
+    compacted = 0
+    for user_id in user_ids:
+        try:
+            rows = await repos.interactions.get_all_for_user(user_id)
+            if not needs_compaction(rows, AI_INTERACTION_COMPACT_CHARS):
+                continue  # raced with another change; re-check per user
+            to_compact, _kept = split_for_compaction(rows)
+            previous = await repos.interactions.get_latest_summary(user_id)
+            prompt = build_compaction_prompt(
+                to_compact, previous.transcript if previous else ""
+            )
+
+            client = get_llm_client(os.getenv("LLM_INTENT_MODEL", "haiku"))
+            try:
+                summary = await client.complete(prompt, build_compaction_system_prompt())
+            except LLMError as e:
+                logger.error(
+                    "Interaction compaction: LLM failed for user %s, skipping: %s",
+                    user_id,
+                    e,
+                )
+                continue
+            summary = summary.strip()
+            if not summary:
+                logger.error(
+                    "Interaction compaction: empty summary for user %s, skipping",
+                    user_id,
+                )
+                continue
+
+            # Insert the new summary BEFORE deleting anything — a crash in
+            # between leaves duplicate memory, never lost memory.
+            await repos.interactions.add(
+                user_id,
+                SUMMARY_CHANNEL,
+                summary,
+                SUMMARY_INTENT,
+                outcome="routed",
+            )
+            ids = [row.id for row in to_compact]
+            if previous:
+                ids.append(previous.id)  # folded into the new summary
+            deleted = await repos.interactions.delete_by_ids(user_id, ids)
+            compacted += 1
+            logger.info(
+                "Interaction compaction: user %s — %d row(s) summarized and deleted",
+                user_id,
+                deleted,
+            )
+        except Exception:
+            logger.exception("Interaction compaction failed for user %s", user_id)
+
+    if compacted:
+        logger.info("Interaction compaction run compacted %d user(s)", compacted)

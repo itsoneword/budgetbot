@@ -13,6 +13,7 @@ from infrastructure.repositories import (
     EntitlementRepository,
     RecurringRepository,
     ReminderRepository,
+    InteractionRepository,
 )
 from infrastructure.external.currency_service import CurrencyService
 
@@ -32,6 +33,7 @@ class Container:
         self._entitlement_repo: Optional[EntitlementRepository] = None
         self._recurring_repo: Optional[RecurringRepository] = None
         self._reminder_repo: Optional[ReminderRepository] = None
+        self._interaction_repo: Optional[InteractionRepository] = None
         self._currency_service: Optional[CurrencyService] = None
         self._initialized = False
     
@@ -51,6 +53,7 @@ class Container:
         self._entitlement_repo = EntitlementRepository(self._pool)
         self._recurring_repo = RecurringRepository(self._pool)
         self._reminder_repo = ReminderRepository(self._pool)
+        self._interaction_repo = InteractionRepository(self._pool)
 
         # Initialize services
         self._currency_service = CurrencyService(self._pool)
@@ -116,6 +119,13 @@ class Container:
         if not self._reminder_repo:
             raise RuntimeError("Container not initialized. Call init() first.")
         return self._reminder_repo
+
+    @property
+    def interactions(self) -> InteractionRepository:
+        """Get AI interaction log repository."""
+        if not self._interaction_repo:
+            raise RuntimeError("Container not initialized. Call init() first.")
+        return self._interaction_repo
 
     @property
     def currency(self) -> CurrencyService:

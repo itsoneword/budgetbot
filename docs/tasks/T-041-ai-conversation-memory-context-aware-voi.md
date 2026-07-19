@@ -1,7 +1,7 @@
 ---
 id: T-041
 title: AI conversation memory: context-aware voice/ask channel with correction handling
-status: todo
+status: review
 type: feature
 area: bot
 priority: p1
@@ -17,9 +17,9 @@ Owner request 2026-07-12 (screenshot repro): voice pipeline is stateless — Whi
 
 ## Acceptance
 - [ ] Screenshot repro fixed: after a proposed/confirmed voice transaction, a voice correction ("не X, а Y") replaces the pending proposal or offers "Replace old → new?" for a saved one — never falls to VOICE_UNKNOWN
-- [ ] ai_interactions table (alembic 0006+) persists every voice//ask exchange with outcome lifecycle (proposed/confirmed/cancelled/routed/unknown/superseded)
-- [ ] Intent prompt receives last-N context + user's known-items dictionary; mishears snap to real categories
-- [ ] Size-based compaction job (~50k tokens/user: summarize + extract key facts incl. correction pairs, delete raw rows, keep summary; per-message char guardrail); domain-level unit tests for new pure functions
+- [x] ai_interactions table (alembic 0006+) persists every voice//ask exchange with outcome lifecycle (proposed/confirmed/cancelled/routed/unknown/superseded)
+- [x] Intent prompt receives last-N context + user's known-items dictionary; mishears snap to real categories
+- [x] Size-based compaction job (~50k tokens/user: summarize + extract key facts incl. correction pairs, delete raw rows, keep summary; per-message char guardrail); domain-level unit tests for new pure functions
 
 ## Log
 - 2026-07-12 created
@@ -64,3 +64,43 @@ What v1 does NOT do (ranked by likelihood someone assumes it does):
 Risks: classifier regression as the prompt grows (T-034's regression checklist already covers intent routing — re-run it; watch "Intent routed" logs; contrast examples mandatory); `corrects_previous` misfiring on messages that merely *mention* the previous item (gated: ignored unless a previous add_* interaction exists, and fallback is a normal confirm — worst case one extra tap, never a silent edit); stale confirm keyboard after a proposal is superseded by a correction (old buttons act on the NEW payload since `user_data` was overwritten — same accepted vtx_ overwrite behavior as T-027, noted in testing); `get_latest` match ambiguity for delete+re-add (two identical recent amounts → falls back to propose-new, never deletes ambiguously); privacy — voice transcripts now persist server-side 30 days (owner sign-off required, question 1); T-027/T-041 both edit the intent prompt and `_route_intent` — sequence them, the context seam itself is append-only.
 - 2026-07-12 Implementation plan proposed: ai_interactions log + context-aware re-parse (corrects_previous flag), known-items ASR bias, 30-day purge; Devi facts/evaluator sketched as v2. 6 open questions pending owner
 - 2026-07-13 Owner decisions: size-based compaction instead of 30-day purge (summarize+extract at ~50k tokens/user, keep summaries, delete raw); other defaults accepted; implementation starting
+- 2026-07-13 started
+- 2026-07-13 alembic 0006 ai_interactions + InteractionRepository + DI wiring; repo pattern from recurring_repository
+- 2026-07-13 context-aware intent prompt (corrects_previous, recent-context + known-items blocks), voice correction flow (supersede pending / vfix Replace keyboard), interaction logging incl. unknown, /ask Q&A rows, vfix_ registration, EN/RU copy
+- 2026-07-13 size-based compaction: domain/memory.py pure logic, run_interaction_compaction daily job, AI_INTERACTION_COMPACT_CHARS config; 40 new domain tests (212 total green); 3 DECISIONS one-liners
+
+## Testing
+
+Manual checklist (unit suite green: 212 passed; alembic single head 0006; `import src.core` OK). Needs a running bot with DB migrated to 0006 and an AI-entitled user.
+
+### Critical — screenshot repro end-to-end
+- [ ] Voice add with a mishear: say a spending so Whisper mishears the item (e.g. «дом пять» heard as «холм дом пять») → confirm keyboard appears, row logged in ai_interactions with outcome=proposed
+- [ ] While the proposal is pending, voice-correct it («не холм дом, а дом») → a FRESH confirm keyboard with the corrected payload appears (not VOICE_UNKNOWN); old row becomes superseded; tapping ✅ saves only the corrected transaction
+- [ ] Confirm a voice transaction (✅), then voice-correct it → "Replace {old} → {new}?" (vfix keyboard); ✅ deletes the old saved row and saves the corrected one (check /show_last: exactly one row, the corrected item, correct category resolution); interaction outcomes: old=superseded, new=confirmed
+- [ ] vfix ❌ keeps the saved record untouched (VOICE_FIX_CANCELLED; /show_last unchanged; new interaction=cancelled)
+- [ ] Known-items snap: with «дом» in the user's category dictionary, a voice message misheard as «холм» maps to «дом» in the proposed payload
+- [ ] Russian repro from the screenshot verbatim: «не холм дом, а дом» after a wrong proposal never falls to VOICE_UNKNOWN
+
+### Critical — interaction log lifecycle
+- [ ] Every voice/free-text message writes a row: add_* → proposed; stat/reminder/question → routed; gibberish → unknown (check table directly)
+- [ ] vtx_yes/vtx_no and vinc_yes/vinc_no set confirmed/cancelled on the right row
+- [ ] /ask logs a row (channel=ask, intent=question, payload=answer prefix, outcome=routed); a voice follow-up («а за июнь?») classifies against the asked question (context visible in the intent, not VOICE_UNKNOWN)
+
+### Critical — compaction job on a seeded oversized user
+- [ ] Seed >200k chars of ai_interactions rows (or lower AI_INTERACTION_COMPACT_CHARS) for one user, trigger run_interaction_compaction (restart with AI_COMPACTION_HOUR_UTC near now, or call the job in a REPL) → all but the newest 20 raw rows deleted, one channel='system' intent='summary' row inserted containing correction pairs
+- [ ] Second compaction folds the previous summary row (old summary deleted, one summary remains)
+- [ ] With a summary row present, the next voice classification still works (summary block prepended, no crash)
+
+### Important — edge/error handling
+- [ ] Correction when the previous add was CANCELLED → falls back to a normal new-transaction confirm (no Replace keyboard, nothing deleted)
+- [ ] Correction when two identical recent amounts match (e.g. two «дом 5» saved) → falls back to normal confirm, never deletes ambiguously
+- [ ] Correction of an income proposal/confirmed income goes through the income path (saved as income, not spending)
+- [ ] DB down / interactions table missing: voice classification still answers (context degrades to empty blocks, error logged, no user-facing crash)
+- [ ] Transcript >2000 chars stores truncated, doesn't break inserts
+- [ ] Stale keyboard: after a correction supersedes a pending proposal, tapping the OLD keyboard's ✅ acts on the NEW payload (accepted overwrite behavior — verify no crash/duplicate)
+
+### Regression (T-034 intent checklist re-run)
+- [ ] Plain voice spending, income, «покажи статистику», reminder set/off, /ask question all still route correctly with the grown prompt (watch "Intent routed" logs)
+- [ ] Typed quick-add («кофе 4.5») and menu flows unaffected
+- [ ] Recurring rules + reminder jobs still fire (scheduler untouched paths)
+- 2026-07-13 moved to review

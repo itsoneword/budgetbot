@@ -6,7 +6,13 @@ from src.language_util import check_language, cache_user_language, get_cached_cu
 # Database integration
 from shared.di import setup_container, cleanup_container, get_repos
 
-from src.config import ADMIN_USER_ID, RECURRING_HOUR_UTC, REMINDER_SWEEP_SECONDS, is_admin
+from src.config import (
+    ADMIN_USER_ID,
+    AI_COMPACTION_HOUR_UTC,
+    RECURRING_HOUR_UTC,
+    REMINDER_SWEEP_SECONDS,
+    is_admin,
+)
 
 # Command registry: single source for handler registration, /help and menu sync
 from src.commands import COMMANDS, build_help_text, sync_bot_commands
@@ -20,7 +26,7 @@ from src.handlers.reminders import (
     handle_reminder_callback,
     handle_tzpick_callback,
 )
-from src.scheduler import run_recurring_rules, run_reminders
+from src.scheduler import run_interaction_compaction, run_recurring_rules, run_reminders
 from src.observability import init_sentry
 from src.health import heartbeat
 
@@ -692,6 +698,15 @@ async def ask(update: Update, context: CallbackContext):
         client = get_llm_client()
         answer = await client.complete(prompt, build_ask_system_prompt(session.language))
         await thinking_message.edit_text(answer)
+        # AI conversation memory (T-041): record the Q&A so a voice follow-up
+        # ("а за июнь?") classifies against the asked question. Best-effort —
+        # the answer is already delivered.
+        try:
+            await repos.interactions.add(
+                user_id, "ask", question, "question", answer[:300], outcome="routed"
+            )
+        except Exception as log_err:
+            logging.error(f"/ask interaction log failed for user {user_id}: {log_err}")
     except LLMError as e:
         logging.error(f"/ask LLM failure for user {user_id}: {e}")
         await thinking_message.edit_text(texts.ASK_ERROR)
@@ -950,6 +965,7 @@ def main():
         handle_voice,
         handle_voice_tx_confirmation,
         handle_voice_income_confirmation,
+        handle_voice_fix_confirmation,
     )
     application.add_handler(MessageHandler(filters.VOICE, handle_voice))
     application.add_handler(
@@ -957,6 +973,11 @@ def main():
     )
     application.add_handler(
         CallbackQueryHandler(handle_voice_income_confirmation, pattern="^vinc_")
+    )
+    # Voice-correction "Replace old -> new?" keyboard (T-041): same ordering
+    # requirement as vtx_.
+    application.add_handler(
+        CallbackQueryHandler(handle_voice_fix_confirmation, pattern="^vfix_")
     )
     # Recurring rules inline buttons (T-026): same ordering requirement as vtx_.
     application.add_handler(
@@ -1011,6 +1032,15 @@ def main():
         interval=REMINDER_SWEEP_SECONDS,
         first=90,
         name="reminders_sweep",
+    )
+
+    # AI interaction-log compaction (T-041): daily size-based sweep — users
+    # over AI_INTERACTION_COMPACT_CHARS get their old rows summarized into one
+    # durable summary row (no time-based purge, owner decision 2026-07-13).
+    application.job_queue.run_daily(
+        run_interaction_compaction,
+        time=dt_time(hour=AI_COMPACTION_HOUR_UTC, tzinfo=dt_timezone.utc),
+        name="interaction_compaction_daily",
     )
 
     # Liveness heartbeat (T-011): SELECT 1 + touch /tmp/budgetbot-heartbeat
