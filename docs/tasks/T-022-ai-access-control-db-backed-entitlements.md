@@ -1,7 +1,7 @@
 ---
 id: T-022
 title: AI access control: DB-backed entitlements + admin grant/revoke
-status: review
+status: done
 type: feature
 area: db
 priority: p1
@@ -9,7 +9,7 @@ deps: []
 tags: [ai, monetization]
 blocked: 
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-19
 ---
 
 ## Context
@@ -72,3 +72,5 @@ Risks: fail-closed = DB outage denies AI to all but admin/env users (log loudly,
 - [ ] /show, /show_last, /monthly_stat unaffected
 - [ ] Voice transaction confirm (vtx_yes/vtx_no) still works for a granted user
 - 2026-07-11 moved to review
+- 2026-07-19 done
+- 2026-07-19 changelog: AI access via DB entitlements with /grant_ai //revoke_ai //list_ai — owner-verified live

@@ -1,7 +1,7 @@
 ---
 id: T-026
 title: Recurring transactions: rules engine, daily scheduler, manual management
-status: review
+status: done
 type: feature
 area: bot
 priority: p1
@@ -9,7 +9,7 @@ deps: []
 tags: [recurring, db]
 blocked: 
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-19
 ---
 
 ## Context
@@ -72,3 +72,5 @@ Manual checklist (live bot, after image rebuild — the job-queue extra requires
 - [ ] RECURRING_HOUR_UTC env override respected
 - 2026-07-11 moved to review
 - 2026-07-11 hotfix: recurring DI property lost @property decorator in union merge — repos.recurring returned the function itself; /recurring crashed
+- 2026-07-19 done
+- 2026-07-19 changelog: Recurring transactions: rules engine, daily scheduler with catch-up, manual management

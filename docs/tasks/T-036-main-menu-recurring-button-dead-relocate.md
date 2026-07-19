@@ -1,7 +1,7 @@
 ---
 id: T-036
 title: Main-menu Recurring button dead; relocate into Add-transaction section
-status: review
+status: done
 type: bug
 area: bot
 priority: p1
@@ -9,7 +9,7 @@ deps: []
 tags: []
 blocked: 
 created: 2026-07-11
-updated: 2026-07-12
+updated: 2026-07-19
 ---
 
 ## Context
@@ -31,3 +31,5 @@ Owner report 2026-07-11 (screenshot: full-width Recurring button in main menu, t
 - [ ] Back button returns to the main menu
 - [ ] Add-spending path is unchanged: categories → subcategories → amount → confirm
 - 2026-07-12 moved to review
+- 2026-07-19 done
+- 2026-07-19 changelog: Recurring button relocated into Add-transaction submenu; menu routing fixed

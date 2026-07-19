@@ -7,6 +7,9 @@ under `## Unreleased` by `python3 scripts/tasks.py done T-NNN --changelog "..."`
 
 ## Unreleased
 
+- 2026-07-19 T-026: Recurring transactions: rules engine, daily scheduler with catch-up, manual management
+- 2026-07-19 T-036: Recurring button relocated into Add-transaction submenu; menu routing fixed
+- 2026-07-19 T-022: AI access via DB entitlements with /grant_ai //revoke_ai //list_ai — owner-verified live
 - 2026-07-19 T-033: dd.mm date prefix resolves to most recent past date instead of future-dating
 - 2026-07-19 T-032: Restored emoji/visual polish in /help and menu descriptions
 - 2026-07-19 T-031: /about panel: correct version, readable limit, working settings buttons
