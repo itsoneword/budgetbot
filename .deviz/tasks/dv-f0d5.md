@@ -1,14 +1,14 @@
 ---
 id: dv-f0d5
 title: Read tool: query_transactions for raw-row questions (show tx, full history)
-status: in_progress
+status: waiting_user
 priority: high
 assignee: 
 labels: [feature, bot]
 deps: []
 parent: dv-3a1c
 created: 2026-07-19T15:31:18Z
-updated: 2026-07-19T16:44:29Z
+updated: 2026-07-19T17:25:56Z
 ---
 
 ## Description
@@ -37,3 +37,7 @@ Manual (folded-in from dv-4a58): 3-year breakdown = zero tool calls (check logs)
 ### @claude — 2026-07-19T16:44:29Z
 
 Read tool landed: domain/ask_tools.py (QUERY_TRANSACTIONS_SCHEMA, parse_period incl YYYY/YYYY-MM/day/range/presets, query_transactions with full-match totals, format_query_result 8KB cap, format_no_match) + src/ask_agent_tools.py glue (Decimal coercion, limit clamp 1..200, ValueError->ToolInputError). Tests: 310 passing (was 254): parse_period matrix, filters/ordering/truncation-totals, fresh-account empty, format caps, adapter is_error paths, prompt flag. SDK MCP server construction smoke-tested against installed 0.1.81.
+
+### @claude — 2026-07-19T17:25:56Z
+
+VERIFY (owner): 1) /ask show all spendings over 100 -> tool call, rows + correct total. 2) /ask 3-year category breakdown -> answers from summary, ZERO tool calls (check container logs). 3) /ask what did I spend on a specific date. 4) last purchase of X older than 92 days -> correct date. 5) RU account: answer in Russian, tool still works.

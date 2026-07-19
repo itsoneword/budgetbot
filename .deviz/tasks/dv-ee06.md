@@ -1,14 +1,14 @@
 ---
 id: dv-ee06
 title: Agent session plumbing: tool loop, round/timeout caps, summary context, usage logging
-status: in_progress
+status: waiting_user
 priority: high
 assignee: 
 labels: [feature, bot]
 deps: []
 parent: dv-3a1c
 created: 2026-07-19T15:31:19Z
-updated: 2026-07-19T16:39:55Z
+updated: 2026-07-19T17:25:56Z
 ---
 
 ## Description
@@ -41,3 +41,11 @@ Risks: SDK upgrade regressing query()-MCP path; max_turns too low truncates (gra
 ### @claude — 2026-07-19T16:39:55Z
 
 Session plumbing landed: ToolSpec/ToolInputError + complete_with_tools default in llm/base.py; claude_agent.py shared _run loop with per-turn usage recording (ResultMessage fallback only), SDK MCP finance server, dontAsk, max_turns env-capped, graceful partial-text return on turn exhaustion; build_ask_system_prompt tools_enabled flag; core.py answer_ask_question switched to complete_with_tools. AgentToolContext shape defined in src/ask_agent_tools.py for dv-82c8.
+
+### @claude — 2026-07-19T16:46:23Z
+
+Foundation committed (d848341), 310 tests green. Container rebuilding for owner manual verification. Wave 2 (dv-82c8 + dv-94bd) starting in parallel worktrees.
+
+### @claude — 2026-07-19T17:25:56Z
+
+VERIFY (owner): 1) latency of a simple question comparable to before. 2) adversarial: /ask list every transaction one by one -> stops at turn cap with usable partial answer, not ASK_ERROR. 3) user_data/llm-usage.jsonl: one row per model turn on a multi-tool question, totals not doubled.

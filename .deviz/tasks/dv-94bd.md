@@ -1,14 +1,14 @@
 ---
 id: dv-94bd
 title: Voice channel routes through the same agent session
-status: in_progress
+status: waiting_user
 priority: medium
 assignee: 
 labels: [feature, bot]
 deps: []
 parent: dv-3a1c
 created: 2026-07-19T15:31:19Z
-updated: 2026-07-19T16:28:49Z
+updated: 2026-07-19T17:25:56Z
 ---
 
 ## Description
@@ -36,3 +36,15 @@ Risks: STT-garbled text staging wrong rules (contained: stage-only + confirm sho
 Tests: voice raw-row question -> query_transactions answer; voice "add rent 800 every month" -> vrc_ confirm; one-turn summary answer latency; channel="voice" in ai_interactions; T-019 regressions (vtx_ flow, /show_last, paywall, LLM-down, vfix_).
 
 ## Comments
+
+### @claude — 2026-07-19T16:58:14Z
+
+Implemented in worktree commit 67545bf: answer_ask_question channel param, voice INTENT_QUESTION calls agent directly (transcript echo kept, two messages), recurring/subscription prompt examples + one-off boundary. 317 tests green.
+
+### @claude — 2026-07-19T17:08:10Z
+
+Merged to main, 317 tests green. Voice + typed free-text questions now call the agent session directly with channel tags (voice/text). Needs container rebuild + manual voice test — will batch with dv-82c8 merge. Deviation: typed free-text questions also route direct (channel=text), behaviorally identical, better telemetry.
+
+### @claude — 2026-07-19T17:25:56Z
+
+VERIFY (owner): 1) voice question -> transcript echo + agent answer (two messages, as decided). 2) voice add rent 800 every month -> vrc_ confirm flow. 3) BOUNDARY: plain rent 800 (typed and voice) still parses as one-off transaction, NOT recurring. 4) voice coffee 4.50 -> normal vtx_ confirm, no agent session. 5) ai_interactions rows show channel=voice / text correctly.
