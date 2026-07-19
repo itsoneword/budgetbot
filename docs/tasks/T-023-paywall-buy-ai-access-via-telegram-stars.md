@@ -1,7 +1,7 @@
 ---
 id: T-023
 title: Paywall: buy AI access via Telegram Stars
-status: review
+status: done
 type: feature
 area: bot
 priority: p1
@@ -106,3 +106,6 @@ Risks: none new — `menu_ask_ai` from a stale keyboard rendered outside TRANSAC
 - [ ] /grant_ai, /revoke_ai, /list_ai still work; /list_ai no longer prints the env-allowlist footer.
 - [ ] vtx_/vinc_/rr/rem_ inline buttons still work (handler ordering unchanged around the new payment handlers).
 - 2026-07-19 moved to review
+- 2026-07-19 done
+- 2026-07-19 changelog: AI paywall via Telegram Stars: /buy_ai, offer-on-denial, Ask-AI menu funnel, /refund_ai — purchase flow owner-verified live
+- 2026-07-19 Owner verified live purchase: 100 Stars, receipt with expiry 2026-08-18, entitled how-to shown. Refund path (/refund_ai) implemented + reviewed but not yet exercised live

@@ -7,6 +7,7 @@ under `## Unreleased` by `python3 scripts/tasks.py done T-NNN --changelog "..."`
 
 ## Unreleased
 
+- 2026-07-19 T-023: AI paywall via Telegram Stars: /buy_ai, offer-on-denial, Ask-AI menu funnel, /refund_ai — purchase flow owner-verified live
 - 2026-07-19 T-039: Defined missing chart texts (NO_DATA + 3 more) in both languages — fixed with T-044
 - 2026-07-19 T-026: Recurring transactions: rules engine, daily scheduler with catch-up, manual management
 - 2026-07-19 T-036: Recurring button relocated into Add-transaction submenu; menu routing fixed
