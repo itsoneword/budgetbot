@@ -60,6 +60,14 @@ class ClaudeAgentClient(LLMClient):
                         "LLM query done: duration=%sms cost=%s session=%s",
                         message.duration_ms, message.total_cost_usd, message.session_id,
                     )
+                    try:  # best-effort usage telemetry; never breaks the reply
+                        from .usage_meter import record as _record_usage
+                        _model = self.model
+                        if not _model and getattr(message, "model_usage", None):
+                            _model = next(iter(message.model_usage), None)
+                        _record_usage(_model, getattr(message, "usage", None))
+                    except Exception:
+                        pass
 
         try:
             await asyncio.wait_for(_run(), timeout=self.timeout)
