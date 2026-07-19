@@ -243,9 +243,12 @@ async def toggle_debug(update: Update, context: CallbackContext):
 
 
 
-async def show_detailed(update: Update, context, period: str = 'current_month'):
-    """Show detailed spending report for specified period (from PostgreSQL).
-    
+async def build_detailed_report(update: Update, context, period: str = 'current_month') -> str:
+    """Build the detailed spending report text for the given period.
+
+    Shared by the /show_ext command path (show_detailed sends it) and the
+    menu path (menu_call edits the tapped message with it — T-044).
+
     Args:
         period: 'current_month' or 'last_month'
     """
@@ -282,11 +285,13 @@ async def show_detailed(update: Update, context, period: str = 'current_month'):
 
         output += "\n"
 
-    if update.callback_query:
-        await update.callback_query.message.reply_text(output)
-    else:
-        await update.message.reply_text(output)
+    return output
 
+
+async def show_detailed(update: Update, context, period: str = 'current_month'):
+    """Show detailed spending report for specified period (command path)."""
+    output = await build_detailed_report(update, context, period)
+    await update.effective_message.reply_text(output)
     return TRANSACTION
 
 async def show_cat(update: Update, context: CallbackContext):
@@ -399,19 +404,13 @@ async def handle_records_count(update: Update, context: CallbackContext):
             texts.LOADING_TRANSACTIONS.format(count=count)
         )
         
-        # Call latest_records function
+        # Call latest_records function (sends the list as a new message)
         await latest_records(update, context)
-        
-        # Return to main menu after showing transactions
-        reply_markup = create_main_menu_keyboard(texts)
-        await query.message.reply_text(
-            texts.BACK_TO_MAIN_MENU,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        #print(f" Returning state TRANSACTION after showing {count} transactions")
-        log_state_transition(TRANSACTION)
-        return TRANSACTION
+
+        # Edit the loading anchor back into the main menu instead of sending
+        # a duplicate "Returning to main menu." message (T-044).
+        from src.handlers.menu import _edit_to_main_menu
+        return await _edit_to_main_menu(query, texts)
     
     # Handle unexpected callback data
     await query.answer("Unexpected option")
@@ -1021,6 +1020,17 @@ def main():
     # would swallow settings_* mid-conversation and break the state
     # transitions the menu -> settings path depends on.
     application.add_handler(CallbackQueryHandler(menu_call, pattern="^settings_"))
+    # Back buttons on edit-in-place views (T-044): while a conversation is
+    # active the pattern-less menu_callback fallback routes back_to_main_menu;
+    # outside one (e.g. a stale keyboard after a restart) the press would fall
+    # through unhandled — catch it here, same reasoning as ^settings_ above.
+    application.add_handler(
+        CallbackQueryHandler(menu_call, pattern="^back_to_main_menu$")
+    )
+    # Back target of the settings leaves (About, tz picker) — same reasoning.
+    application.add_handler(
+        CallbackQueryHandler(menu_call, pattern="^menu_settings$")
+    )
     application.add_handler(CallbackQueryHandler(handle_settings_language, pattern="^lang_"))
     application.add_handler(CallbackQueryHandler(handle_settings_currency, pattern="^cur_"))
     # message handler for text input

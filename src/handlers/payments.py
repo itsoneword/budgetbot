@@ -39,18 +39,31 @@ def _offer_text(texts) -> str:
     return texts.BUY_AI_OFFER.format(days=days, price=AI_ACCESS_PRICE_STARS)
 
 
+def build_ai_offer(texts, include_back: bool = False):
+    """(offer text, inline keyboard) for the paywall offer.
+
+    include_back appends a Back row (back_to_main_menu) — used by the
+    menu_ask_ai edit-in-place path (T-044); message contexts (/ask, voice
+    denial) keep the plain Buy-only keyboard.
+    """
+    rows = [[InlineKeyboardButton(texts.BUY_AI_BUTTON, callback_data="buy_ai")]]
+    if include_back:
+        rows.append(
+            [InlineKeyboardButton(texts.BACK_BUTTON, callback_data="back_to_main_menu")]
+        )
+    return _offer_text(texts), InlineKeyboardMarkup(rows)
+
+
 async def send_ai_offer(update: Update, context: CallbackContext) -> None:
     """Show the paywall offer with a Buy button.
 
     Contract (plan amendment): replies via update.effective_message so it
-    works from message contexts (/ask and voice denial) AND from the
-    menu_ask_ai callback context, where update.message is None.
+    works from message contexts (/ask and voice denial) AND from callback
+    contexts, where update.message is None.
     """
     texts = check_language(update, context)
-    keyboard = InlineKeyboardMarkup(
-        [[InlineKeyboardButton(texts.BUY_AI_BUTTON, callback_data="buy_ai")]]
-    )
-    await update.effective_message.reply_text(_offer_text(texts), reply_markup=keyboard)
+    text, keyboard = build_ai_offer(texts)
+    await update.effective_message.reply_text(text, reply_markup=keyboard)
 
 
 async def _send_invoice(update: Update, context: CallbackContext) -> None:

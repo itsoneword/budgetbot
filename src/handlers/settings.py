@@ -87,13 +87,11 @@ async def handle_settings_limit(update: Update, context: CallbackContext):
         repos = get_repos(context)
         await repos.users.update_limit(user_id, Decimal(str(new_limit)))
 
-        await update.message.reply_text(texts.LIMIT_SET)
-
-        # Show main menu after setting the limit
-        reply_markup = create_main_menu_keyboard(texts)
+        # Typed-input flow: confirmation + fresh menu in ONE message — no
+        # "Returning to main menu." filler (T-044).
         await update.message.reply_text(
-            texts.BACK_TO_MAIN_MENU,
-            reply_markup=reply_markup,
+            texts.LIMIT_SET + "\n\n" + texts.MAIN_MENU_TEXT,
+            reply_markup=create_main_menu_keyboard(texts),
             parse_mode=ParseMode.HTML
         )
     except ValueError:

@@ -28,11 +28,38 @@ def _command_from_update(update: Update) -> str:
     return ""
 
 
-async def show_records(update: Update, context: CallbackContext, tx_type: str = None):
-    """Show monthly spending/income summary (from PostgreSQL via domain layer).
+def _format_records_text(records: dict, texts, currency: str,
+                         record_type: str, record_type2: str) -> str:
+    """Render a records summary dict into the RECORDS_TEMPLATE text."""
+    sum_per_cat_text = "\n".join(
+        f"{cat}: {amount}" for cat, amount in records['sum_per_cat'].items()
+    )
+    av_per_day_text = "\n".join(
+        f"{cat}: {amount}" for cat, amount in records['av_per_day'].items()
+    )
+    av_per_day_sum = round(sum(records['av_per_day'].values()))
 
-    tx_type: 'spending' | 'income'; derived from the command text when not
-    given (menu buttons must pass it explicitly — PTB Messages are immutable).
+    return texts.RECORDS_TEMPLATE.format(
+        total=records['total'],
+        sum_per_cat=sum_per_cat_text,
+        av_per_day_sum=av_per_day_sum,
+        av_per_day=av_per_day_text,
+        total_av_per_day=records['total_av_per_day'],
+        predicted_total=records['prediction'],
+        comparison=records['comparison'],
+        currency=currency,
+        record_type=record_type,
+        record_type2=record_type2,
+    )
+
+
+async def build_records_report(update: Update, context: CallbackContext,
+                               tx_type: str = None) -> str | None:
+    """Build the current-month summary text (HTML), or None when no records.
+
+    Shared by the /show command path (show_records sends it) and the menu
+    path (menu_call edits the tapped message with it — T-044). The
+    limit-exceeded warning is appended when applicable.
     """
     user_id = update.effective_user.id
 
@@ -61,45 +88,13 @@ async def show_records(update: Update, context: CallbackContext, tx_type: str = 
     # Get records summary using pure Python filters
     records = get_records_summary(session.transactions, transaction_type)
     if records is None:
-        # effective_message: update.message is None for callback queries
-        await update.effective_message.reply_text(texts.RECORDS_NOT_FOUND_TEXT)
-        return TRANSACTION
+        return None
 
-    sum_per_cat = records['sum_per_cat']
-    av_per_day = records['av_per_day']
-    total_spendings = records['total']
-    total_av_per_day = records['total_av_per_day']
-    prediction = records['prediction']
-    comparison = records['comparison']
-
-    sum_per_cat_text = "\n".join(
-        f"{cat}: {amount}" for cat, amount in sum_per_cat.items()
+    output_text = _format_records_text(
+        records, texts, currency, record_type, record_type2
     )
 
-    av_per_day_text = "\n".join(
-        f"{cat}: {amount}" for cat, amount in av_per_day.items()
-    )
-    av_per_day_sum = round(sum(av_per_day.values()))
-
-    output_text = texts.RECORDS_TEMPLATE.format(
-        total=total_spendings,
-        sum_per_cat=sum_per_cat_text,
-        av_per_day_sum=av_per_day_sum,
-        av_per_day=av_per_day_text,
-        total_av_per_day=total_av_per_day,
-        predicted_total=prediction,
-        comparison=comparison,
-        currency=currency,
-        record_type=record_type,
-        record_type2=record_type2,
-    )
-
-    if update.callback_query:
-        await update.callback_query.message.reply_text(output_text, parse_mode=ParseMode.HTML)
-    else:
-        await update.message.reply_text(output_text, parse_mode=ParseMode.HTML)
-
-    # Calculate limit usage using pure Python (only for spendings)
+    # Append limit usage (only for spendings, only when exceeded)
     if transaction_type == 'spending' and session.monthly_limit:
         try:
             limit_data = calculate_limit_usage(
@@ -107,25 +102,44 @@ async def show_records(update: Update, context: CallbackContext, tx_type: str = 
             )
 
             if limit_data['exceeded']:
-                await update.effective_message.reply_text(
-                    texts.LIMIT_EXCEEDED.format(
-                        percent_difference=limit_data['percent_difference'],
-                        current_daily_average=limit_data['current_daily_average'],
-                        daily_limit=limit_data['daily_limit'],
-                        days_zero_spending=limit_data['days_zero_spending'],
-                        new_daily_limit=limit_data['new_daily_limit'],
-                        currency=currency,
-                    ),
-                    parse_mode=ParseMode.HTML
+                output_text += "\n\n" + texts.LIMIT_EXCEEDED.format(
+                    percent_difference=limit_data['percent_difference'],
+                    current_daily_average=limit_data['current_daily_average'],
+                    daily_limit=limit_data['daily_limit'],
+                    days_zero_spending=limit_data['days_zero_spending'],
+                    new_daily_limit=limit_data['new_daily_limit'],
+                    currency=currency,
                 )
         except Exception as e:
-            log_debug(f"Exception in show_records when calculating limit: {e}")
-            pass
+            log_debug(f"Exception in build_records_report when calculating limit: {e}")
+
+    return output_text
+
+
+async def show_records(update: Update, context: CallbackContext, tx_type: str = None):
+    """Show monthly spending/income summary (from PostgreSQL via domain layer).
+
+    tx_type: 'spending' | 'income'; derived from the command text when not
+    given. Command path only — the menu edits the tapped message instead
+    via build_records_report (T-044).
+    """
+    output_text = await build_records_report(update, context, tx_type)
+    texts = check_language(update, context)
+    if output_text is None:
+        # effective_message: update.message is None for callback queries
+        await update.effective_message.reply_text(texts.RECORDS_NOT_FOUND_TEXT)
+        return TRANSACTION
+
+    await update.effective_message.reply_text(output_text, parse_mode=ParseMode.HTML)
     return TRANSACTION
 
 
-async def show_last_month_records(update: Update, context: CallbackContext, tx_type: str = None):
-    """Show last month's spending/income summary (from PostgreSQL)."""
+async def build_last_month_report(update: Update, context: CallbackContext,
+                                  tx_type: str = None) -> str | None:
+    """Build last month's summary text (HTML), or None when no records.
+
+    Shared by the /show_last_month command path and the menu edit path (T-044).
+    """
     user_id = update.effective_user.id
     texts = check_language(update, context)
     log_user_interaction(
@@ -162,46 +176,24 @@ async def show_last_month_records(update: Update, context: CallbackContext, tx_t
     # Get last month summary
     records = get_last_month_summary(session.transactions, tx_type)
     if records is None:
+        return None
+
+    # Add last month name to the output
+    return f"<b>{last_month_name} {record_type}</b>\n\n" + _format_records_text(
+        records, texts, currency, record_type, record_type2
+    )
+
+
+async def show_last_month_records(update: Update, context: CallbackContext, tx_type: str = None):
+    """Show last month's spending/income summary (from PostgreSQL)."""
+    output_text = await build_last_month_report(update, context, tx_type)
+    texts = check_language(update, context)
+    if output_text is None:
         # effective_message: update.message is None for callback queries
         await update.effective_message.reply_text(texts.RECORDS_NOT_FOUND_TEXT)
         return TRANSACTION
 
-    sum_per_cat = records['sum_per_cat']
-    av_per_day = records['av_per_day']
-    total_spendings = records['total']
-    total_av_per_day = records['total_av_per_day']
-    prediction = records['prediction']
-    comparison = records['comparison']
-
-    sum_per_cat_text = "\n".join(
-        f"{cat}: {amount}" for cat, amount in sum_per_cat.items()
-    )
-
-    av_per_day_text = "\n".join(
-        f"{cat}: {amount}" for cat, amount in av_per_day.items()
-    )
-    av_per_day_sum = round(sum(av_per_day.values()))
-
-    # Add last month name to the output
-    output_text = f"<b>{last_month_name} {record_type}</b>\n\n"
-    output_text += texts.RECORDS_TEMPLATE.format(
-        total=total_spendings,
-        sum_per_cat=sum_per_cat_text,
-        av_per_day_sum=av_per_day_sum,
-        av_per_day=av_per_day_text,
-        total_av_per_day=total_av_per_day,
-        predicted_total=prediction,
-        comparison=comparison,
-        currency=currency,
-        record_type=record_type,
-        record_type2=record_type2,
-    )
-
-    if update.callback_query:
-        await update.callback_query.message.reply_text(output_text, parse_mode=ParseMode.HTML)
-    else:
-        await update.message.reply_text(output_text, parse_mode=ParseMode.HTML)
-
+    await update.effective_message.reply_text(output_text, parse_mode=ParseMode.HTML)
     return TRANSACTION
 
 
@@ -303,8 +295,11 @@ async def process_income_menu(update: Update, context: CallbackContext):
         await update.effective_message.reply_text(texts.TRANSACTION_ERROR_TEXT)
         return PROCESS_INCOME
 
+    # Typed-input flow: the anchor message is the income prompt far above, so
+    # a fresh menu message is sent — but with the menu text, not a
+    # "Returning to main menu." filler (T-044).
     await update.effective_message.reply_text(
-        texts.BACK_TO_MAIN_MENU,
+        texts.MAIN_MENU_TEXT,
         reply_markup=create_main_menu_keyboard(texts),
         parse_mode=ParseMode.HTML,
     )

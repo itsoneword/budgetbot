@@ -120,7 +120,12 @@ SHOW_TRANSACTIONS_MENU_TEXT = "📊 <b>Show Transactions</b>\nThis is the menu w
 SETTINGS_MENU_TEXT = "⚙️ <b>Settings</b>\nSelect what you would like to configure:"
 #EDIT_CATEGORIES_MENU_TEXT = "📝 <b>Edit Categories</b>\nWhat would you like to do?"
 ADD_TRANSACTION_TEXT = "Please enter your transaction in one of the following formats:\n<code>date category subcategory amount</code>\n<code>category subcategory amount</code>\n<code>subcategory amount</code>"
-BACK_TO_MAIN_MENU = "Returning to main menu."
+
+# Chart fallbacks (referenced by handlers/charts.py; previously missing — T-039)
+NO_DATA = "No data to chart yet — add some transactions first."
+NO_YEARLY_DATA = "No yearly data to chart yet — add some transactions first."
+ERROR_SENDING_CHARTS = "Something went wrong while sending the charts. Please try again."
+ERROR_GENERATING_CHARTS = "Something went wrong while generating the charts. Please try again."
 
 # Category editor text strings
 NO_CATEGORIES_FOUND = "No categories found in your dictionary."

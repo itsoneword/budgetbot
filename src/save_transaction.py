@@ -364,15 +364,7 @@ async def save_transaction(update: Update, context):
         
         # For single transactions that successfully save, show menu at the end
         await update.message.reply_text(texts.TRANSACTION_SAVED_TEXT)
-        
-        # # Show a menu after saving the transaction
-        # reply_markup = create_main_menu_keyboard(texts)
-        # await update.message.reply_text(
-        #     texts.BACK_TO_MAIN_MENU,
-        #     reply_markup=reply_markup,
-        #     parse_mode=ParseMode.HTML
-        # )
-        
+
         logger.debug(f"Return TRANSACTION (single transaction saved directly)")
         return TRANSACTION
     

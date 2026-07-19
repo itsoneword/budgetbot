@@ -1,7 +1,7 @@
 ---
 id: T-044
 title: Menu UX: edit-in-place navigation, stop stacking new messages on submenu actions
-status: todo
+status: review
 type: bug
 area: bot
 priority: p1
@@ -16,10 +16,10 @@ updated: 2026-07-19
 Owner repro 2026-07-19 (screenshot, Ask AI button): tapping a main-menu item leaves the old menu message in place, sends the response as a NEW message (buy offer), then sends a THIRD 'Returning to main menu' message with a duplicate keyboard — 3 stacked messages per tap. Wanted: Telegram-native edit-in-place — the tapped menu message edits into the submenu/response with a Back button, Back edits it back to the main menu; no new messages, no 'Returning to main menu' text. Scope: audit ALL menu_call branches (handlers/menu.py) for which edit vs send; the Ask AI branch (T-023 amendment used send_ai_offer + _return_to_main_menu) is the worst case but the pattern is likely systemic. Constraint: flows that must send something new (invoice, charts, transaction entry prompts that expect typed input) stay as sends but should not ALSO re-send the menu.
 
 ## Acceptance
-- [ ] Every main-menu tap mutates the tapped message only (edit-in-place); no "Returning to main menu." duplicates anywhere
-- [ ] Ask AI, Help, About, summaries, detailed stats render as edits of the anchor with a Back button; Back restores the menu in place (incl. on stale keyboards outside a conversation)
-- [ ] Media/invoice/typed-input flows send what they must but never re-send the menu; charts callback-context crash (update.message None) fixed
-- [ ] Dead-end submenus (recurring, reminder, tz picker via menu) gain Back rows; command paths unchanged
+- [x] Every main-menu tap mutates the tapped message only (edit-in-place); no "Returning to main menu." duplicates anywhere
+- [x] Ask AI, Help, About, summaries, detailed stats render as edits of the anchor with a Back button; Back restores the menu in place (incl. on stale keyboards outside a conversation)
+- [x] Media/invoice/typed-input flows send what they must but never re-send the menu; charts callback-context crash (update.message None) fixed
+- [x] Dead-end submenus (recurring, reminder, tz picker via menu) gain Back rows; command paths unchanged
 
 ## Log
 - 2026-07-19 created
@@ -58,3 +58,40 @@ Touched: src/handlers/menu.py (main rework), src/handlers/payments.py, src/handl
 
 Risks: same-content edits raise BadRequest "not modified" on double-tap — `_safe_edit` must wrap every edit or the global error handler fires per tap; 4096-char edit overflow → fallback-to-send paths (steps 4/5); never edit a media message into text (not currently possible — keep it that way); stale keyboards self-heal via edits but require the step-12 global back handler; send_ai_offer reply contract for /ask + voice must be regression-tested; menu_ask_ai still never grants — Buy → invoice → successful_payment untouched.
 - 2026-07-19 Research complete: 10 stacking branches + charts callback crash + 3 dead-end submenus mapped; edit-in-place plan approved with defaults
+- 2026-07-19 started
+- 2026-07-19 Implemented all 15 plan steps: _safe_edit/_back_kb/_edit_to_main_menu helpers, report builders (records/detailed), edit-in-place menu_call branches, build_ai_offer split, charts effective_message + bool contract, Back rows for recurring/reminder/tz, global back_to_main_menu + menu_settings handlers, deleted _return_to_main_menu and BACK_TO_MAIN_MENU; incidentally fixed T-039 (NO_DATA & co. defined in both texts files); 242 tests green (11 new)
+
+## Testing
+
+Manual checklist (edit-in-place menu navigation). Core assertion for every case: the tapped message MUTATES — no new menu message ever appears, and "Returning to main menu." exists nowhere.
+
+### Critical
+- [ ] /menu → tap EVERY main-menu button once; each tap edits the menu message in place (Add transaction, Show transactions, Recurring, Reminder, Settings, Ask AI, Help)
+- [ ] Show transactions → Monthly summary: report replaces the tapped message with a Back button; Back edits it back to the Show-transactions view path → main menu (single message throughout)
+- [ ] Show transactions → Last-month summary, Income stats, Extended stats (both periods): same single-message mutation + Back
+- [ ] Monthly charts / Yearly charts WITH data: anchor shows "Generating…", photos arrive as new messages, anchor becomes the main menu again (exactly one keyboard; menu sits above photos — accepted)
+- [ ] Monthly charts / Yearly charts WITHOUT data (fresh account): anchor edits to the no-data text + Back; NO crash (this used to raise on update.message=None) and NO stray message
+- [ ] Ask AI, non-entitled: anchor edits to the Stars offer with Buy + Back rows — exactly one message changes; Buy sends the invoice as a new message and the anchor keeps Back
+- [ ] Ask AI, entitled (/grant_ai first): anchor edits to the AI how-to + Back
+- [ ] /ask from a non-entitled account still REPLIES with the offer (message context contract); same for the voice-message denial path
+- [ ] Help: anchor edits to help text + Back; Back restores the menu in place
+- [ ] Settings → About: anchor edits to About + Back; Back returns to the SETTINGS submenu (not main menu)
+- [ ] Double-tap any menu button twice fast: no error message, no global-error-handler spam in logs (BadRequest "not modified" swallowed)
+- [ ] Stale keyboard: open a report view with Back, restart the bot, tap Back — the message still edits to the main menu (global ^back_to_main_menu$ handler); same for Back→Settings on About (^menu_settings$)
+- [ ] Command paths behave as before: /show, /show_income, /show_ext, /monthly_stat, /recurring, /reminder all reply with new messages, no Back rows on /recurring and /reminder initial views
+
+### Important
+- [ ] Recurring via menu: list has a Back row (also when empty); pause/resume/delete re-renders keep a Back row; Back edits to main menu
+- [ ] Reminder via menu: presets view has Back; Settings → Timezone picker has Back → Settings
+- [ ] Add income via menu: prompt has Back; typing an income saves it and sends a fresh menu message (typed-input flow — anchor prompt stays above); Back instead of typing restores the menu in place
+- [ ] Settings → Monthly limit: prompt has Back; entering a number replies "Limit set" + menu in ONE message; tapping Back then typing free text does NOT get parsed as a limit (awaiting_limit cleared)
+- [ ] Cancel transaction mid-add-spending: single message becomes "canceled + main menu" (no 1s delay, no second message)
+- [ ] Show last transactions (detailed flow) with no categories: single message shows "no categories" + transactions menu together (previously the notice was overwritten instantly)
+- [ ] Detailed flow with categories but no matching transactions in period: single message shows "no transactions" + main menu (no 2s sleep + extra message)
+- [ ] Menu → Edit transactions → pick count: transactions arrive as a new message, the loading anchor becomes the main menu (no "Returning…" message)
+- [ ] Summary on an account over its monthly limit: limit warning is appended INSIDE the same report message
+
+### Nice-to-have
+- [ ] Russian language: all new Back buttons and no-data texts localized
+- [ ] A pathological >4096-char report (many categories): report arrives as sent chunks and the anchor returns to the main menu — no duplicate keyboard
+- 2026-07-19 moved to review
