@@ -405,28 +405,32 @@ TIMEZONE_BUTTON = "🕒 Time zone"
 # Sent by the scheduler sweep without parse_mode — keep it HTML-free.
 REMINDER_TEXT = "⏰ Time to log today's spendings! Just type it, e.g. coffee 4.5 — or use /menu."
 REMINDER_STATUS_OFF = (
-    "⏰ Daily reminder is off.\n"
+    "⏰ Daily reminders are off.\n"
     "Pick a time (your local time) and I'll nudge you once a day to log your transactions. "
-    "If you've already logged something that day, I'll stay quiet.\n\n"
+    "You can add several times, e.g. midday and evening.\n\n"
     "You can also type /reminder 17:00 or /reminder off."
 )
-REMINDER_STATUS_ACTIVE = (
-    "⏰ Daily reminder is set for {time} (your local time).\n"
-    "Pick a new time or turn it off:"
+REMINDER_STATUS_LIST = (
+    "⏰ Daily reminders: {times} (your local time).\n"
+    "Add another time, remove one, or turn them all off:"
 )
 REMINDER_SET = (
-    "⏰ Done — I'll remind you every day at {time} (your local time) to log your transactions. "
-    "On days you've already logged something, I'll stay quiet.\n"
-    "Turn off anytime with /reminder off."
+    "⏰ Done — I'll remind you every day at {time} (your local time) to log your transactions.\n"
+    "Add more times with /reminder HH:MM; turn all off with /reminder off."
 )
-REMINDER_DISABLED = "🔕 Daily reminder turned off."
+REMINDER_DISABLED = "🔕 Daily reminders turned off."
+REMINDER_TIME_REMOVED = "🔕 Reminder at {time} removed."
+REMINDER_LIMIT_REACHED = (
+    "You already have {limit} reminder times — remove one before adding another."
+)
 REMINDER_INVALID_TIME = "Invalid time — use HH:MM, e.g. 17:00."
 REMINDER_USAGE = (
     "/reminder — reminder settings\n"
-    "/reminder 17:00 — remind me daily at 17:00\n"
-    "/reminder off — turn the reminder off"
+    "/reminder 17:00 — add a daily reminder at 17:00\n"
+    "/reminder off — turn all reminders off"
 )
-REMINDER_OFF_BTN = "🔕 Turn off"
+REMINDER_OFF_BTN = "🔕 Turn all off"
+REMINDER_REMOVE_BTN = "🔕"
 TZ_PICK_PROMPT = (
     "🕒 What time is it for you right now?\n"
     "Tap the button matching your clock — that's how I learn your time zone:"

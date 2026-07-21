@@ -1,14 +1,14 @@
 ---
 id: dv-ff5f
 title: Reminder v2: always remind, support multiple reminder times per day
-status: in_progress
+status: review
 priority: medium
 assignee: claude
 labels: [feature, bot]
 deps: []
 parent: 
 created: 2026-07-19T14:55:32Z
-updated: 2026-07-21T12:10:00Z
+updated: 2026-07-21T14:35:00Z
 ---
 
 ## Description
@@ -19,10 +19,10 @@ Owner feedback 2026-07-19 after testing T-034: (1) do NOT skip the reminder even
 
 ## Acceptance Criteria
 
-- [ ] Reminder fires even when the user already logged transactions that day (skip-if-logged removed, copy promise removed in EN+RU)
-- [ ] A user can have multiple active reminder times per day (add/remove/list from the menu; `/reminder HH:MM` adds)
-- [ ] `/reminder off` (and voice "off") disables all times; times survive re-enable
-- [ ] Each time fires at most once per local day (per-row last_sent_on idempotency), covered by tests
+- [x] Reminder fires even when the user already logged transactions that day (skip-if-logged removed, copy promise removed in EN+RU)
+- [x] A user can have multiple active reminder times per day (add/remove/list from the menu; `/reminder HH:MM` adds)
+- [x] `/reminder off` (and voice "off") disables all times; times survive re-enable
+- [x] Each time fires at most once per local day (per-row last_sent_on idempotency), covered by tests
 
 ## Notes
 
@@ -49,7 +49,33 @@ Open questions (recommended defaults):
 
 Risks: voice "change my reminder to 18:00" now *adds* 18:00 next to the old time instead of replacing it — accepted as inherent to additive semantics (the cap bounds the damage; the list view makes it visible), but worth watching in owner testing; the migration downgrade is lossy (dedupes to one time per user) — acceptable, downgrades are for emergencies; `rem_del_HH:MM` callback data assumes the rendered time round-trips through `parse_reminder_time` — it does (`format_reminder_time` output is always `HH:MM`); re-rendering the same view after a tap can hit Telegram's "message is not modified" error if state didn't change — `menu.py`'s `_safe_edit` pattern already handles this, reuse it or guard in the handler; the per-row `last_sent_on` cursor means adding a second time that is already past "today" consumes today for that row only (existing v1 behavior per row), so no surprise double-nudge on setup day.
 
+## Testing
+
+Manual testing checklist (reminder v2: always remind, multiple times):
+
+### Critical
+- [ ] Two times same day both fire: set `/reminder` times 5 min and 10 min ahead (sweep runs every 5 min) — both nudges arrive, one each, at their own times
+- [ ] Reminder fires even after logging: add a transaction, wait for a reminder time to pass — the nudge still arrives (no skip)
+- [ ] Re-adding an existing time doesn't duplicate: tap the same preset twice / `/reminder 17:00` twice — list still shows 17:00 once, no error, no double nudge that day
+- [ ] `/reminder off` (typed and via voice "stop reminding me") kills all times; menu shows the off state; re-adding any time via preset re-activates and previous times reappear active after their rows' `set_active` re-enable path (add one time back — only re-added times fire)
+- [ ] Voice "remind me at 12" ADDS 12:00 alongside an existing 17:00 (list shows both) — does not replace
+- [ ] Migration: deploy applies 0008 cleanly on the existing DB; pre-existing single reminders still fire at their time
+
+### Important
+- [ ] 🔕 HH:MM removal button removes exactly that time and the view re-renders in place (list + buttons update without reopening the menu)
+- [ ] 4th time rejected: with 3 active times, `/reminder 08:00` and a preset tap both show the limit message (preset tap keeps the view usable)
+- [ ] Off-state copy (EN and RU) no longer promises "I'll stay quiet if you've logged" anywhere (/reminder view, set confirmation)
+- [ ] First-ever `/reminder 17:00` with no timezone still routes through the tz picker and completes the pending time after the pick
+- [ ] Double-tapping the same button doesn't trip an error ("message is not modified" swallowed)
+- [ ] Menu → Daily reminder path shows the list view with a working Back button, and Back survives an add/remove re-render
+
+### Nice-to-have
+- [ ] Status line lists multiple times sorted ascending (09:00, 12:00, 17:00)
+- [ ] /help command description mentions multiple times (EN + RU)
+- [ ] Removal of the last time flips the view to the off text in the same edit
+
 ### Log
 
 - 2026-07-19 created
 - 2026-07-21 Implementation plan proposed (constraint swap to UNIQUE(user_id, kind, time_local), plural repo/handler API, skip-if-logged deleted with its dead helpers, 4 open questions batched to owner)
+- 2026-07-21 Implemented: migration 0008 (UNIQUE user_id+kind+time_local, lossy dedupe downgrade), repo pluralized (add_time/get_all_for_user/remove_time), scheduler skip-if-logged deleted with dead helpers (has_transaction_since, local_day_start_utc), handler layer add/remove/list with MAX_REMINDER_TIMES=3 cap and in-place re-render (🔕 HH:MM buttons), EN+RU copy rewritten (quiet-day promise dropped), tests/domain/test_reminders.py added (402 tests green), DECISIONS.md line appended. Status → review.

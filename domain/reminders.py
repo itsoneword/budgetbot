@@ -32,6 +32,9 @@ REAL_UTC_OFFSETS_MIN: Tuple[int, ...] = (
 # Owner decision 2026-07-11: default reminder time when none specified.
 DEFAULT_REMINDER_TIME = time(17, 0)
 
+# dv-ff5f: max active reminder times per user (handler-enforced, not schema).
+MAX_REMINDER_TIMES = 3
+
 _TIME_RE = re.compile(r"^(\d{1,2})(?::(\d{2}))?$")
 
 
@@ -82,12 +85,6 @@ def is_due(reminder, tz_offset_min: Optional[int], now_utc: datetime) -> Optiona
     if reminder.last_sent_on is not None and reminder.last_sent_on >= local_date:
         return None
     return local_date
-
-
-def local_day_start_utc(local_date: date, tz_offset_min: Optional[int]) -> datetime:
-    """UTC instant of the user's local midnight — the skip-if-logged window start."""
-    midnight = datetime(local_date.year, local_date.month, local_date.day, tzinfo=timezone.utc)
-    return midnight - timedelta(minutes=tz_offset_min or 0)
 
 
 def build_offset_candidates(now_utc: datetime) -> List[Tuple[int, str]]:

@@ -36,7 +36,7 @@ from src.states import (
 
 # Import handlers used by menu_call
 from src.handlers.recurring import build_rules_view, list_rules
-from src.handlers.reminders import build_reminder_view, build_tz_keyboard, get_reminder
+from src.handlers.reminders import build_reminder_view, build_tz_keyboard, get_reminders
 from src.handlers.records import build_records_report, build_last_month_report
 from src.handlers.charts import send_chart, send_yearly_piechart
 from src.handlers.categories import show_categories
@@ -317,9 +317,9 @@ async def menu_call(update: Update, context: CallbackContext):
         # by standalone CallbackQueryHandlers registered before
         # spendings_handler in core.py, like ^rr.
         repos = get_repos(context)
-        reminder = await get_reminder(repos, user_id)
+        reminders = await get_reminders(repos, user_id)
         text, reply_markup = build_reminder_view(
-            reminder, texts, back_cb="back_to_main_menu"
+            reminders, texts, back_cb="back_to_main_menu"
         )
         await _safe_edit(query, text, reply_markup=reply_markup)
         log_state_transition(TRANSACTION)

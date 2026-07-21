@@ -1,10 +1,11 @@
 """
-Daily reminders repository (T-034).
+Daily reminders repository (T-034, multi-time dv-ff5f).
 
-One row per (user, kind); the every-5-min sweep (src/scheduler.py
-run_reminders) walks get_active_with_tz and sends due nudges. `claim_send`
-is the atomic idempotency gate mirroring RecurringRepository.claim_run —
-overlapping sweeps and restarts can never double-send a local date.
+One row per (user, kind, time) — a user may keep several daily reminder
+times; the every-5-min sweep (src/scheduler.py run_reminders) walks
+get_active_with_tz and sends due nudges per row. `claim_send` is the atomic
+idempotency gate mirroring RecurringRepository.claim_run — overlapping
+sweeps and restarts can never double-send a (row, local date).
 """
 from dataclasses import dataclass
 from datetime import date, datetime, time
@@ -44,12 +45,12 @@ class Reminder:
 class ReminderRepository(BaseRepository[Reminder]):
     """Reminder CRUD + the atomic send claim."""
 
-    async def upsert(
+    async def add_time(
         self, user_id: int, time_local: time, kind: str = KIND_ADD_TRANSACTIONS
     ) -> Reminder:
-        """Create or update the user's reminder; re-activates a disabled one.
+        """Add one reminder time; re-adding an existing one re-activates it.
 
-        last_sent_on is kept — re-setting the time after today's nudge was
+        last_sent_on is kept — re-adding a time after today's nudge was
         already sent must not produce a second one the same local day (the
         handler layer separately consumes today when the new time is already
         past, via domain.reminders.is_due + claim_send).
@@ -57,25 +58,40 @@ class ReminderRepository(BaseRepository[Reminder]):
         query = """
             INSERT INTO reminders (user_id, kind, time_local)
             VALUES ($1, $2, $3)
-            ON CONFLICT (user_id, kind) DO UPDATE SET
-                time_local = EXCLUDED.time_local,
+            ON CONFLICT (user_id, kind, time_local) DO UPDATE SET
                 active = TRUE
             RETURNING *
         """
         record = await self.fetch_one(query, user_id, kind, time_local)
         return Reminder.from_record(record)
 
-    async def get_for_user(
+    async def get_all_for_user(
         self, user_id: int, kind: str = KIND_ADD_TRANSACTIONS
-    ) -> Optional[Reminder]:
-        query = "SELECT * FROM reminders WHERE user_id = $1 AND kind = $2"
-        record = await self.fetch_one(query, user_id, kind)
-        return Reminder.from_record(record) if record else None
+    ) -> List[Reminder]:
+        """All reminder rows (active or not) for the user, ordered by time."""
+        query = (
+            "SELECT * FROM reminders WHERE user_id = $1 AND kind = $2 "
+            "ORDER BY time_local"
+        )
+        records = await self.fetch_all(query, user_id, kind)
+        return [Reminder.from_record(r) for r in records]
+
+    async def remove_time(
+        self, user_id: int, time_local: time, kind: str = KIND_ADD_TRANSACTIONS
+    ) -> bool:
+        """Delete one reminder time. True if a row was removed."""
+        query = (
+            "DELETE FROM reminders "
+            "WHERE user_id = $1 AND kind = $2 AND time_local = $3"
+        )
+        status = await self.execute(query, user_id, kind, time_local)
+        return int(status.split()[-1]) > 0
 
     async def set_active(
         self, user_id: int, active: bool, kind: str = KIND_ADD_TRANSACTIONS
     ) -> bool:
-        """Enable/disable without losing the configured time. True if a row changed."""
+        """Enable/disable ALL of the user's times without losing them.
+        True if any row changed."""
         query = "UPDATE reminders SET active = $3 WHERE user_id = $1 AND kind = $2"
         status = await self.execute(query, user_id, kind, active)
         return int(status.split()[-1]) > 0
