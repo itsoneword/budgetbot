@@ -28,6 +28,9 @@ services:
         condition: service_healthy
     env_file:
       - .env
+      # Shared Claude setup-token for all headless services on this host
+      # (T-038). Single rotation point: edit this file, restart consumers.
+      - /home/cleversol/.claude/service-secrets/claude-token.env
     environment:
       DATABASE_URL: postgresql://budgetbot:${POSTGRES_PASSWORD:-budgetbot_dev_pass}@postgres:5432/budgetbot
     volumes:

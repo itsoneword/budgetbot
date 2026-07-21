@@ -9,7 +9,7 @@ _empty_
 
 ## Review (7)
 - **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating — last: 2026-07-07 created from production-readiness T1 + O2
-- **T-038** `p1/bug/infra` LLM auth: dedicated token for container, stop sharing host OAuth credentials — last: 2026-07-21 moved to review
+- **T-038** `p1/bug/infra` LLM auth: dedicated token for container, stop sharing host OAuth credentials — last: 2026-07-21 Owner decision: ONE shared setup-token for all headless services, single source /home/cleversol/.claude/service-secrets/claude-token.env (600) referenced via compose env_file; token removed from project .env; container re-verified (PONG). Note: setup-tokens survive host logout (generated while host login was expired) — only account-wide revocation kills them
 - **T-044** `p1/bug/bot` Menu UX: edit-in-place navigation, stop stacking new messages on submenu actions — last: 2026-07-19 created
 - **T-045** `p1/feature/bot` Ask AI menu tap opens typed-question mode (like Add transaction) — last: 2026-07-19 moved to review
 - **T-046** `p1/bug/bot` awaiting_ask intercepted too late: typed question after Ask AI tap hits transaction parser — last: 2026-07-19 moved to review
