@@ -404,7 +404,29 @@ def create_confirmation_keyboard(action: str, data: str, texts):
     return InlineKeyboardMarkup(keyboard)
 
 def create_transaction_edit_keyboard(transaction, texts):
-    """Create a keyboard with options to edit a transaction"""
+    """Create a keyboard with options to edit a transaction.
+
+    Income rows get a reduced keyboard: date / amount / free-text category /
+    delete — no subcategory and no spending-dictionary category picker.
+    """
+    if transaction.get('transaction_type') == 'income':
+        keyboard = [
+            [
+                InlineKeyboardButton(texts.EDIT_DATE_BUTTON, callback_data="edit_date"),
+                InlineKeyboardButton(texts.EDIT_AMOUNT_BUTTON, callback_data="edit_amount")
+            ],
+            [
+                InlineKeyboardButton(texts.EDIT_CATEGORY_BUTTON, callback_data="edit_income_category")
+            ],
+            [
+                InlineKeyboardButton(texts.DELETE_TRANSACTION_BUTTON, callback_data="delete_transaction")
+            ],
+            [
+                InlineKeyboardButton(texts.BACK_BUTTON, callback_data="back_to_transactions")
+            ]
+        ]
+        return InlineKeyboardMarkup(keyboard)
+
     keyboard = [
         [
             InlineKeyboardButton(texts.EDIT_DATE_BUTTON, callback_data="edit_date"),
@@ -556,12 +578,10 @@ def create_numbered_transaction_keyboard(transactions, current_page, total_trans
     rows = []
     current_row = []
     
-    # Determine how many transactions are visible on the current page
-    start_idx = current_page * items_per_page
-    end_idx = max(start_idx + items_per_page, len(transactions))
-
-    # Create numbered buttons for transaction selection (1-15 on first page, 1-15 on second page)
-    for i in range(1, end_idx - start_idx + 1):
+    # `transactions` is already the current page's slice of display strings —
+    # iterate exactly over it (the old max() bound crashed on pages with
+    # fewer than items_per_page rows).
+    for i in range(1, len(transactions) + 1):
         #print(f"Debug: Keyboard - i: {i}")
         # Extract index from transaction for callback data
         tx = transactions[i-1]

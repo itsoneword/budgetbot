@@ -146,7 +146,7 @@ from src.handlers.tasks import (
 from src.handlers.transactions import (
     show_recent_entries, handle_transaction_selection, handle_edit_option,
     handle_edit_date, handle_edit_category, handle_edit_subcategory,
-    handle_edit_amount, handle_delete_tx_confirmation,
+    handle_edit_income_category, handle_edit_amount, handle_delete_tx_confirmation,
 )
 
 from telegram import (
@@ -1007,7 +1007,7 @@ def main():
                 CallbackQueryHandler(menu_call, pattern="^back_to_main_menu"),
             ],
             TRANSACTION_EDIT: [
-                CallbackQueryHandler(handle_edit_option, pattern="^(edit_date|edit_category|edit_subcategory|edit_amount|delete_transaction)"),
+                CallbackQueryHandler(handle_edit_option, pattern="^(edit_date|edit_category|edit_subcategory|edit_income_category|edit_amount|delete_transaction)"),
                 CallbackQueryHandler(handle_edit_option, pattern="^back_to_transactions"),
             ],
             EDIT_DATE: [
@@ -1015,6 +1015,9 @@ def main():
             ],
             EDIT_CATEGORY: [
                 CallbackQueryHandler(handle_edit_category, pattern="^(txcat_|txpage_|cancel_transaction)"),
+            ],
+            EDIT_INCOME_CATEGORY: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_edit_income_category),
             ],
             EDIT_SUBCATEGORY: [
                 CallbackQueryHandler(handle_edit_subcategory, pattern="^(back_to_categories|cancel_transaction)"),

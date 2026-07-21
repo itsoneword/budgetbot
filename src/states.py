@@ -36,8 +36,9 @@
     WAITING_FOR_DOCUMENT,
     PROCESS_INCOME,
     DELETE_PROFILE,
-    ASK_INPUT
-) = range(35)
+    ASK_INPUT,
+    EDIT_INCOME_CATEGORY
+) = range(36)
 
 
 
