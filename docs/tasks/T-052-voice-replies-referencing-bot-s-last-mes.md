@@ -1,7 +1,7 @@
 ---
 id: T-052
 title: Voice replies referencing bot's last message aren't resolved (context-dependent NLU)
-status: todo
+status: review
 type: bug
 area: bot
 priority: p2
@@ -24,3 +24,24 @@ Repro (2026-07-21, screenshot): bot found two prior transport>tax payments (111 
 ## Log
 - 2026-07-21 created
 - 2026-07-21 tracked on deviz board as dv-8233 (subtask of dv-3a1c agentic AI channel)
+- 2026-07-21 implemented (combined with dv-2cf1): referential context resolution, partial-understanding echo, question-row context rendering, 800-char answer digest; 381 tests green
+- 2026-07-21 moved to review
+
+## Testing
+
+### Critical
+- [ ] Ask "когда я платил налог на транспорт?" -> bot answers with records; then voice "да, срок подошёл, добавляй" -> proposes a concrete transaction (category+amount from the answer, e.g. "transport tax 111") behind the normal confirm keyboard
+- [ ] The resolved proposal is NOT auto-saved — Add/Cancel tap still required
+- [ ] Fresh "кофе 4.5" with prior context present still proposes exactly "кофе 4.5" (no context bleed)
+- [ ] Amount never invented: "добавь что-нибудь" with no amount anywhere -> unknown/partial fallback, not a proposal
+
+### Important
+- [ ] Near-miss ("налог наверное") -> "I think you meant: ..." partial echo instead of the generic unknown text
+- [ ] After the partial echo, replying "да 111" (voice or text) resolves into a proposal
+- [ ] Date from context: if the bot's answer named the date the record is for, the proposal carries it; user-spoken date always wins; otherwise today
+- [ ] /ask answers longer than 800 chars: follow-up still resolves (digest truncation acceptable)
+
+### Regression
+- [ ] Correction flow «не X, а Y» unchanged
+- [ ] show stats / reminder voice commands unchanged
+- [ ] Intent classification latency still acceptable (bigger context block, haiku model)

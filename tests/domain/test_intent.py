@@ -3,22 +3,28 @@ import json
 from dataclasses import dataclass
 
 from domain.intent import (
+    CONTEXT_ANSWER_CHARS,
     CONTEXT_BLOCK_CHARS,
     CONTEXT_SUMMARY_CHARS,
     CONTEXT_TRANSCRIPT_CHARS,
     INTENT_ADD_INCOME,
     INTENT_ADD_TRANSACTION,
+    INTENT_CHAT,
+    INTENT_CONFIRM_PENDING,
     INTENT_QUESTION,
     INTENT_SHOW_STAT,
     INTENT_UNKNOWN,
     KNOWN_ITEMS_MAX,
+    MAX_PARTIAL_CHARS,
     MAX_QUESTION_CHARS,
     build_intent_prompt,
     build_intent_system_prompt,
     find_correction_target,
+    find_pending_proposal,
     format_known_items,
     format_recent_context,
     parse_intent_response,
+    validate_add_payload,
 )
 
 
@@ -369,3 +375,153 @@ def test_system_prompt_keeps_one_off_spendings_as_add_transaction():
     assert '"rent 800"' in add_tx_bullet
     assert '"аренда 800"' in add_tx_bullet
     assert "one-off" in add_tx_bullet
+
+
+# ==========================================
+# Spoken confirm + chat fallthrough (dv-2cf1)
+# ==========================================
+
+class TestConfirmPendingParse:
+    def test_payload_always_discarded(self):
+        """The LLM can never smuggle text into a confirm — the router acts
+        only on the stored pending proposal."""
+        intent = parse_intent_response(reply("confirm_pending", "beer 999"))
+        assert intent.kind == INTENT_CONFIRM_PENDING
+        assert intent.payload == ""
+
+    def test_empty_payload_fine(self):
+        assert parse_intent_response(
+            reply("confirm_pending", "")
+        ).kind == INTENT_CONFIRM_PENDING
+
+
+class TestChatParse:
+    def test_passthrough(self):
+        intent = parse_intent_response(reply("chat", "answer in English please"))
+        assert intent.kind == INTENT_CHAT
+        assert intent.payload == "answer in English please"
+
+    def test_truncated_and_slash_stripped(self):
+        intent = parse_intent_response(reply("chat", "/" + "x" * 600))
+        assert intent.kind == INTENT_CHAT
+        assert not intent.payload.startswith("/")
+        assert len(intent.payload) <= MAX_QUESTION_CHARS
+
+    def test_empty_chat_unknown(self):
+        assert parse_intent_response(reply("chat", "  ")).kind == INTENT_UNKNOWN
+
+
+class TestFindPendingProposal:
+    def test_newest_proposed_add_wins(self):
+        recent = [
+            StubInteraction("что-то", intent="unknown", payload="", outcome="unknown", id=3),
+            StubInteraction("пиво 10", payload="пиво 10", outcome="proposed", id=2),
+            StubInteraction("дом 5", payload="дом 5", outcome="proposed", id=1),
+        ]
+        assert find_pending_proposal(recent).id == 2
+
+    def test_confirmed_and_routed_skipped(self):
+        recent = [
+            StubInteraction("пиво 10", payload="пиво 10", outcome="confirmed"),
+            StubInteraction("вопрос", intent="question", payload="answer", outcome="routed"),
+        ]
+        assert find_pending_proposal(recent) is None
+
+    def test_income_proposal_found(self):
+        recent = [StubInteraction("зп 500", intent="add_income", payload="зп 500")]
+        assert find_pending_proposal(recent).intent == "add_income"
+
+    def test_empty(self):
+        assert find_pending_proposal([]) is None
+        assert find_pending_proposal(None) is None
+
+
+class TestValidateAddPayload:
+    def test_valid_transaction(self):
+        assert validate_add_payload(INTENT_ADD_TRANSACTION, "пиво 10, дом 5")
+
+    def test_invalid_amount_rejected(self):
+        assert not validate_add_payload(INTENT_ADD_TRANSACTION, "tax unknown")
+
+    def test_income_comma_list_rejected(self):
+        assert not validate_add_payload(INTENT_ADD_INCOME, "зп 500, бонус 100")
+
+    def test_command_injection_rejected(self):
+        assert not validate_add_payload(INTENT_ADD_TRANSACTION, "/delete 5")
+
+    def test_non_add_kinds_rejected(self):
+        assert not validate_add_payload(INTENT_QUESTION, "how much?")
+
+
+# ==========================================
+# Partial-understanding echo (dv-8233)
+# ==========================================
+
+class TestUnknownPartial:
+    def test_explicit_unknown_keeps_payload_as_partial(self):
+        intent = parse_intent_response(reply("unknown", "taxes 111"))
+        assert intent.kind == INTENT_UNKNOWN
+        assert intent.payload == ""
+        assert intent.partial == "taxes 111"
+
+    def test_failed_add_validation_preserves_partial(self):
+        intent = parse_intent_response(reply("add_transaction", "tax unknown"))
+        assert intent.kind == INTENT_UNKNOWN
+        assert intent.partial == "tax unknown"
+
+    def test_failed_income_validation_preserves_partial(self):
+        intent = parse_intent_response(reply("add_income", "salary soon"))
+        assert intent.kind == INTENT_UNKNOWN
+        assert intent.partial == "salary soon"
+
+    def test_partial_sanitized_capped_slash_stripped(self):
+        intent = parse_intent_response(reply("unknown", "/x\n\n" + "y" * 500))
+        assert not intent.partial.startswith("/")
+        assert "\n" not in intent.partial
+        assert len(intent.partial) <= MAX_PARTIAL_CHARS
+
+    def test_garbage_json_has_no_partial(self):
+        assert parse_intent_response("not json at all").partial == ""
+
+    def test_validated_intents_carry_no_partial(self):
+        assert parse_intent_response(reply("add_transaction", "дом 5")).partial == ""
+        assert parse_intent_response(reply("question", "how much?")).partial == ""
+
+
+class TestQuestionRowRendering:
+    def test_question_rows_labeled_as_bot_answer(self):
+        block = format_recent_context(
+            [
+                StubInteraction(
+                    "сколько налог", intent="question",
+                    payload="transport>tax 111 EUR, 2026 not paid", outcome="routed",
+                )
+            ]
+        )
+        assert "user asked: «сколько налог»" in block
+        assert "bot answered: «transport>tax 111 EUR, 2026 not paid»" in block
+
+    def test_answer_capped_per_line(self):
+        block = format_recent_context(
+            [StubInteraction("q", intent="question", payload="a" * 900, outcome="routed")]
+        )
+        assert "a" * CONTEXT_ANSWER_CHARS in block
+        assert "a" * (CONTEXT_ANSWER_CHARS + 1) not in block
+
+    def test_question_without_payload_falls_back_to_plain_line(self):
+        block = format_recent_context(
+            [StubInteraction("q", intent="question", payload="", outcome="routed")]
+        )
+        assert "heard: «q» -> question" in block
+
+
+def test_system_prompt_teaches_new_intents_and_referential_resolution():
+    prompt = build_intent_system_prompt()
+    assert '"confirm_pending"' in prompt
+    assert '"chat"' in prompt
+    # referential example: category words come from the shown context
+    assert "transport tax 111" in prompt
+    # spendings must never leak into chat
+    assert "ALWAYS add_transaction, never chat" in prompt
+    # unknown now asks for the partial echo
+    assert "PARTIALLY understood" in prompt

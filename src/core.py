@@ -691,13 +691,17 @@ async def handle_ask_input(update: Update, context):
 
 
 async def answer_ask_question(
-    update: Update, context: CallbackContext, question: str, channel: str = "ask"
+    update: Update, context: CallbackContext, question: str, channel: str = "ask",
+    context_block: str = "",
 ):
     """Answer a finance question via the LLM.
 
     Shared by the /ask command, the menu typed-question mode (T-045) and
     voice-routed questions (dv-94bd, channel="voice"); all paths re-check
     entitlement here and log the interaction under `channel` identically.
+    context_block: recent-conversation block (format_recent_context) passed by
+    the voice/text chat fallthrough (dv-2cf1) so meta-requests like "answer in
+    English" can re-answer the previous exchange.
     Data is aggregated in memory and packed
     into the prompt; raw-row questions go through the read-only
     query_transactions tool over the same in-memory session — the model
@@ -733,8 +737,14 @@ async def answer_ask_question(
             return
 
         summary = build_finance_summary(session)
+        context_part = (
+            f"Recent conversation with the user:\n{context_block}\n\n"
+            if context_block
+            else ""
+        )
         prompt = (
             f"User's financial data:\n{summary}\n\n"
+            f"{context_part}"
             f"User's question: {question}"
         )
         client = get_llm_client()
@@ -763,10 +773,13 @@ async def answer_ask_question(
             await send_staged_recurring_actions(update, context, tool_ctx.staged, texts)
         # AI conversation memory (T-041): record the Q&A so a voice follow-up
         # ("а за июнь?") classifies against the asked question. Best-effort —
-        # the answer is already delivered.
+        # the answer is already delivered. Digest raised to ANSWER_CONTEXT_CHARS
+        # (dv-8233): referential replies resolve against what the bot answered.
         try:
+            from domain.intent import ANSWER_CONTEXT_CHARS
             await repos.interactions.add(
-                user_id, channel, question, "question", answer[:300], outcome="routed"
+                user_id, channel, question, "question",
+                answer[:ANSWER_CONTEXT_CHARS], outcome="routed"
             )
         except Exception as log_err:
             logging.error(f"/ask interaction log failed for user {user_id}: {log_err}")

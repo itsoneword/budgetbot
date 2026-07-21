@@ -334,6 +334,20 @@ VOICE_UNKNOWN = (
     "I couldn't map this to an action. You can add a spending like “coffee 4.5”, "
     "ask a question with /ask, or see /help."
 )
+# Partial-understanding echo (dv-8233) — display-only, resolved by the next reply
+VOICE_UNKNOWN_PARTIAL = (
+    "🎙 Heard: “{transcript}”\n\n"
+    "I think you meant: {partial} — but I'm not sure. "
+    "Reply to confirm or correct (e.g. “yes” or “taxes 111”)."
+)
+# Spoken confirm of a pending proposal (dv-2cf1)
+VOICE_TX_CONFIRMED_VOICE = "🎙 Heard: “{transcript}”\n\nAdding: {transaction}"
+VOICE_INCOME_CONFIRMED_VOICE = "🎙 Heard: “{transcript}”\n\nAdding income: {income}"
+VOICE_NOTHING_PENDING = (
+    "🎙 Heard: “{transcript}”\n\n"
+    "Nothing is waiting for confirmation. You can add a spending like "
+    "“coffee 4.5” or ask a question with /ask."
+)
 # Voice correction of an already-saved transaction (T-041)
 VOICE_CONFIRM_FIX = "🎙 Heard: “{transcript}”\n\nReplace {old} → {new}?"
 VOICE_FIX_DONE = "Replaced. Adding: {transaction}"

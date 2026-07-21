@@ -1,14 +1,14 @@
 ---
 id: dv-3a1c
 title: Agentic AI channel: tool-calling /ask (read tools) + recurring management (write tools)
-status: done
+status: in_progress
 priority: high
 assignee: 
 labels: [feature, bot]
 deps: [dv-9219]
 parent: 
 created: 2026-07-19T14:55:32Z
-updated: 2026-07-19T17:33:52Z
+updated: 2026-07-21T10:58:37Z
 ---
 
 ## Description

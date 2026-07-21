@@ -1,14 +1,14 @@
 ---
 id: dv-2cf1
 title: Voice channel: 'yes' confirms pending proposal; graceful reply to conversational messages
-status: todo
+status: review
 priority: medium
-assignee: 
+assignee: claude
 labels: [feature, bot]
 deps: []
 parent: dv-3a1c
 created: 2026-07-19T14:55:32Z
-updated: 2026-07-21T10:56:56Z
+updated: 2026-07-21T11:24:11Z
 ---
 
 ## Description
@@ -26,3 +26,13 @@ Owner expectation 2026-07-19: with a pending voice-tx proposal, a spoken 'да/y
 ### Log
 
 - 2026-07-19 created
+
+## Comments
+
+### @claude — 2026-07-21T11:12:28Z
+
+Owner decisions 2026-07-21: combined implementation with dv-8233 on one branch (single coherent intent-prompt ladder). Chat scope: ALL conversational/meta voice messages route to /ask agent session (entitlement-gated). Bare yes with nothing pending: canned no-LLM reply. 'Yes but X' re-proposes (existing T-041 policy). Precedence: correction > confirm_pending > referential add > chat > unknown.
+
+### @claude — 2026-07-21T11:24:11Z
+
+Implemented (combined branch with dv-8233, commit follows): confirm_pending + chat intents in domain/intent.py; _confirm_pending_by_voice in voice.py acts only on the durable [proposed] row (LLM payload discarded), strips the stale Add/Cancel keyboard, income saves via save_income_text; chat routes to answer_ask_question with the recent-conversation block. Canned VOICE_NOTHING_PENDING when nothing pending. 381 tests green. Manual checklist appended to docs/tasks/T-043 (## Testing).

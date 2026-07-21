@@ -36,6 +36,8 @@ from telegram.ext import CallbackContext
 from domain.intent import (
     INTENT_ADD_INCOME,
     INTENT_ADD_TRANSACTION,
+    INTENT_CHAT,
+    INTENT_CONFIRM_PENDING,
     INTENT_QUESTION,
     INTENT_SET_REMINDER,
     INTENT_SHOW_STAT,
@@ -45,9 +47,11 @@ from domain.intent import (
     build_intent_prompt,
     build_intent_system_prompt,
     find_correction_target,
+    find_pending_proposal,
     format_known_items,
     format_recent_context,
     parse_intent_response,
+    validate_add_payload,
 )
 from infrastructure.llm import LLMError, get_llm_client
 from infrastructure.stt import STTError, transcribe_ogg
@@ -153,10 +157,13 @@ async def _log_interaction(
         outcome = "unknown"
     else:
         outcome = "routed"  # reminder/stat/question dispatch immediately
+    # Unknown rows persist the partial echo (dv-8233) so the user's one-word
+    # follow-up («да, 111») classifies against what was already understood.
+    payload = intent.partial if intent.kind == INTENT_UNKNOWN else intent.payload
     try:
         repos = get_repos(context)
         return await repos.interactions.add(
-            user_id, channel, transcript, intent.kind, intent.payload, outcome=outcome
+            user_id, channel, transcript, intent.kind, payload, outcome=outcome
         )
     except Exception as e:
         logging.error(f"Interaction log insert failed for user {user_id}: {e}")
@@ -252,6 +259,76 @@ async def _try_correction(
     return True
 
 
+async def _confirm_pending_by_voice(
+    update: Update,
+    context: CallbackContext,
+    transcript: str,
+    status: Message,
+    recent,
+    interaction_id,
+):
+    """Spoken "да/yes" acts like tapping Add on the pending confirm (dv-2cf1).
+
+    Acts ONLY on a durable [proposed] row; the classifier's payload was
+    already discarded in parse_intent_response, so a spurious confirm_pending
+    can never save anything. Payload source of truth is the user_data key the
+    vtx_/vinc_ buttons would consume (popped so a later tap can't double-save);
+    after a restart it falls back to the stored row payload, re-validated.
+    """
+    user_id = update.effective_user.id
+    texts = check_language(update, context)
+    pending = find_pending_proposal(recent)
+    payload = None
+    is_income = False
+    if pending is not None:
+        is_income = pending.intent == INTENT_ADD_INCOME
+        key = "voice_income_text" if is_income else "voice_tx_text"
+        id_key = "voice_income_interaction_id" if is_income else "voice_tx_interaction_id"
+        if context.user_data.get(id_key) == pending.id:
+            payload = context.user_data.pop(key, None)
+            context.user_data.pop(id_key, None)
+        elif validate_add_payload(pending.intent, pending.payload):
+            payload = pending.payload
+
+    if not payload:
+        # Nothing genuinely pending (or an invalid stored payload) — cheap
+        # canned reply, no LLM call; downgrade this turn's row to unknown.
+        await _set_outcome_safe(context, interaction_id, user_id, "unknown")
+        await status.edit_text(texts.VOICE_NOTHING_PENDING.format(transcript=transcript))
+        return
+
+    await _set_outcome_safe(context, pending.id, user_id, "confirmed")
+
+    # Strip the stale Add/Cancel keyboard so a later tap can't mislead
+    # (its payload is already popped — the tap would say "Cancelled").
+    msg_ref = context.user_data.pop("voice_confirm_msg", None)
+    if msg_ref:
+        try:
+            await context.bot.edit_message_reply_markup(
+                chat_id=msg_ref[0], message_id=msg_ref[1], reply_markup=None
+            )
+        except Exception:
+            pass  # message deleted/edited meanwhile — cosmetic only
+
+    if is_income:
+        await status.edit_text(
+            texts.VOICE_INCOME_CONFIRMED_VOICE.format(
+                transcript=transcript, income=payload
+            )
+        )
+        from src.handlers.records import save_income_text
+
+        if not await save_income_text(update, context, payload):
+            await update.effective_message.reply_text(texts.TRANSACTION_ERROR_TEXT)
+    else:
+        await status.edit_text(
+            texts.VOICE_TX_CONFIRMED_VOICE.format(
+                transcript=transcript, transaction=payload
+            )
+        )
+        await _inject_text(update, context, payload)
+
+
 async def _route_intent(
     update: Update,
     context: CallbackContext,
@@ -281,9 +358,18 @@ async def _route_intent(
         ):
             return
 
-    if intent.kind == INTENT_ADD_TRANSACTION:
+    if intent.kind == INTENT_CONFIRM_PENDING:
+        # Spoken "да/yes" on a pending proposal (dv-2cf1). Checked before the
+        # add_* branches: acts only on durable [proposed] state, never on the
+        # classifier's own payload.
+        await _confirm_pending_by_voice(
+            update, context, transcript, status, recent, interaction_id
+        )
+    elif intent.kind == INTENT_ADD_TRANSACTION:
         context.user_data["voice_tx_text"] = intent.payload
         context.user_data["voice_tx_interaction_id"] = interaction_id
+        # Remembered so a spoken confirm can strip the stale keyboard (dv-2cf1).
+        context.user_data["voice_confirm_msg"] = (status.chat_id, status.message_id)
         keyboard = InlineKeyboardMarkup(
             [
                 [
@@ -301,6 +387,7 @@ async def _route_intent(
         # (voice_tx_text/vtx_) must not cross-talk with an income one (T-035).
         context.user_data["voice_income_text"] = intent.payload
         context.user_data["voice_income_interaction_id"] = interaction_id
+        context.user_data["voice_confirm_msg"] = (status.chat_id, status.message_id)
         keyboard = InlineKeyboardMarkup(
             [
                 [
@@ -331,6 +418,24 @@ async def _route_intent(
         await status.edit_text(texts.VOICE_HEARD.format(transcript=transcript))
         from src.core import answer_ask_question
         await answer_ask_question(update, context, intent.payload, channel=channel)
+    elif intent.kind == INTENT_CHAT:
+        # Conversational/meta fallthrough (dv-2cf1, owner decision: ALL
+        # conversational messages go to the agent). context_block lets
+        # "answer in English" re-answer the previous exchange.
+        await status.edit_text(texts.VOICE_HEARD.format(transcript=transcript))
+        from src.core import answer_ask_question
+        await answer_ask_question(
+            update, context, intent.payload, channel=channel,
+            context_block=context_block,
+        )
+    elif intent.partial:
+        # Near-miss echo (dv-8233): show what WAS understood so one short
+        # reply ("да" / "tax 111") can resolve it next turn.
+        await status.edit_text(
+            texts.VOICE_UNKNOWN_PARTIAL.format(
+                transcript=transcript, partial=intent.partial
+            )
+        )
     else:
         await status.edit_text(texts.VOICE_UNKNOWN.format(transcript=transcript))
 
@@ -343,6 +448,7 @@ async def handle_voice_tx_confirmation(update: Update, context: CallbackContext)
 
     tx_text = context.user_data.pop("voice_tx_text", None)
     interaction_id = context.user_data.pop("voice_tx_interaction_id", None)
+    context.user_data.pop("voice_confirm_msg", None)  # tap resolved it (dv-2cf1)
     if query.data == "vtx_yes" and tx_text:
         await _set_outcome_safe(
             context, interaction_id, update.effective_user.id, "confirmed"
@@ -367,6 +473,7 @@ async def handle_voice_income_confirmation(update: Update, context: CallbackCont
 
     income_text = context.user_data.pop("voice_income_text", None)
     interaction_id = context.user_data.pop("voice_income_interaction_id", None)
+    context.user_data.pop("voice_confirm_msg", None)  # tap resolved it (dv-2cf1)
     if query.data == "vinc_yes" and income_text:
         from src.handlers.records import save_income_text
 
