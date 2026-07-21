@@ -1,14 +1,14 @@
 ---
 id: dv-3a1c
 title: Agentic AI channel: tool-calling /ask (read tools) + recurring management (write tools)
-status: in_progress
+status: review
 priority: high
 assignee: 
 labels: [feature, bot]
 deps: [dv-9219]
 parent: 
 created: 2026-07-19T14:55:32Z
-updated: 2026-07-21T10:58:37Z
+updated: 2026-07-21T11:40:21Z
 ---
 
 ## Description
@@ -39,3 +39,7 @@ Planning wave started: 3 parallel plan agents — (1) dv-ee06+dv-f0d5 foundation
 ### @claude — 2026-07-19T17:33:52Z
 
 All four subtasks implemented, owner-verified 2026-07-19, done. Follow-ups living elsewhere: dv-2cf1 (spoken yes + conversational fallthrough, rebases on the new intent prompt), dv-2615 (dedicated LLM token).
+
+### @claude — 2026-07-21T11:40:21Z
+
+Reopened done -> review 2026-07-21: two new subtasks (dv-2cf1 spoken confirm + chat, dv-8233 referential context resolution) were attached after this epic closed and are now awaiting owner verification in the bot. Deviz does not roll child status up to the parent — moved manually so the group is visible in the review column. Original agentic-channel scope (4 done subtasks) stays verified/closed.
