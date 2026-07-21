@@ -15,5 +15,6 @@
   ],
   "idPrefix": "dv",
   "archiveDone": true,
-  "humanAuthor": "itsoneword"
+  "humanAuthor": "itsoneword",
+  "port": 4704
 }
