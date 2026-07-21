@@ -46,6 +46,7 @@ INCOME_HELP = """💵 Add income directly: <code>/income salary 2000</code> — 
 <code>amount</code>\n
 To see the monthly income statistic use /show_income; list records with IDs via <code>/show_last income</code>. Entered a wrong value? /delete_income removes the latest income record, or <code>/delete_income id</code> a specific one.
  """
+INCOME_INVALID_DATE = "⚠️ '{token}' looks like a date but isn't a valid one (use dd.mm, e.g. 05.07, or dd.mm.yyyy). Nothing was saved — please try again."
 
 RECORDS_NOT_FOUND_TEXT = "No records found."
 RECORDS_TEMPLATE = """

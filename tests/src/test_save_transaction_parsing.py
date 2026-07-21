@@ -59,6 +59,13 @@ class TestProcessIncomeInput:
         timestamp, _ = process_income_input(1, ["31.12", "1000"])
         assert timestamp == datetime(2025, 12, 31, tzinfo=timezone.utc)
 
+    def test_date_shaped_garbage_propagates_value_error(self):
+        # 29.02 in the frozen non-leap 2026: the ValueError from
+        # _parse_income_date must reach the caller — the token is never
+        # silently reinterpreted as a category (dv-5465)
+        with pytest.raises(ValueError):
+            process_income_input(1, ["29.02", "1000"])
+
 
 # ==========================================
 # _parse_income_date
@@ -83,22 +90,44 @@ class TestParseIncomeDate:
     def test_non_date_token_returns_none(self):
         assert _parse_income_date("salary") is None
 
-    def test_number_like_garbage_parsed_by_dateutil(self):
-        # Documents current behavior (arguably a bug): "99.99" is not a valid
-        # dd.mm date, but the dateutil fallback reads "99" as year 1999 and
-        # fills day/month from today's default instead of returning None.
-        assert _parse_income_date("99.99") == datetime(
-            1999, 7, 10, tzinfo=timezone.utc
+    def test_ddmm_shaped_garbage_rejected(self):
+        # "99.99" is date-shaped but not a valid date: rejected outright —
+        # the old dateutil fallback read "99" as year 1999 (dv-5465)
+        with pytest.raises(ValueError):
+            _parse_income_date("99.99")
+
+    def test_feb_29_in_non_leap_year_rejected(self):
+        # Frozen 2026 is not a leap year: 29.02 must error, not be
+        # reinterpreted as day 29 of the current month (dv-5465)
+        with pytest.raises(ValueError):
+            _parse_income_date("29.02")
+
+    @freeze_time("2024-07-10 12:00:00")
+    def test_feb_29_valid_in_leap_year(self):
+        assert _parse_income_date("29.02") == datetime(
+            2024, 2, 29, tzinfo=timezone.utc
         )
 
-    def test_feb_29_in_non_leap_year_misparsed_as_day_of_current_month(self):
-        # Documents current behavior (arguably a bug): 29.02 in a non-leap
-        # year fails the strict dd.mm parse, then dateutil reinterprets it as
-        # day 29 of the *current* month; that lands in the future of the
-        # frozen July 10, so the backdating heuristic shifts it a year back.
-        assert _parse_income_date("29.02") == datetime(
-            2025, 7, 29, tzinfo=timezone.utc
-        )
+    def test_two_digit_year_rejected(self):
+        # Only dd.mm.yyyy carries an explicit year; "24" is ambiguous
+        with pytest.raises(ValueError):
+            _parse_income_date("15.03.24")
+
+    def test_one_digit_year_garbage_rejected(self):
+        # Date-shaped with a bogus year — dateutil used to read 2001-01-01
+        with pytest.raises(ValueError):
+            _parse_income_date("1.1.1")
+
+    def test_bare_year_is_not_a_date(self):
+        # dateutil freebie dropped: INCOME_HELP advertises dd.mm only, and
+        # "2024" is a plausible amount/category (dv-5465)
+        assert _parse_income_date("2024") is None
+
+    def test_bare_day_is_not_a_date(self):
+        assert _parse_income_date("12") is None
+
+    def test_slash_separated_is_not_a_date(self):
+        assert _parse_income_date("05/07") is None
 
 
 # ==========================================

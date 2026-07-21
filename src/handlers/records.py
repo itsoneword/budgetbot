@@ -201,9 +201,10 @@ async def save_income_text(update: Update, context: CallbackContext, text: str) 
     """Parse and save one income entry ("[dd.mm] [category] amount").
 
     The single income write path — used by the /income conversation, /income
-    inline args and the voice/free-text add_income intent (T-035). Returns
-    False when no amount could be parsed; the caller decides how to reprompt.
-    Replies with the saved confirmation on success.
+    inline args and the voice/free-text add_income intent (T-035). Replies
+    with the specific error itself (invalid amount or invalid date, dv-5465);
+    returns False when nothing was saved — callers control only conversation
+    state. Replies with the saved confirmation on success.
     """
     user_id = update.effective_user.id
     texts = check_language(update, context)
@@ -216,9 +217,19 @@ async def save_income_text(update: Update, context: CallbackContext, text: str) 
     try:
         amount = float(parts[-1])
     except (ValueError, IndexError):
+        await update.effective_message.reply_text(texts.TRANSACTION_ERROR_TEXT)
         return False
 
-    timestamp, category = process_income_input(user_id, parts)
+    try:
+        timestamp, category = process_income_input(user_id, parts)
+    except ValueError:
+        # Date-shaped garbage ('99.99', '29.02' in a non-leap year) — explicit
+        # error, nothing saved: silently treating it as a category would both
+        # pollute the category set and drop the user's date intent (dv-5465).
+        await update.effective_message.reply_text(
+            texts.INCOME_INVALID_DATE.format(token=parts[0])
+        )
+        return False
 
     await repos.transactions.save_income(
         user_id=int(user_id),
@@ -250,11 +261,11 @@ async def start_income(update: Update, context: CallbackContext):
     )
     texts = check_language(update, context)
 
-    # "/income trading 300" — save immediately, no conversation (T-035)
+    # "/income trading 300" — save immediately, no conversation (T-035).
+    # On failure save_income_text already replied the specific error (dv-5465).
     if context.args:
         if await save_income_text(update, context, " ".join(context.args)):
             return ConversationHandler.END
-        await update.effective_message.reply_text(texts.TRANSACTION_ERROR_TEXT)
 
     await update.effective_message.reply_text(
         texts.INCOME_HELP, parse_mode=ParseMode.HTML
@@ -272,7 +283,7 @@ async def process_income(update: Update, context: CallbackContext):
     texts = check_language(update, context)
 
     if not await save_income_text(update, context, update.effective_message.text):
-        await update.effective_message.reply_text(texts.TRANSACTION_ERROR_TEXT)
+        # Error already replied inside save_income_text (dv-5465)
         return PROCESS_INCOME
     return ConversationHandler.END
 
@@ -292,7 +303,7 @@ async def process_income_menu(update: Update, context: CallbackContext):
     texts = check_language(update, context)
 
     if not await save_income_text(update, context, update.effective_message.text):
-        await update.effective_message.reply_text(texts.TRANSACTION_ERROR_TEXT)
+        # Error already replied inside save_income_text (dv-5465)
         return PROCESS_INCOME
 
     # Typed-input flow: the anchor message is the income prompt far above, so

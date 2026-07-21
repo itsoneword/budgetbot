@@ -45,6 +45,7 @@ INCOME_HELP = """💵 Добавьте доход сразу: <code>/income за
 <code>сумма</code>\n
 Месячная статистика дохода — /show_income; список записей с ID — <code>/show_last доход</code>. Ввели неверное значение? /delete_income удалит последнюю запись дохода, а <code>/delete_income id</code> — конкретную.
  """
+INCOME_INVALID_DATE = "⚠️ '{token}' похоже на дату, но это некорректная дата (используйте дд.мм, например 05.07, или дд.мм.гггг). Ничего не сохранено — попробуйте ещё раз."
 
 RECORDS_NOT_FOUND_TEXT = "Записи не найдены."
 RECORDS_TEMPLATE = """

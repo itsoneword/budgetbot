@@ -75,13 +75,17 @@ def process_income_input(user_id, parts: list) -> tuple:
     """
     Process income input text and extract timestamp and category.
     Pure parsing function - no file I/O.
-    
+
     Args:
         user_id: User ID (not used, kept for API compatibility)
         parts: List of input text parts (split by space)
-    
+
     Returns:
         tuple: (timestamp, category)
+
+    Raises:
+        ValueError: propagated from _parse_income_date when the first token is
+        date-shaped but not a valid date — callers must not save anything.
     """
     # user_id not used in this function, but kept for API compatibility
     timestamp = datetime.now(timezone.utc)
@@ -106,40 +110,40 @@ def process_income_input(user_id, parts: list) -> tuple:
     return timestamp, category
 
 
+# Date *shape* for income tokens: a token matching this but failing strict
+# parsing is an invalid date the user meant as one — reject, never reinterpret
+# as a category (dv-5465).
+_DATE_SHAPE = re.compile(r"^\d{1,2}\.\d{1,2}(\.\d{1,4})?$")
+
+
 def _parse_income_date(text: str) -> Optional[datetime]:
     """
-    Parse a date token from income input; None if it isn't a date.
+    Parse a date token from income input: exactly dd.mm or dd.mm.yyyy.
+    Returns None when the token is not date-shaped at all (a category);
+    raises ValueError when it is date-shaped but invalid ('99.99', '29.02'
+    in a non-leap year, 2-digit years) so nothing gets saved from it.
     When the year was not given explicitly (dd.mm), a future result means the
     user was backfilling — roll back one year (T-033). Explicit future years
     are left alone here and caught by the save-path clamp.
     """
-    from dateutil.parser import parse, ParserError
-
     now = datetime.now(timezone.utc)
 
-    # "dd.mm" first — dateutil mangles it (reads "31.12" as day 31 of the
-    # *default* month, discarding the month), so parse it explicitly.
     try:
         ddmm = datetime.strptime(f"{now.year}-{text}", "%Y-%d.%m")
         return resolve_backdated_year(ddmm.replace(tzinfo=timezone.utc), now)
     except ValueError:
         pass
 
-    today = datetime(now.year, now.month, now.day)
+    # Explicit year — no backdating heuristic; %Y requires exactly 4 digits,
+    # so 2-digit years fall through to the shape check below.
     try:
-        parsed = parse(text, dayfirst=True, default=today)
-        # Re-parse with a different default year: if the result changes, the
-        # input had no explicit year and the current year was assumed.
-        year_was_assumed = parse(
-            text, dayfirst=True, default=today.replace(year=now.year - 4)
-        ).year != parsed.year
-    except (ValueError, OverflowError, ParserError):
-        return None
+        return datetime.strptime(text, "%d.%m.%Y").replace(tzinfo=timezone.utc)
+    except ValueError:
+        pass
 
-    parsed = parsed.replace(tzinfo=timezone.utc)
-    if year_was_assumed:
-        parsed = resolve_backdated_year(parsed, now)
-    return parsed
+    if _DATE_SHAPE.match(text):
+        raise ValueError(f"invalid date: {text!r}")
+    return None
 
 
 def _parse_date_to_utc(mdate: str) -> str:

@@ -318,8 +318,9 @@ async def _confirm_pending_by_voice(
         )
         from src.handlers.records import save_income_text
 
-        if not await save_income_text(update, context, payload):
-            await update.effective_message.reply_text(texts.TRANSACTION_ERROR_TEXT)
+        # Failure replies (bad amount / invalid date) come from
+        # save_income_text itself (dv-5465).
+        await save_income_text(update, context, payload)
     else:
         await status.edit_text(
             texts.VOICE_TX_CONFIRMED_VOICE.format(
@@ -481,8 +482,8 @@ async def handle_voice_income_confirmation(update: Update, context: CallbackCont
             context, interaction_id, update.effective_user.id, "confirmed"
         )
         await query.edit_message_text(texts.VOICE_INCOME_ACCEPTED.format(income=income_text))
-        if not await save_income_text(update, context, income_text):
-            await query.message.reply_text(texts.TRANSACTION_ERROR_TEXT)
+        # Failure replies come from save_income_text itself (dv-5465).
+        await save_income_text(update, context, income_text)
     else:
         await _set_outcome_safe(
             context, interaction_id, update.effective_user.id, "cancelled"
@@ -525,8 +526,8 @@ async def handle_voice_fix_confirmation(update: Update, context: CallbackContext
     if is_income:
         from src.handlers.records import save_income_text
 
-        if not await save_income_text(update, context, fix_text):
-            await query.message.reply_text(texts.TRANSACTION_ERROR_TEXT)
+        # Failure replies come from save_income_text itself (dv-5465).
+        await save_income_text(update, context, fix_text)
     else:
         await _inject_text(update, context, fix_text)
 
