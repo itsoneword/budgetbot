@@ -30,6 +30,73 @@ import asyncio
 
 logger = logging.getLogger(__name__)
 
+# Marker shown before income rows in the edit list and detail views.
+# It must only ever go into message text — never into the display strings
+# passed to create_numbered_transaction_keyboard, which parses the tx id
+# out of them (see format_entry_line vs to_display_string below).
+INCOME_MARKER = "💵"
+
+# Callbacks only valid for one transaction type (T-035-style guard).
+_SPENDING_ONLY_CALLBACKS = {"edit_category", "edit_subcategory"}
+_INCOME_ONLY_CALLBACKS = {"edit_income_category"}
+
+
+def format_entry_line(i: int, tx) -> str:
+    """Render one row of the edit-recent-entries list (1-based index).
+
+    Spending rows keep the historical format; income rows are marked with
+    INCOME_MARKER and have no subcategory part.
+    """
+    if tx.transaction_type == 'income':
+        return f"{i}. {INCOME_MARKER} {tx.date_str} - {tx.category}: {tx.amount} {tx.currency}"
+    return f"{i}. {tx.date_str} - {tx.category}: {tx.subcategory} {tx.amount} {tx.currency}"
+
+
+def is_edit_type_mismatch(callback_data: str, transaction_type: str) -> bool:
+    """True when a callback belongs to the other transaction type's keyboard
+    (stale or forged callback on a re-selected row)."""
+    if transaction_type == 'income' and callback_data in _SPENDING_ONLY_CALLBACKS:
+        return True
+    if transaction_type != 'income' and callback_data in _INCOME_ONLY_CALLBACKS:
+        return True
+    return False
+
+
+def format_transaction_details(transaction: dict, texts) -> str:
+    """Details text for the edit view, type-aware (income has no subcategory)."""
+    if transaction.get('transaction_type') == 'income':
+        return texts.TRANSACTION_DETAILS_INCOME.format(
+            timestamp=transaction['timestamp'],
+            category=transaction['category'],
+            amount=transaction['amount'],
+            currency=transaction['currency']
+        )
+    return texts.TRANSACTION_DETAILS.format(
+        timestamp=transaction['timestamp'],
+        category=transaction['category'],
+        subcategory=transaction['subcategory'],
+        amount=transaction['amount'],
+        currency=transaction['currency']
+    )
+
+
+def format_delete_confirmation(transaction: dict, texts) -> str:
+    """Delete-confirmation text, type-aware (income has no subcategory)."""
+    if transaction.get('transaction_type') == 'income':
+        return texts.CONFIRM_DELETE_INCOME.format(
+            timestamp=transaction['timestamp'],
+            category=transaction['category'],
+            amount=transaction['amount'],
+            currency=transaction['currency']
+        )
+    return texts.CONFIRM_DELETE_TRANSACTION.format(
+        timestamp=transaction['timestamp'],
+        category=transaction['category'],
+        subcategory=transaction['subcategory'],
+        amount=transaction['amount'],
+        currency=transaction['currency']
+    )
+
 
 async def show_recent_entries(update: Update, context: CallbackContext) -> int:
     """Show list of recent transactions with pagination."""
@@ -52,10 +119,9 @@ async def show_recent_entries(update: Update, context: CallbackContext) -> int:
         transactions_months=12  # Last year of transactions
     )
 
-    # Get spending transactions and sort by timestamp (newest first)
-    spending = filter_by_type(session.transactions, 'spending')
-    spending = sorted(spending, key=lambda x: x.timestamp, reverse=True)
-    transactions = spending[:records_to_fetch]
+    # Both spendings and income (dv-0b63), sorted by timestamp (newest first)
+    all_transactions = sorted(session.transactions, key=lambda x: x.timestamp, reverse=True)
+    transactions = all_transactions[:records_to_fetch]
 
     if not transactions:
         if update.callback_query:
@@ -70,8 +136,9 @@ async def show_recent_entries(update: Update, context: CallbackContext) -> int:
             )
         return ConversationHandler.END
 
-    # Calculate total amount for display
-    total_amount = get_total(transactions)
+    # Calculate total amount for display — spendings only, income rows are
+    # visible but not netted into the header figure (owner decision, dv-0b63)
+    total_amount = get_total(filter_by_type(transactions, 'spending'))
 
     # Limit page number to available pages
     max_page = (len(transactions) - 1) // transactions_per_page
@@ -87,11 +154,10 @@ async def show_recent_entries(update: Update, context: CallbackContext) -> int:
     # Store transactions in context for selection
     context.user_data['recent_transactions'] = transactions
 
-    # Format transactions as text
-    transaction_lines = []
-    for i, tx in enumerate(display_transactions):
-        line = f"{i+1}. {tx.date_str} - {tx.category}: {tx.subcategory} {tx.amount} {tx.currency}"
-        transaction_lines.append(line)
+    # Format transactions as text (income rows marked, message text only)
+    transaction_lines = [
+        format_entry_line(i + 1, tx) for i, tx in enumerate(display_transactions)
+    ]
 
     transactions_text = "\n".join(transaction_lines)
 
@@ -100,7 +166,9 @@ async def show_recent_entries(update: Update, context: CallbackContext) -> int:
     message_text = texts.EDIT_TRANSACTIONS_PROMPT.format(total_amount, currency)
     message_text += f"\n\n{transactions_text}\n\n{texts.SELECT_TRANSACTION_TO_EDIT}"
 
-    # Create keyboard with numbered buttons - pass display strings for compatibility
+    # Create keyboard with numbered buttons - pass display strings for compatibility.
+    # NOTE: raw to_display_string() only — the keyboard parses "tx_<id>" out of
+    # each string, so the income marker must never be prepended here.
     tx_display_strings = [tx.to_display_string() for tx in display_transactions]
     reply_markup = create_numbered_transaction_keyboard(
         tx_display_strings,
@@ -174,6 +242,7 @@ async def handle_transaction_selection(update: Update, context: CallbackContext)
                 transaction = {
                     'id': tx.id,
                     'timestamp': tx.iso_timestamp,
+                    'transaction_type': tx.transaction_type,
                     'category': tx.category,
                     'subcategory': tx.subcategory,
                     'amount': float(tx.amount),
@@ -186,6 +255,7 @@ async def handle_transaction_selection(update: Update, context: CallbackContext)
             transaction = {
                 'id': repo_transaction.id,
                 'timestamp': repo_transaction.timestamp.strftime('%Y-%m-%dT%H:%M:%S'),
+                'transaction_type': repo_transaction.transaction_type,
                 'category': repo_transaction.category_name,
                 'subcategory': repo_transaction.subcategory_name,
                 'amount': float(repo_transaction.amount),
@@ -204,17 +274,11 @@ async def handle_transaction_selection(update: Update, context: CallbackContext)
         )
         return await show_recent_entries(update, context)
 
-    # Create keyboard with edit options
+    # Create keyboard with edit options (reduced set for income rows)
     reply_markup = create_transaction_edit_keyboard(transaction, texts)
 
-    # Format transaction details
-    message_text = texts.TRANSACTION_DETAILS.format(
-        timestamp=transaction['timestamp'],
-        category=transaction['category'],
-        subcategory=transaction['subcategory'],
-        amount=transaction['amount'],
-        currency=transaction['currency']
-    )
+    # Format transaction details (type-aware)
+    message_text = format_transaction_details(transaction, texts)
 
     await query.edit_message_text(
         message_text,
@@ -244,7 +308,26 @@ async def handle_edit_option(update: Update, context: CallbackContext) -> int:
         return await show_filtered_transactions(update, context)
     elif callback_data == "back_to_transactions":
         return await show_recent_entries(update, context)
-    elif callback_data == "edit_date":
+
+    # T-035-style guard: a stale/forged callback from the other type's
+    # keyboard must never act on this row — notify and re-render the details.
+    current_transaction = context.user_data.get('current_transaction') or {}
+    tx_type = current_transaction.get('transaction_type', 'spending')
+    if is_edit_type_mismatch(callback_data, tx_type):
+        message_text = (
+            texts.EDIT_TYPE_MISMATCH
+            + "\n\n"
+            + format_transaction_details(current_transaction, texts)
+        )
+        reply_markup = create_transaction_edit_keyboard(current_transaction, texts)
+        await query.edit_message_text(
+            message_text,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML
+        )
+        return TRANSACTION_EDIT
+
+    if callback_data == "edit_date":
         await query.edit_message_text(
             texts.ENTER_NEW_DATE_PROMPT,
             parse_mode=ParseMode.HTML
@@ -266,6 +349,14 @@ async def handle_edit_option(update: Update, context: CallbackContext) -> int:
         )
         return EDIT_CATEGORY
 
+    elif callback_data == "edit_income_category":
+        # Income categories are free-form text, not the spending dictionary
+        await query.edit_message_text(
+            texts.ENTER_NEW_INCOME_CATEGORY,
+            parse_mode=ParseMode.HTML
+        )
+        return EDIT_INCOME_CATEGORY
+
     elif callback_data == "edit_subcategory":
         await query.edit_message_text(
             texts.ENTER_NEW_SUBCATEGORY,
@@ -283,12 +374,8 @@ async def handle_edit_option(update: Update, context: CallbackContext) -> int:
     elif callback_data == "delete_transaction":
         reply_markup = create_tx_del_confirmation_keyboard(texts)
 
-        message_text = texts.CONFIRM_DELETE_TRANSACTION.format(
-            timestamp=context.user_data['current_transaction']['timestamp'],
-            category=context.user_data['current_transaction']['category'],
-            subcategory=context.user_data['current_transaction']['subcategory'],
-            amount=context.user_data['current_transaction']['amount'],
-            currency=context.user_data['current_transaction']['currency']
+        message_text = format_delete_confirmation(
+            context.user_data['current_transaction'], texts
         )
 
         await query.edit_message_text(
@@ -492,6 +579,50 @@ async def handle_edit_subcategory(update: Update, context: CallbackContext) -> i
             parse_mode=ParseMode.HTML
         )
         return EDIT_SUBCATEGORY
+
+
+async def handle_edit_income_category(update: Update, context: CallbackContext) -> int:
+    """Handle free-text input of a new category for an income record."""
+    user_id = update.effective_user.id
+    texts = check_language(update, context)
+    repos = get_repos(context)
+
+    # Same normalization as save_income_text (keeps /show_income buckets consistent)
+    new_category = update.message.text.strip().lower()
+
+    if not new_category:
+        await update.message.reply_text(
+            texts.ENTER_NEW_INCOME_CATEGORY,
+            parse_mode=ParseMode.HTML
+        )
+        return EDIT_INCOME_CATEGORY
+
+    # Update transaction in PostgreSQL
+    tx_id = context.user_data['current_tx_id']
+    success = await repos.transactions.update(
+        tx_id, user_id,
+        category_name=new_category
+    )
+
+    if success:
+        await update.message.reply_text(
+            texts.CATEGORY_UPDATED_SUCCESS,
+            parse_mode=ParseMode.HTML
+        )
+
+        if context.user_data.get('return_to_detailed', False):
+            from src.detailed_transactions import show_filtered_transactions
+            context.user_data['tx_page'] = 0
+            return await show_filtered_transactions(update, context)
+        else:
+            context.user_data['tx_page'] = 0
+            return await show_recent_entries(update, context)
+    else:
+        await update.message.reply_text(
+            texts.ERROR_UPDATING_TRANSACTION,
+            parse_mode=ParseMode.HTML
+        )
+        return EDIT_INCOME_CATEGORY
 
 
 async def handle_edit_amount(update: Update, context: CallbackContext) -> int:

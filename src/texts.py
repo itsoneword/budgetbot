@@ -189,12 +189,16 @@ EDIT_TRANSACTIONS_PROMPT = """📝 <b>Edit recent transactions</b>
 This menu allows you see last 30 transactions and quicly edit it. For more detailed view, go to Show Transactions => All transactions.
 \nTotal: <b>{}</b> {}\nSelect a transaction to edit:"""
 TRANSACTION_DETAILS = "<b>Transaction Details</b>\n\nDate: {timestamp}\nCategory: {category}\nSubcategory: {subcategory}\nAmount: {amount} {currency}\n\nSelect what you want to edit:"
+TRANSACTION_DETAILS_INCOME = "💵 <b>Income Details</b>\n\nDate: {timestamp}\nCategory: {category}\nAmount: {amount} {currency}\n\nSelect what you want to edit:"
 ENTER_NEW_DATE_PROMPT = "Please enter the new date in format <code>DD.MM</code> or <code>DD.MM.YYYY</code>:"
 SELECT_NEW_CATEGORY = "Please select the new category:"
 
 ENTER_NEW_SUBCATEGORY = "Please enter the new subcategory name:"
+ENTER_NEW_INCOME_CATEGORY = "Please enter the new income category:"
 ENTER_NEW_AMOUNT_PROMPT = "Please enter the new amount:"
 CONFIRM_DELETE_TRANSACTION = "Are you sure you want to delete this transaction?\n\nDate: {timestamp}\nCategory: {category}\nSubcategory: {subcategory}\nAmount: {amount} {currency}"
+CONFIRM_DELETE_INCOME = "Are you sure you want to delete this income record?\n\n💵 Date: {timestamp}\nCategory: {category}\nAmount: {amount} {currency}"
+EDIT_TYPE_MISMATCH = "⚠️ That option isn't available for this record type — the edit menu has been refreshed."
 DATE_UPDATED_SUCCESS = "✅ Transaction date has been updated."
 CATEGORY_UPDATED_SUCCESS = "✅ Transaction category has been updated."
 SUBCATEGORY_UPDATED_SUCCESS = "✅ Transaction subcategory has been updated."
