@@ -9,12 +9,15 @@ fi
 
 echo "Starting budgetbot with provided API_KEY..."
 
-# Claude subscription OAuth: link credentials from the read-only host mount so
-# host-side token refreshes (atomic renames) are always picked up (T-019).
-if [ -f "/host-claude/.credentials.json" ]; then
-  mkdir -p /root/.claude
-  ln -sf /host-claude/.credentials.json /root/.claude/.credentials.json
+# LLM auth (T-038): dedicated long-lived setup-token via CLAUDE_CODE_OAUTH_TOKEN
+# from .env — no shared host credentials, nothing to refresh, no rotation races.
+if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+  echo "WARNING: CLAUDE_CODE_OAUTH_TOKEN not set — /ask and voice AI will fail." \
+       "Generate one with 'claude setup-token' and add it to .env."
 fi
+# Defensive: an older container generation symlinked/captured shared host
+# credentials at this path; make sure only the env token can ever be used.
+rm -f /root/.claude/.credentials.json
 
 # Make sure the config directory exists
 if [ ! -d "/app/configs" ]; then

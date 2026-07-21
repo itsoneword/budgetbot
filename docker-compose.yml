@@ -33,14 +33,15 @@ services:
     volumes:
       # Persist user data (read-only during migration, then can remove)
       - ./user_data:/app/user_data
-      # Claude CLI + subscription OAuth credentials for /ask (T-018), read-only.
-      # Host ~/.claude is mounted as a DIRECTORY, not the credentials file alone:
-      # the CLI refreshes tokens by atomic rename, and a single-file bind mount
-      # keeps pointing at the deleted pre-refresh inode (expired token).
-      # entrypoint.sh symlinks /root/.claude/.credentials.json into this mount.
+      # Claude CLI for /ask (T-018), read-only. Auth is a dedicated long-lived
+      # setup-token via CLAUDE_CODE_OAUTH_TOKEN in .env (T-038). The host's
+      # ~/.claude OAuth credentials are deliberately NOT mounted: sharing the
+      # refresh-token chain caused rotation races — whichever client refreshed
+      # first captured the session and logged the others out (host Claude
+      # Code, Devvy). The setup-token is static (~1-year expiry, regenerate
+      # with `claude setup-token`), so the container never refreshes anything.
       - /home/cleversol/.local/share/claude:/home/cleversol/.local/share/claude:ro
       - /home/cleversol/.local/bin/claude:/usr/local/bin/claude:ro
-      - /home/cleversol/.claude:/host-claude:ro
       # Whisper weights for voice input (T-019) — host HF cache already holds
       # faster-whisper-small (shared with Devvybot); rw so HF can write lock files.
       - /home/cleversol/.cache/huggingface:/root/.cache/huggingface

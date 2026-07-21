@@ -2,10 +2,10 @@
 
 # Task Board
 
-Updated: 2026-07-19 · see docs/ROADMAP.md for milestones
+Updated: 2026-07-21 · see docs/ROADMAP.md for milestones
 
-## Doing (0)
-_empty_
+## Doing (1)
+- **T-038** `p1/bug/infra` LLM auth: dedicated token for container, stop sharing host OAuth credentials — last: 2026-07-21 Plan revised (owner steer 2026-07-21): dedicated setup-token via CLAUDE_CODE_OAUTH_TOKEN instead of int_prep access-token mirror — mirror keeps bot coupled to host login health, and raw-HTTP rewrite would now have to reimplement the T-051 agentic MCP tool loop. Docs verified: token static, ~1yr expiry, no rotation (nothing to race), documented headless method. Compose /host-claude mount removed, entrypoint symlink replaced with env check + defensive credential cleanup, .env slot added, isolation test script prepared. Blocked on owner: run 'claude setup-token', paste into .env
 
 ## Review (6)
 - **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating — last: 2026-07-07 created from production-readiness T1 + O2
@@ -16,12 +16,12 @@ _empty_
 - **T-010** `p2/ops/infra` Currency API circuit breaker — last: 2026-07-07 created from production-readiness P4
 
 ## Todo (6)
-- **T-038** `p1/bug/infra` LLM auth: dedicated token for container, stop sharing host OAuth credentials
 - **T-037** `p2/feature/bot` Income in Edit-recent-entries menu: list, edit, delete income records
 - **T-040** `p2/bug/bot` Income date parser accepts garbage: 99.99 backdates to 1999, 29.02 non-leap reinterpreted
 - **T-043** `p2/feature/bot` Voice channel: 'yes' confirms pending proposal; graceful reply to conversational/meta messages
 - **T-047** `p2/feature/bot` Reminder v2: always remind (no skip when Tx already added), support multiple reminder times per day
 - **T-050** `p2/bug/bot` states.py collision: PROCESS_INCOME/WAITING_FOR_DOCUMENT/DELETE_PROFILE redefined, PROCESS_INCOME==LIMIT shadows onboarding limit state
+- **T-052** `p2/bug/bot` Voice replies referencing bot's last message aren't resolved (context-dependent NLU)
 
 ## Backlog (11)
 - **T-008** `p2/feature/deploy` Webhook mode + horizontal scaling path _(waiting: T-009)_
