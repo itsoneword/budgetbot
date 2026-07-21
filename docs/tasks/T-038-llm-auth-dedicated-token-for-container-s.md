@@ -1,7 +1,7 @@
 ---
 id: T-038
 title: LLM auth: dedicated token for container, stop sharing host OAuth credentials
-status: doing
+status: review
 type: bug
 area: infra
 priority: p1
@@ -37,14 +37,33 @@ Decision (owner, 2026-07-12): for the current *testing* phase we stay on the Max
 Dedicated long-lived `claude setup-token` in `CLAUDE_CODE_OAUTH_TOKEN` (.env), keeping the claude-agent-sdk backend unchanged. Rationale: (a) the 07-21 incident proved the shared refresh chain is winner-takes-all — the container captured the session and logged out host Claude Code/Devvy; (b) the int_prep mirror only samples the host's access token, so the bot dies whenever the host login dies — the opposite of decoupling; (c) the raw-HTTP rewrite would now also have to reimplement the T-051 agentic MCP tool loop with Claude-Code impersonation. The setup-token is static (~1-year expiry, no refresh token, nothing to race) and is the documented headless auth for CI/Docker. Yearly manual regeneration accepted. int_prep pattern kept above as the rejected alternative; API/OpenRouter migration stays deferred until bot dev settles (owner 2026-07-21).
 
 ## Acceptance
-- [ ] Container authenticates via CLAUDE_CODE_OAUTH_TOKEN only: no host `~/.claude` mount, no `credentials.json` in the container, entrypoint symlink step gone
-- [ ] SDK+CLI verified to honor the env token in isolation (empty HOME — replicates container) before rebuild
+- [x] Container authenticates via CLAUDE_CODE_OAUTH_TOKEN only: no host `~/.claude` mount, no `credentials.json` in the container, entrypoint symlink step gone
+- [x] SDK+CLI verified to honor the env token in isolation (empty HOME — replicates container) before rebuild
 - [ ] `/ask` (agentic tool loop) and voice intent classification work from the rebuilt container
-- [ ] `usage_meter` telemetry still lands (backend unchanged — regression check only)
+- [x] `usage_meter` telemetry still lands (backend unchanged — regression check only)
 - [ ] Host `/login` session and Devvy unaffected by bot LLM traffic (no shared refresh chain; confirm over following days)
+
+## Testing
+
+Container is already rebuilt and running with the new auth; in-container `complete()` verified (PONG + usage row). Remaining checks are Telegram-side and time-based.
+
+### Critical
+- [ ] /ask how much did I spend this month? — answers normally (single-shot path)
+- [ ] Ask AI menu → typed question needing raw rows (e.g. "when did I last buy wine?") — agentic tool loop works over the new auth (multi-turn, longer call)
+- [ ] Voice message with a transaction — intent classification (haiku) works
+- [ ] Host: run /login once; confirm Claude Code and Devvy work and STAY logged in over the next days while the bot keeps making LLM calls
+
+### Important
+- [ ] docker logs: no auth errors/warnings from claude CLI spawns; "LLM query done" lines present
+- [ ] user_data/llm-usage.jsonl keeps accumulating rows from real /ask traffic
+
+### Nice-to-have
+- [ ] Note token expiry (~2027-07) somewhere you'll see it — e.g. a calendar reminder to re-run `claude setup-token`
 
 ## Log
 - 2026-07-12 created
 - 2026-07-12 owner supplied the int_prep access-token-only pattern; scoped as a raw-HTTP backend rewrite (not a config tweak) + compose mount swap. Long-term OpenRouter/API migration deferred to a separate task. Ready for implementation.
 - 2026-07-21 started
 - 2026-07-21 Plan revised (owner steer 2026-07-21): dedicated setup-token via CLAUDE_CODE_OAUTH_TOKEN instead of int_prep access-token mirror — mirror keeps bot coupled to host login health, and raw-HTTP rewrite would now have to reimplement the T-051 agentic MCP tool loop. Docs verified: token static, ~1yr expiry, no rotation (nothing to race), documented headless method. Compose /host-claude mount removed, entrypoint symlink replaced with env check + defensive credential cleanup, .env slot added, isolation test script prepared. Blocked on owner: run 'claude setup-token', paste into .env
+- 2026-07-21 Verified: isolation test (empty HOME) PASS; container rebuilt without /host-claude mount; in-container LLM call PASS via env token only; no credentials.json materializes after calls; usage_meter row recorded. Remaining: owner TG test of /ask+voice, multi-day no-logout confirmation
+- 2026-07-21 moved to review

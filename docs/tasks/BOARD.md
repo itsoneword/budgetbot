@@ -4,11 +4,12 @@
 
 Updated: 2026-07-21 · see docs/ROADMAP.md for milestones
 
-## Doing (1)
-- **T-038** `p1/bug/infra` LLM auth: dedicated token for container, stop sharing host OAuth credentials — last: 2026-07-21 Plan revised (owner steer 2026-07-21): dedicated setup-token via CLAUDE_CODE_OAUTH_TOKEN instead of int_prep access-token mirror — mirror keeps bot coupled to host login health, and raw-HTTP rewrite would now have to reimplement the T-051 agentic MCP tool loop. Docs verified: token static, ~1yr expiry, no rotation (nothing to race), documented headless method. Compose /host-claude mount removed, entrypoint symlink replaced with env check + defensive credential cleanup, .env slot added, isolation test script prepared. Blocked on owner: run 'claude setup-token', paste into .env
+## Doing (0)
+_empty_
 
-## Review (6)
+## Review (7)
 - **T-006** `p1/ops/infra` Unit tests for domain/ + CI gating — last: 2026-07-07 created from production-readiness T1 + O2
+- **T-038** `p1/bug/infra` LLM auth: dedicated token for container, stop sharing host OAuth credentials — last: 2026-07-21 moved to review
 - **T-044** `p1/bug/bot` Menu UX: edit-in-place navigation, stop stacking new messages on submenu actions — last: 2026-07-19 created
 - **T-045** `p1/feature/bot` Ask AI menu tap opens typed-question mode (like Add transaction) — last: 2026-07-19 moved to review
 - **T-046** `p1/bug/bot` awaiting_ask intercepted too late: typed question after Ask AI tap hits transaction parser — last: 2026-07-19 moved to review
