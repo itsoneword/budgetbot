@@ -1,14 +1,14 @@
 ---
 id: dv-3ace
 title: Currency API circuit breaker
-status: in_progress
+status: done
 priority: medium
 assignee: 
 labels: [ops, infra]
 deps: []
 parent: 
 created: 2026-07-19T14:55:25Z
-updated: 2026-07-19T15:16:19Z
+updated: 2026-07-21T11:40:47Z
 ---
 
 ## Description
