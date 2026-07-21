@@ -1,14 +1,14 @@
 ---
 id: dv-ff5f
 title: Reminder v2: always remind, support multiple reminder times per day
-status: todo
+status: in_progress
 priority: medium
-assignee: 
+assignee: claude
 labels: [feature, bot]
 deps: []
 parent: 
 created: 2026-07-19T14:55:32Z
-updated: 2026-07-19T14:55:32Z
+updated: 2026-07-21T12:10:00Z
 ---
 
 ## Description
