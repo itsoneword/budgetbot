@@ -16,7 +16,6 @@ user_list.csv
 .env
 config
 todos.txt
-deploy.sh
 .opencode/
 .claude/settings.local.json
 .claude/hooks-state/

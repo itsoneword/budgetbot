@@ -165,19 +165,19 @@ For the currency `df.apply` hot path: vectorize. Build a `Series` of rates by ma
 - Postgres data lives in a Docker volume. **No backup automation.** A volume-corruption bug = total data loss.
 - Add `pg_dump` to S3/Backblaze on a schedule (daily full + WAL streaming, or just daily full at this scale).
 
-### O4. Postgres exposed publicly
+### O4. Postgres exposed publicly — RESOLVED (dv-6caa, 2026-07-21)
 
-`docker-compose.yml`:
-```yaml
-ports:
-  - "5432:5432"  # Expose for local development; remove in production
-```
-Comment acknowledges it. Keep two compose files (`docker-compose.yml` for dev, `docker-compose.prod.yml` overlay) so the prod variant doesn't expose the port.
+Base `docker-compose.yml` now binds `127.0.0.1:5432` (loopback only, keeps dev
+psql/scripts working); the prod overlay `docker-compose.prod.yml` removes the
+mapping entirely via `!reset`. `./deploy.sh` is the documented prod path.
 
-### O5. Secrets management
+### O5. Secrets management — RESOLVED (dv-6caa, 2026-07-21)
 
-- `configs/config` (token) and `.env` (Postgres password) are file-based and gitignored. Fine for self-hosted single-server deployment.
-- For multi-replica or staged environments, move to a secret manager (Doppler, 1Password CLI, Hashicorp Vault, or just AWS Secrets Manager / GCP Secret Manager).
+Env-file injection, single secrets home on the host: `~/.claude/service-secrets/`
+(`budgetbot.env` for API_KEY/POSTGRES_PASSWORD/ADMIN_USER_ID, `claude-token.env`
+for the shared LLM setup-token, both chmod 600). Repo-local `.env` remains the
+dev copy. A secret manager stays overkill for a single self-hosted box; revisit
+if multi-replica/staged environments arrive (T-008).
 
 ---
 

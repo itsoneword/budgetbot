@@ -49,7 +49,9 @@ cp configs/config.example configs/config       # if you keep an example; otherwi
 echo "POSTGRES_PASSWORD=changeme" > .env
 
 # 3. Boot the stack
-docker compose up -d --build
+./deploy.sh --dev      # dev: Postgres bound to 127.0.0.1:5432 only
+./deploy.sh            # prod: overlay removes the DB port entirely; secrets
+                       # from ~/.claude/service-secrets/budgetbot.env (dv-6caa)
 
 # 4. Tail logs
 docker logs -f budgetbot-container

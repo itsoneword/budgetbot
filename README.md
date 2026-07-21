@@ -51,10 +51,12 @@ TOKEN = place_your_token_here
 Then start the stack (PostgreSQL + bot):
 
 ```bash
-docker compose up -d --build
+./deploy.sh --dev    # dev: base compose, Postgres on 127.0.0.1:5432 only
+./deploy.sh          # prod: adds docker-compose.prod.yml overlay — no DB port
+                     # published, secrets from ~/.claude/service-secrets/budgetbot.env
 ```
 
-Set `POSTGRES_PASSWORD` in `.env` for anything beyond local testing. Postgres data persists in `./pgdata`. The optional AI features (/ask, voice routing) expect a Claude CLI + credentials mounted into the container — see `docker-compose.yml` comments.
+Dev reads secrets from the repo-local `.env` (`API_KEY`, `POSTGRES_PASSWORD`, `ADMIN_USER_ID`); prod reads the same keys from `/home/cleversol/.claude/service-secrets/budgetbot.env` (chmod 600) so they survive re-clones. Postgres data persists in `./pgdata`. The optional AI features (/ask, voice routing) authenticate via a dedicated `claude setup-token` env file — see `docker-compose.yml` comments (T-038); host OAuth credentials are deliberately not mounted.
 
 Optional: set `SENTRY_DSN` in `.env` to enable Sentry error reporting (`SENTRY_ENVIRONMENT` defaults to `prod`). Leave it unset to run without Sentry — the SDK is never even imported.
 

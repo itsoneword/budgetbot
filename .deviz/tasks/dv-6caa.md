@@ -1,10 +1,10 @@
 ---
 id: dv-6caa
 title: Deploy hardening: prod compose overlay + secrets
-status: todo
+status: review
 priority: medium
-assignee: 
-labels: [backlog, ops, deploy]
+assignee: claude
+labels: [ops, deploy]
 deps: []
 parent: 
 created: 2026-07-19T14:55:41Z
@@ -19,9 +19,9 @@ docker-compose.yml exposes Postgres 5432 publicly (dev convenience); secrets are
 
 ## Acceptance Criteria
 
-- [ ] docker-compose.prod.yml overlay without exposed DB port
-- [ ] Secrets handling documented (env injection or manager)
-- [ ] deploy.sh updated for the overlay
+- [x] docker-compose.prod.yml overlay without exposed DB port
+- [x] Secrets handling documented (env injection or manager)
+- [x] deploy.sh updated for the overlay
 
 ## Notes
 
@@ -45,7 +45,24 @@ Open questions (recommended defaults):
 
 Risks: the sharpest edge is muscle memory — a bare `docker compose up -d` (without the overlay) still works but silently skips the prod hardening; mitigation is that the base file now binds loopback-only, so the worst case is 127.0.0.1 exposure, not public, and deploy.sh becomes the documented path. If the compose CLI on the host were ever downgraded below 2.24, `!reset` and `required: false` would parse-fail loudly at `config` time (fail-closed, acceptable; host has 2.40.3). Moving `POSTGRES_PASSWORD` interpolation to `--env-file` means running the prod overlay *without* that flag would fall back to `budgetbot_dev_pass`, which won't match the initialized `./pgdata` password — the bot then fails its healthcheck immediately rather than corrupting anything (Postgres only reads `POSTGRES_PASSWORD` at first init). Host-level listeners outside this repo (0.0.0.0:2222, netdata 19999, nginx 80/443) were observed during the port audit but belong to other services — noted so they aren't mistaken for BudgetBot's; a separate host-hardening pass may be worth its own task.
 
+## Testing
+
+Deployed to prod 2026-07-21 12:04 UTC via ./deploy.sh — both containers healthy, no host 5432 listener (`ss -tln`), merged config verified port-free. Remaining manual items:
+
+### Critical
+- [ ] From an EXTERNAL machine: `nc -vz <host-ip> 5432` times out / refuses (can't be verified from the host itself)
+- [ ] Telegram round-trip on the freshly deployed bot: /about answers, add a spending, /show_last shows it
+- [ ] AI path still authenticates (send /ask something) — env_file refactor must not have broken CLAUDE_CODE_OAUTH_TOKEN injection
+
+### Important
+- [ ] `./deploy.sh --dev` re-exposes 5432 on loopback only, `python3 scripts/verify_postgres.py` connects
+- [ ] `./deploy.sh` preflight fails loudly if budgetbot.env is missing or not 600 (rename it temporarily to test)
+
+### Nice-to-have
+- [ ] `./deploy.sh --config` output matches expectations after any future compose edit (note: prints resolved secrets — treat output as sensitive)
+
 ### Log
 
 - 2026-07-07 created from production-readiness O4 + O5
 - 2026-07-21 Implementation plan proposed (loopback base binding + !reset prod overlay, secrets to ~/.claude/service-secrets/budgetbot.env, deploy.sh rewritten as compose wrapper; 3 open questions batched to owner). Found: Postgres publicly bound on 0.0.0.0:5432 right now.
+- 2026-07-21 Owner: apply pg fix first + restart container; planner defaults accepted. Implemented per plan: base compose loopback binding + optional .env, prod overlay with !reset ports + budgetbot.env, secrets file created on host (600), deploy.sh rewritten as compose wrapper with health wait, .gitignore lie removed, README/project.md/production-readiness (O4+O5 resolved)/DECISIONS.md updated. Deployed: bot rebuilt on c0fa7d2, healthy, host 5432 closed. To review for owner's external-machine + Telegram checks.

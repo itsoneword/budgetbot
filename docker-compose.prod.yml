@@ -1,0 +1,18 @@
+# Production overlay (dv-6caa). Apply with:
+#   docker compose --env-file /home/cleversol/.claude/service-secrets/budgetbot.env \
+#     -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# or just ./deploy.sh, which encodes exactly that.
+# The --env-file flag is required: ${POSTGRES_PASSWORD} interpolation in the
+# base file reads the CLI env-file, not service env_file entries.
+services:
+  postgres:
+    # Remove the port mapping entirely: nothing outside the compose network
+    # talks to Postgres in prod. !reset needs Compose >= 2.24 (host: 2.40).
+    ports: !reset []
+
+  budgetbot:
+    env_file:
+      # Single secrets home on this host (T-038 pattern): API_KEY,
+      # POSTGRES_PASSWORD, ADMIN_USER_ID. 600-perm, survives re-clone.
+      - path: /home/cleversol/.claude/service-secrets/budgetbot.env
+        required: true
