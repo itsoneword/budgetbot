@@ -35,7 +35,7 @@ from domain.memory import (
     split_for_compaction,
 )
 from domain.recurring import is_due
-from domain.reminders import is_due as reminder_is_due, local_day_start_utc
+from domain.reminders import is_due as reminder_is_due
 from shared.di import get_repos
 from src.config import AI_INTERACTION_COMPACT_CHARS
 from src.language_util import get_texts_for_language
@@ -108,7 +108,13 @@ async def run_recurring_rules(context: CallbackContext) -> None:
 
 
 async def run_reminders(context: CallbackContext) -> None:
-    """Send every due daily add-transactions reminder (T-034 sweep)."""
+    """Send every due daily add-transactions reminder (T-034 sweep).
+
+    Always reminds (owner decision 2026-07-19, dv-ff5f) — no skip when the
+    user already logged transactions that day. A user may have several
+    active times; each row fires at most once per local day on its own
+    last_sent_on cursor.
+    """
     repos = get_repos(context)
     now_utc = datetime.now(timezone.utc)
     sent = 0
@@ -121,13 +127,6 @@ async def run_reminders(context: CallbackContext) -> None:
             # Claim the local date first: False means another sweep (or a
             # restart replay) already handled it — skip without side effects.
             if not await repos.reminders.claim_send(reminder.id, due):
-                continue
-
-            # Skip-if-logged (owner decision 2026-07-11): a user who already
-            # logged something this local day doesn't need the nudge. The
-            # claim stays consumed — one decision per day, no late re-fires.
-            day_start = local_day_start_utc(due, tz_offset_min)
-            if await repos.transactions.has_transaction_since(reminder.user_id, day_start):
                 continue
 
             config = await repos.users.get_config(reminder.user_id)

@@ -135,8 +135,8 @@ COMMANDS: Tuple[CommandSpec, ...] = (
     ),
     CommandSpec(
         "reminder", "reminder_command",
-        "⏰ Daily reminder to log transactions: /reminder 17:00 to set, /reminder off to disable",
-        "⏰ Ежедневное напоминание записать траты: /reminder 17:00 — включить, /reminder off — выключить",
+        "⏰ Daily reminders to log transactions: /reminder 17:00 adds a time (several allowed), /reminder off disables all",
+        "⏰ Ежедневные напоминания записать траты: /reminder 17:00 — добавить время (можно несколько), /reminder off — выключить все",
     ),
     CommandSpec(
         "ask", "ask",
